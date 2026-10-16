@@ -1,0 +1,30 @@
+--- a/CODE/PHP/index.php
++++ b/CODE/PHP/index.php
+@@ -3997 +3997 @@
+-                    <div style="text-align:center; margin:10px 0 20px;"><a href="/NexGen/CODE/PHP/forgot_password.php" id="forgotPasswordLink" style="color:#777; font-size:13px; text-decoration:none;">Forgot Your Password?</a></div>
++                    <div style="text-align:center; margin:10px 0 20px;"><a href="<?php echo e(nxAppUrl('forgot_password.php?portal=client')); ?>" id="forgotPasswordLink" style="color:#777; font-size:13px; text-decoration:none;">Forgot Your Password?</a></div>
+@@ -5865,0 +5866,7 @@
++    const forgotEndpoints = Object.freeze({
++        lookup: <?php echo json_encode(nxAppUrl('forgot_password_lookup.php'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>,
++        sendOtp: <?php echo json_encode(nxAppUrl('send_forgot_otp.php'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>,
++        reset: <?php echo json_encode(nxAppUrl('process_reset_password.php'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
++    });
++    const forgotPortal = 'client';
++
+@@ -5956 +5963,2 @@
+-        return fpPost('/NexGen/CODE/PHP/send_forgot_otp.php', formData)
++        if (!formData.has('portal')) formData.append('portal', forgotPortal);
++        return fpPost(forgotEndpoints.sendOtp, formData)
+@@ -5988,0 +5997 @@
++            fd.append('portal', forgotPortal);
+@@ -5991 +6000 @@
+-            fpPost('/NexGen/CODE/PHP/forgot_password_lookup.php', fd)
++            fpPost(forgotEndpoints.lookup, fd)
+@@ -5999 +6008 @@
+-                        return requestForgotOtp(new FormData(), forgotEmailAlert);
++                        return;
+@@ -6048,0 +6058 @@
++            fd.append('portal', forgotPortal);
+@@ -6051 +6061 @@
+-            fpPost('/NexGen/CODE/PHP/process_reset_password.php', fd)
++            fpPost(forgotEndpoints.reset, fd)

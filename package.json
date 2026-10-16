@@ -1,0 +1,18 @@
+{
+  "name": "nexgen",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "lint": "eslint \"CODE/JS/**/*.js\"",
+    "lint:fix": "eslint \"CODE/JS/**/*.js\" --fix",
+    "predeploy": "npm run lint"
+  },
+  "dependencies": {
+    "bootstrap": "^5.3.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.17.0",
+    "globals": "^15.13.0"
+  }
+}

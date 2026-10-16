@@ -1,0 +1,1262 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap");
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* =========================
+   TOKENS
+   Settings.css now owns these variables itself (loaded after
+   header.css, so this wins) instead of trusting header.css's
+   dark-mode values — that's what was making headings/labels
+   render dark-on-dark and disappear. Palette matches the Sales
+   page: navy/gold in dark mode, sky-blue/copper in light mode.
+========================= */
+:root {
+  --text-heading: #ffffff;
+  --text-body: #c7dbfa;
+  --text-dim: #9fb8e0;
+  --bg-page: #050b24;
+  --bg-card: rgba(11, 31, 115, 0.5);
+  --border-subtle: rgba(255, 221, 85, 0.22);
+  --shadow-color: rgba(0, 3, 61, 0.4);
+  --ink-900: #0b1f73;
+  --copper-300: #ffdd55;
+  --copper-500: #f6cb08;
+  --blue-chip-1: #0033ff;
+  --blue-chip-2: #0b1f73;
+}
+
+html[data-theme="light"] {
+  --text-heading: #0b1f73;
+  --text-body: #3a5a8f;
+  --text-dim: #5a7ab0;
+  --bg-page: #eaf4ff;
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --border-subtle: #bde0fe;
+  --shadow-color: rgba(10, 20, 64, 0.14);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: "Inter", Arial, sans-serif;
+  color: var(--text-heading);
+  background: var(--bg-page);
+  overflow-x: hidden;
+  transition:
+    background 0.35s ease,
+    color 0.35s ease;
+}
+
+.settings-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  background:
+    radial-gradient(
+      circle at 12% 8%,
+      rgba(59, 130, 246, 0.3) 0%,
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 88% 15%,
+      rgba(125, 211, 252, 0.14) 0%,
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 50% 100%,
+      rgba(0, 51, 255, 0.22) 0%,
+      transparent 45%
+    ),
+    linear-gradient(180deg, #050b24 0%, #0a1550 45%, #02040f 100%),
+    url("../../IMAGES/introbg.png") no-repeat center center / cover;
+  background-blend-mode: normal;
+  background-attachment: fixed;
+  position: relative;
+  transition: background 0.35s ease;
+}
+
+/* LIGHT MODE — same glow technique, swapped to the swatch palette:
+   Maya Blue + Light Sky Blue glows over an Alice Blue → Columbia Blue wash. */
+html[data-theme="light"] .settings-page {
+  background:
+    radial-gradient(
+      circle at 15% 8%,
+      rgba(143, 201, 255, 0.4) 0%,
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at 85% 15%,
+      rgba(162, 210, 255, 0.32) 0%,
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 50% 100%,
+      rgba(189, 224, 254, 0.45) 0%,
+      transparent 48%
+    ),
+    linear-gradient(180deg, #eaf4ff 0%, #d1e8fc 45%, #e5f0fa 100%),
+    url("../../IMAGES/introbg.png") no-repeat center center / cover;
+}
+
+.settings-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 26, 88, 0.22),
+    rgba(5, 10, 55, 0.24)
+  );
+  pointer-events: none;
+  z-index: 0;
+  transition: background 0.35s ease;
+}
+
+html[data-theme="light"] .settings-page::before {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.55),
+    rgba(229, 240, 250, 0.65)
+  );
+}
+
+.settings-sidebar,
+.settings-content {
+  position: relative;
+  z-index: 2;
+}
+
+/* =========================
+   LEFT PANEL
+   Stays navy in both themes on purpose, same as the sidebar in
+   header.css — it's the one constant surface that anchors the
+   brand while the content area switches with data-theme.
+========================= */
+.settings-sidebar {
+  padding: 22px 16px;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(
+    180deg,
+    rgba(9, 18, 56, 0.94),
+    rgba(11, 31, 115, 0.78),
+    rgba(2, 4, 15, 0.94)
+  );
+  border-right: 1px solid rgba(255, 221, 85, 0.18);
+}
+
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-edit-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sidebar-profile-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 221, 85, 0.16);
+  margin-bottom: 22px;
+  backdrop-filter: blur(6px);
+}
+
+.profile-image-wrapper {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 14px;
+}
+
+.sidebar-profile-img {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: white;
+  border: 3px solid rgba(255, 221, 85, 0.6);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.3),
+    0 0 22px rgba(246, 203, 8, 0.16);
+  display: block;
+  transition: border-color 0.2s ease;
+}
+
+.profile-image-wrapper:hover .sidebar-profile-img {
+  border-color: rgba(255, 221, 85, 0.95);
+}
+
+.sidebar-profile-info {
+  text-align: center;
+}
+
+.sidebar-profile-info h2 {
+  font-family: "Poppins", "Inter", sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 4px;
+  word-break: break-word;
+  color: #ffffff;
+}
+
+.profile-fullname {
+  font-size: 13px;
+  color: #dbeafe;
+  opacity: 0.85;
+  word-break: break-word;
+}
+
+.profile-edit-btn {
+  position: absolute;
+  right: -4px;
+  bottom: -2px;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ffdd55, #f6cb08);
+  color: #0b1f73;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(5, 11, 36, 0.9);
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.profile-edit-btn:hover {
+  transform: scale(1.08);
+}
+
+.hidden-upload-btn {
+  display: none;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border-left: 3px solid transparent;
+  font-size: 14px;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 600;
+  background: transparent;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.nav-item i {
+  font-size: 15px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+.nav-item.active {
+  background: rgba(255, 221, 85, 0.14);
+  border-left-color: #ffdd55;
+  color: #fff;
+}
+
+.settings-sidebar-footer {
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.legal-links {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.back-link-wrap {
+  margin-top: 0;
+}
+
+.back-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.68);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 12.5px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+.back-link:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+.back-link.back-to-dashboard {
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+/* =========================
+   RIGHT PANEL
+========================= */
+.settings-content {
+  padding: 26px 30px;
+}
+
+.settings-panel {
+  display: none;
+  background: linear-gradient(
+    180deg,
+    rgba(11, 31, 115, 0.48) 0%,
+    rgba(2, 4, 15, 0.7) 100%
+  );
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 20px;
+  padding: 26px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(14px);
+  box-shadow:
+    0 20px 50px var(--shadow-color),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition:
+    background 0.35s ease,
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+html[data-theme="light"] .settings-panel {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: #bde0fe;
+  box-shadow: 0 16px 34px var(--shadow-color);
+}
+
+.settings-panel.active-panel {
+  display: block;
+}
+
+.panel-header {
+  position: relative;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 18px;
+  margin-bottom: 24px;
+  transition: border-color 0.35s ease;
+}
+
+.panel-header h1,
+.panel-header h2 {
+  font-family: "Poppins", "Inter", sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: var(--text-heading);
+  margin-bottom: 6px;
+  padding-bottom: 12px;
+  position: relative;
+  display: inline-block;
+  transition: color 0.35s ease;
+}
+
+/* The accent "bar" under the title, same treatment as the Sales
+   page header — a short gold-to-blue underline instead of a plain
+   border, so the settings pages read like the same product. */
+.panel-header h1::after,
+.panel-header h2::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  bottom: 0;
+  width: 64px;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--copper-500) 0%, #3b82f6 100%);
+  box-shadow: 0 0 14px rgba(246, 203, 8, 0.5);
+}
+
+.panel-subtitle {
+  font-size: 13px;
+  color: var(--text-body);
+  font-weight: 400;
+  transition: color 0.35s ease;
+}
+
+.form-top-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group.full {
+  width: 100%;
+}
+
+.form-group label {
+  display: block;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 7px;
+  color: var(--text-dim);
+  font-weight: 700;
+  transition: color 0.35s ease;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 221, 85, 0.18);
+  border-radius: 10px;
+  font-size: 14.5px;
+  font-family: "Inter", Arial, sans-serif;
+  background: rgba(9, 18, 56, 0.55);
+  color: #eef5ff;
+  outline: none;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.35s ease,
+    color 0.35s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  border-color: rgba(255, 221, 85, 0.75);
+  box-shadow: 0 0 0 3px rgba(246, 203, 8, 0.16);
+  background: rgba(9, 18, 56, 0.75);
+}
+
+.form-group input[readonly] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: rgba(238, 245, 255, 0.4);
+}
+
+.form-group textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.password-box {
+  margin-top: 4px;
+}
+
+.form-actions-left {
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+
+.btn {
+  border: none;
+  border-radius: 999px;
+  padding: 11px 22px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: "Inter", Arial, sans-serif;
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn-reset {
+  background: transparent;
+  border: 1px solid rgba(255, 221, 85, 0.35);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.btn-reset:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 221, 85, 0.6);
+}
+
+.btn-save,
+.btn-send-otp {
+  background: linear-gradient(
+    180deg,
+    var(--blue-chip-1) 0%,
+    var(--blue-chip-2) 100%
+  );
+  border: 1px solid rgba(255, 221, 85, 0.3);
+  color: #eef5ff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 8px 22px rgba(10, 20, 64, 0.28);
+}
+
+.btn-save:hover,
+.btn-send-otp:hover {
+  border-color: rgba(255, 221, 85, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 12px 26px rgba(10, 20, 64, 0.32),
+    0 0 0 1px rgba(59, 130, 246, 0.18);
+}
+
+/* =========================
+   INFO CHIP (read-only display, e.g. OTP method)
+========================= */
+.info-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(9, 18, 56, 0.55);
+  border: 1px solid rgba(255, 221, 85, 0.16);
+  font-size: 13.5px;
+  color: #eef5ff;
+}
+
+.info-chip i {
+  font-size: 15px;
+  color: #ffdd55;
+}
+
+/* =========================
+   SEGMENTED CONTROL (security method switch)
+========================= */
+.segmented-control {
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  border-radius: 12px;
+  background: rgba(9, 18, 56, 0.5);
+  border: 1px solid rgba(255, 221, 85, 0.14);
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.segmented-btn {
+  flex: 1 1 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 14px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(238, 245, 255, 0.68);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: "Inter", Arial, sans-serif;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+.segmented-btn i {
+  font-size: 14px;
+}
+
+.segmented-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.segmented-btn.active {
+  background: linear-gradient(
+    180deg,
+    var(--blue-chip-1) 0%,
+    var(--blue-chip-2) 100%
+  );
+  color: #ffdd55;
+  box-shadow:
+    0 0 0 1px rgba(255, 221, 85, 0.3),
+    0 8px 18px rgba(10, 20, 64, 0.3);
+}
+
+/* =========================
+   METHOD CARD (wraps each security method form)
+========================= */
+.security-method {
+  display: none;
+  animation: fadeIn 0.25s ease;
+}
+
+.security-method.active-method {
+  display: block;
+}
+
+.method-card {
+  background: rgba(9, 18, 56, 0.45);
+  border: 1px solid rgba(255, 221, 85, 0.14);
+  border-radius: 16px;
+  padding: 18px 18px 6px;
+}
+
+.method-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.method-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(255, 221, 85, 0.16);
+  color: #ffdd55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.method-card-header h3 {
+  font-family: "Poppins", "Inter", sans-serif;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.method-card-header p {
+  font-size: 12px;
+  color: #b9d4f5;
+  margin-top: 1px;
+}
+
+.step-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(255, 221, 85, 0.2);
+  color: #ffdd55;
+  font-size: 11px;
+  font-weight: 800;
+  margin-right: 7px;
+  flex-shrink: 0;
+}
+
+.step-label {
+  display: flex;
+  align-items: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 12px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.settings-profile-upload {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.settings-profile-img {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: white;
+  border: 4px solid rgba(255, 221, 85, 0.3);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+}
+
+.settings-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 221, 85, 0.2);
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.settings-upload-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 221, 85, 0.4);
+}
+
+#new_profile_image {
+  display: none;
+}
+
+/* =========================
+   LIGHT MODE — content area only.
+   The sidebar is untouched on purpose (see note above). Solid pastel
+   surfaces straight from the swatch palette, not low-alpha tints —
+   flat translucency over white read muddy, this reads like paper.
+========================= */
+html[data-theme="light"] .form-group input,
+html[data-theme="light"] .form-group textarea,
+html[data-theme="light"] .form-group select {
+  background: #eaf4ff;
+  border-color: #bde0fe;
+  color: var(--ink-900);
+}
+
+html[data-theme="light"] .form-group input:focus,
+html[data-theme="light"] .form-group textarea:focus,
+html[data-theme="light"] .form-group select:focus {
+  background: #ffffff;
+  border-color: #c6864c;
+  box-shadow: 0 0 0 3px rgba(198, 134, 76, 0.2);
+}
+
+html[data-theme="light"] .form-group input::placeholder,
+html[data-theme="light"] .form-group textarea::placeholder {
+  color: rgba(10, 26, 51, 0.35);
+}
+
+html[data-theme="light"] .btn-reset {
+  border-color: #8fc9ff;
+  color: var(--ink-900);
+}
+
+html[data-theme="light"] .btn-reset:hover {
+  background: #eaf4ff;
+}
+
+html[data-theme="light"] .btn-save,
+html[data-theme="light"] .btn-send-otp {
+  background: linear-gradient(180deg, #3b82f6 0%, #0033ff 100%);
+  border-color: rgba(198, 134, 76, 0.4);
+}
+
+html[data-theme="light"] .info-chip {
+  background: #eaf4ff;
+  border-color: #bde0fe;
+  color: var(--ink-900);
+}
+
+html[data-theme="light"] .info-chip i {
+  color: #c6864c;
+}
+
+html[data-theme="light"] .segmented-control {
+  background: #eaf4ff;
+  border-color: #bde0fe;
+}
+
+html[data-theme="light"] .segmented-btn {
+  color: #4a6fa5;
+}
+
+html[data-theme="light"] .segmented-btn:hover {
+  color: var(--ink-900);
+  background: #d1e8fc;
+}
+
+html[data-theme="light"] .segmented-btn.active {
+  color: #ffffff;
+}
+
+html[data-theme="light"] .method-card {
+  background: #f5faff;
+  border-color: #bde0fe;
+}
+
+html[data-theme="light"] .method-card-header {
+  border-color: #d1e8fc;
+}
+
+html[data-theme="light"] .method-card-header h3 {
+  color: var(--ink-900);
+}
+
+html[data-theme="light"] .method-card-header p {
+  color: #4a6fa5;
+}
+
+html[data-theme="light"] .step-label {
+  color: #3a6ea5;
+}
+
+html[data-theme="light"] .settings-upload-btn {
+  background: #d1e8fc;
+  color: var(--ink-900);
+  border-color: #bde0fe;
+}
+
+html[data-theme="light"] .settings-upload-btn:hover {
+  background: #bde0fe;
+}
+
+/* =========================
+   PERSONALIZATION — theme picker
+   Two stamped cards, same corner-tick language as .profile-section,
+   so switching themes feels native to the ledger design, not bolted on.
+========================= */
+.theme-picker {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.theme-option {
+  position: relative;
+  flex: 1 1 200px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 16px;
+  cursor: pointer;
+  transition:
+    border-color 0.25s ease,
+    background 0.25s ease,
+    transform 0.15s ease,
+    box-shadow 0.25s ease;
+}
+
+html[data-theme="light"] .theme-option {
+  background: linear-gradient(160deg, #eaf4ff, #d1e8fc);
+}
+
+.theme-option:hover {
+  transform: translateY(-2px);
+}
+
+.theme-option.selected {
+  border-color: rgba(255, 221, 85, 0.5);
+  box-shadow:
+    0 0 0 3px rgba(246, 203, 8, 0.16),
+    0 0 20px rgba(246, 203, 8, 0.14);
+}
+
+.theme-option.selected::before,
+.theme-option.selected::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  opacity: 0.8;
+}
+
+.theme-option.selected::before {
+  top: 8px;
+  left: 8px;
+  border-top: 2px solid var(--copper-300);
+  border-left: 2px solid var(--copper-300);
+}
+
+.theme-option.selected::after {
+  bottom: 8px;
+  right: 8px;
+  border-bottom: 2px solid var(--copper-300);
+  border-right: 2px solid var(--copper-300);
+}
+
+.theme-swatch {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  height: 64px;
+  padding: 10px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.theme-swatch-dark {
+  background: linear-gradient(160deg, #050b24, #0a1550);
+}
+
+.theme-swatch-light {
+  background: linear-gradient(160deg, #e5f0fa, #bde0fe);
+}
+
+.theme-swatch-card {
+  width: 28px;
+  height: 100%;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.theme-swatch-light .theme-swatch-card {
+  background: rgba(10, 26, 51, 0.08);
+}
+
+.theme-swatch-card.short {
+  height: 60%;
+  margin-top: auto;
+  background: var(--copper-300);
+  opacity: 0.85;
+}
+
+.theme-option-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+/* =========================
+   POPUP
+========================= */
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.popup-box {
+  width: 90%;
+  max-width: 420px;
+  padding: 28px 22px;
+  border-radius: 20px;
+  text-align: center;
+  color: white;
+  font-family: "Inter", Arial, sans-serif;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 24px 50px rgba(0, 3, 61, 0.4);
+}
+
+.popup-box.success {
+  background: linear-gradient(
+    to bottom,
+    rgba(16, 160, 80, 0.95),
+    rgba(8, 100, 50, 0.95)
+  );
+}
+
+.popup-box.error {
+  background: linear-gradient(
+    to bottom,
+    rgba(220, 70, 70, 0.95),
+    rgba(140, 20, 20, 0.95)
+  );
+}
+
+.popup-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  font-weight: 800;
+}
+
+.popup-box h3 {
+  font-family: "Poppins", "Inter", sans-serif;
+  margin-bottom: 8px;
+  font-size: 24px;
+}
+
+.popup-box p {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* =========================
+   MOBILE
+========================= */
+@media (max-width: 900px) {
+  .settings-page {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-sidebar {
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .settings-content {
+    padding: 18px 16px 26px;
+  }
+
+  .settings-panel {
+    padding: 18px;
+    border-radius: 16px;
+  }
+
+  .sidebar-profile-img {
+    width: 88px;
+    height: 88px;
+  }
+
+  .sidebar-profile-info h2 {
+    font-size: 17px;
+  }
+
+  .profile-fullname {
+    font-size: 12.5px;
+  }
+
+  .panel-header h1,
+  .panel-header h2 {
+    font-size: 20px;
+  }
+
+  .form-top-actions {
+    justify-content: stretch;
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .segmented-btn {
+    flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .settings-content {
+    padding: 14px 12px 22px;
+  }
+
+  .settings-sidebar {
+    padding: 16px 12px;
+  }
+
+  .nav-item {
+    font-size: 13.5px;
+    padding: 10px 12px;
+  }
+
+  .panel-header h1,
+  .panel-header h2 {
+    font-size: 18px;
+  }
+
+  .form-group label {
+    font-size: 11px;
+  }
+
+  .settings-profile-upload {
+    gap: 12px;
+  }
+
+  .settings-upload-btn {
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+
+  .method-card {
+    padding: 14px 14px 4px;
+  }
+}
+/* =========================
+   LIGHT MODE — LEFT PANEL
+   Originally kept navy in both themes; now matches the sky-blue
+   sidebar treatment added to header.css so both sidebars feel like
+   the same app. Layered radial glows (not just a flat fill) plus a
+   glassy profile card keep it from reading flat/plain.
+========================= */
+html[data-theme="light"] .settings-sidebar {
+  background:
+    radial-gradient(
+      circle at 18% 8%,
+      rgba(255, 255, 255, 0.75) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 88% 18%,
+      rgba(255, 221, 85, 0.2) 0%,
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at 65% 92%,
+      rgba(59, 130, 246, 0.4) 0%,
+      transparent 46%
+    ),
+    linear-gradient(165deg, #eaf4ff 0%, #bcdcff 55%, #d9ecff 100%);
+  border-right: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+/* profile card — crisp gradient card with a gold-to-blue accent bar,
+   not a washed-out translucent panel */
+html[data-theme="light"] .sidebar-profile-card {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #ffffff 0%, #eaf4ff 100%);
+  border: 1.5px solid rgba(59, 130, 246, 0.3);
+  box-shadow:
+    0 16px 34px rgba(59, 130, 246, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+html[data-theme="light"] .sidebar-profile-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #c6864c, #3b82f6, #c6864c);
+}
+
+html[data-theme="light"] .sidebar-profile-info h2 {
+  color: var(--text-heading);
+}
+
+html[data-theme="light"] .profile-fullname {
+  color: var(--text-body);
+  opacity: 1;
+}
+
+/* nav items — real gradient chips, not a flat tint */
+html[data-theme="light"] .nav-item {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.7),
+    rgba(191, 224, 255, 0.4)
+  );
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  color: #1e3a6e;
+}
+
+html[data-theme="light"] .nav-item:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.9),
+    rgba(147, 197, 253, 0.55)
+  );
+  border-color: rgba(59, 130, 246, 0.38);
+  color: var(--text-heading);
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.16);
+}
+
+html[data-theme="light"] .nav-item.active {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 221, 85, 0.45),
+    rgba(59, 130, 246, 0.2)
+  );
+  border-left-color: #c6864c;
+  color: #7a4a1f;
+  font-weight: 800;
+  box-shadow: 0 10px 22px rgba(59, 130, 246, 0.22);
+}
+
+html[data-theme="light"] .settings-sidebar-footer {
+  border-top-color: rgba(59, 130, 246, 0.22);
+}
+
+html[data-theme="light"] .back-link {
+  color: #2d4570;
+  font-weight: 700;
+}
+
+html[data-theme="light"] .back-link:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.7),
+    rgba(191, 224, 255, 0.4)
+  );
+  color: var(--text-heading);
+}
+
+html[data-theme="light"] .back-link.back-to-dashboard {
+  color: var(--text-heading);
+}

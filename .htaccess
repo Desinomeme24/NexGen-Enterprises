@@ -1,0 +1,31 @@
+# NexGen localhost administrator entry route.
+# Place this file in C:\xampp\htdocs\NexGen\.htaccess.
+
+RewriteEngine On
+
+# Hide direct requests for the administrator filename before compatibility
+# rewrites can map the legacy XAMPP path to the public root.
+RewriteCond %{THE_REQUEST} \s/+NexGen/CODE/PHP/admin_login\.php(?:[?\s]|$) [NC]
+RewriteRule ^NexGen/CODE/PHP/admin_login\.php$ - [R=404,L,NC]
+
+# Compatibility rewrites keep older browser-facing references functional while
+# modules are migrated to nxAppUrl(), nxCodeUrl(), and nxProjectUrl().
+RewriteRule ^NexGen/CODE/PHP/(.*)$ /$1 [END,NC]
+RewriteRule ^NexGen/CODE/STYLE/(.*)$ /STYLE/$1 [END,NC]
+RewriteRule ^NexGen/CODE/JS/(.*)$ /JS/$1 [END,NC]
+RewriteRule ^NexGen/IMAGES/(.*)$ /IMAGES/$1 [END,NC]
+RewriteRule ^NexGen/uploads/(.*)$ /uploads/$1 [END,NC]
+
+# Serve the administrator login through its private public-facing route.
+# END prevents the internal target from being processed as a new public request.
+RewriteRule ^nx-control-1407/?$ CODE/PHP/admin_login.php [END,NC]
+
+# A direct browser request for the real PHP filename must look nonexistent.
+# THE_REQUEST changes only for a real client request, not for the rewrite above.
+RewriteCond %{THE_REQUEST} \s/+NexGen/CODE/PHP/admin_login\.php(?:[?\s]|$) [NC]
+RewriteRule ^CODE/PHP/admin_login\.php$ - [R=404,L,NC]
+
+# Identity documents must never be directly downloadable from the public tree.
+RewriteRule ^CODE/PHP/uploads/valid_ids(?:/|$) - [R=404,L,NC]
+RewriteRule ^uploads/valid_ids(?:/|$) - [R=404,L,NC]
+RewriteRule ^uploads/\.nexgen-private(?:/|$) - [R=404,L,NC]

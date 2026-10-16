@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-labelledby="title description">
+  <title id="title">Default product image</title>
+  <desc id="description">A generic package used when a product has no uploaded image.</desc>
+  <rect width="640" height="640" rx="72" fill="#eaf4ff"/>
+  <path d="M170 212 320 126l150 86v216L320 514l-150-86Z" fill="#bde0fe" stroke="#0b1f73" stroke-width="24" stroke-linejoin="round"/>
+  <path d="m170 212 150 88 150-88M320 300v214" fill="none" stroke="#0b1f73" stroke-width="24" stroke-linejoin="round"/>
+  <path d="m246 168 150 87" fill="none" stroke="#f6cb08" stroke-width="28" stroke-linecap="round"/>
+</svg>

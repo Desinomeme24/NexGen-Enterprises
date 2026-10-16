@@ -1,0 +1,43 @@
+.nx-footer {
+  text-align: center;
+  padding: 26px 20px 18px;
+}
+
+.nx-footer-line {
+  width: 100%;
+  max-width: 480px;
+  height: 2px;
+  border-radius: 999px;
+  margin: 0 auto 14px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 221, 85, 0.55),
+    rgba(59, 130, 246, 0.55),
+    transparent
+  );
+}
+
+.nx-footer-copy {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* ---- Light mode: same html[data-theme="light"] switch every
+   module page already uses for its own toggle ---- */
+html[data-theme="light"] .nx-footer-line {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(184, 134, 11, 0.45),
+    rgba(59, 130, 246, 0.45),
+    transparent
+  );
+}
+
+html[data-theme="light"] .nx-footer-copy {
+  color: rgba(11, 31, 115, 0.68);
+}

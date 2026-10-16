@@ -1,0 +1,683 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;900&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600&display=swap");
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Dark mode heading face: Space Grotesk, techy and geometric.
+   Light mode swaps this to Fraunces (a warm display serif) in the
+   LIGHT MODE section near the end of this file, so the two themes
+   don't just look like recolors of each other. */
+:root {
+  --font-display: "Space Grotesk", Arial, sans-serif;
+  --blue-maya: #8fc9ff;
+  --blue-sky: #a2d2ff;
+  --blue-uranian: #bde0fe;
+  --blue-columbia: #d1e8fc;
+  --blue-alice: #e5f0fa;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  color: white;
+  background: #071f66;
+}
+
+.about-page {
+  min-height: 100vh;
+  background: url("../../IMAGES/boutuslower.png") no-repeat center center /
+    cover;
+  background-attachment: fixed;
+  position: relative;
+  padding: 120px 50px 18px;
+}
+
+.about-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 26, 88, 0.18),
+    rgba(5, 10, 55, 0.22)
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ---- animated background glow ----
+   Slow-drifting colored nebula behind the cards, plus a handful of
+   twinkling particle dots — pure CSS, no extra markup needed. Gives
+   the page some life instead of a static fixed image. */
+.about-page::after {
+  content: "";
+  position: fixed;
+  inset: -10%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 15% 20%,
+      rgba(59, 130, 246, 0.28) 0%,
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 85% 15%,
+      rgba(246, 203, 8, 0.16) 0%,
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 75% 85%,
+      rgba(125, 211, 252, 0.22) 0%,
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at 20% 80%,
+      rgba(59, 130, 246, 0.2) 0%,
+      transparent 30%
+    );
+  background-size: 140% 140%;
+  animation: aboutNebulaDrift 26s ease-in-out infinite alternate;
+}
+
+@keyframes aboutNebulaDrift {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 100% 100%;
+  }
+}
+
+.about-particles {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.about-particles span {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(246, 203, 8, 0.7);
+  box-shadow: 0 0 8px 2px rgba(246, 203, 8, 0.5);
+  animation: aboutParticleFloat 9s ease-in-out infinite;
+}
+
+.about-particles span:nth-child(1) {
+  top: 18%;
+  left: 8%;
+  animation-delay: 0s;
+}
+.about-particles span:nth-child(2) {
+  top: 62%;
+  left: 92%;
+  animation-delay: 1.5s;
+  background: rgba(125, 211, 252, 0.75);
+  box-shadow: 0 0 8px 2px rgba(125, 211, 252, 0.5);
+}
+.about-particles span:nth-child(3) {
+  top: 82%;
+  left: 20%;
+  animation-delay: 3s;
+}
+.about-particles span:nth-child(4) {
+  top: 30%;
+  left: 70%;
+  animation-delay: 4.5s;
+  background: rgba(59, 130, 246, 0.75);
+  box-shadow: 0 0 8px 2px rgba(59, 130, 246, 0.5);
+}
+.about-particles span:nth-child(5) {
+  top: 50%;
+  left: 45%;
+  animation-delay: 6s;
+}
+.about-particles span:nth-child(6) {
+  top: 12%;
+  left: 55%;
+  animation-delay: 2.2s;
+  background: rgba(125, 211, 252, 0.75);
+  box-shadow: 0 0 8px 2px rgba(125, 211, 252, 0.5);
+}
+
+@keyframes aboutParticleFloat {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(-26px) scale(1.3);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-page::after,
+  .about-particles span {
+    animation: none;
+  }
+}
+
+.about-banner,
+.about-sections,
+.follow-section,
+.chatbot-icon,
+.footer-section {
+  position: relative;
+  z-index: 2;
+}
+
+/* Shared topbar/menu-btn styling now lives entirely in header.css,
+   loaded on every page via header.php. The old copies here were
+   fighting with it, which is why the hamburger button looked
+   wrong on this page specifically. */
+
+/* ABOUT SECTIONS */
+.about-sections {
+  padding: 16px 40px 20px;
+  margin-top: -20px;
+}
+
+.about-card {
+  position: relative;
+  overflow: hidden;
+  max-width: 1180px;
+  margin: 0 auto 38px;
+  padding: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 38px;
+  background:
+    radial-gradient(
+      circle at 85% 0%,
+      rgba(59, 130, 246, 0.22) 0%,
+      transparent 55%
+    ),
+    linear-gradient(
+      160deg,
+      rgba(20, 42, 130, 0.55) 0%,
+      rgba(10, 20, 70, 0.5) 100%
+    );
+  background-size:
+    220% 220%,
+    100% 100%;
+  animation: aboutCardDrift 14s ease-in-out infinite alternate;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 34px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  transition:
+    transform 0.4s ease,
+    box-shadow 0.4s ease,
+    background 0.4s ease;
+}
+
+@keyframes aboutCardDrift {
+  0% {
+    background-position:
+      0% 0%,
+      0% 0%;
+  }
+  100% {
+    background-position:
+      100% 100%,
+      0% 0%;
+  }
+}
+
+.about-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #f6cb08, #3b82f6, #f6cb08);
+  background-size: 200% 100%;
+  animation: aboutBarShimmer 6s linear infinite;
+}
+
+@keyframes aboutBarShimmer {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 200% 0%;
+  }
+}
+
+.about-card.reverse {
+  flex-direction: row-reverse;
+}
+
+.about-card-image {
+  flex: 1;
+  min-width: 280px;
+}
+
+.about-card-image img {
+  width: 100%;
+  max-width: 470px;
+  height: 340px;
+  object-fit: cover;
+  display: block;
+  margin: 0 auto;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+  transition:
+    box-shadow 0.4s ease,
+    transform 0.4s ease,
+    border-color 0.4s ease;
+}
+
+.about-card:hover .about-card-image img {
+  transform: scale(1.015);
+  border-color: rgba(246, 203, 8, 0.4);
+  box-shadow:
+    0 16px 38px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(246, 203, 8, 0.16),
+    0 0 30px rgba(59, 130, 246, 0.22);
+}
+
+.about-card-text {
+  flex: 1;
+}
+
+.about-sections:hover .hover-fade-card {
+  opacity: 0.72;
+}
+
+.about-sections .hover-fade-card:hover {
+  opacity: 1;
+  transform: translateY(-6px) scale(1.01);
+  background:
+    radial-gradient(
+      circle at 85% 0%,
+      rgba(59, 130, 246, 0.32) 0%,
+      transparent 55%
+    ),
+    linear-gradient(
+      160deg,
+      rgba(24, 50, 150, 0.62) 0%,
+      rgba(10, 20, 70, 0.58) 100%
+    );
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.24),
+    0 0 34px rgba(59, 130, 246, 0.22);
+  filter: brightness(1.05);
+}
+
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #f2d58a;
+  text-transform: uppercase;
+}
+
+.section-label::before {
+  content: "";
+  display: inline-block;
+  width: 22px;
+  height: 2px;
+  background: linear-gradient(90deg, #f6cb08, #3b82f6);
+  border-radius: 2px;
+}
+
+.about-card-text h2 {
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 900;
+  margin-bottom: 18px;
+  line-height: 1.1;
+}
+
+.about-card-text p {
+  font-size: 20px;
+  line-height: 1.7;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.about-card-text p:last-child {
+  margin-bottom: 0;
+}
+
+/* ANIMATION */
+.animate-card {
+  opacity: 0;
+  transition:
+    opacity 0.95s ease,
+    transform 0.95s ease;
+  will-change: transform, opacity;
+}
+
+.animate-left {
+  transform: translateX(-120px);
+}
+
+.animate-right {
+  transform: translateX(120px);
+}
+
+.animate-up {
+  transform: translateY(70px);
+}
+
+.animate-card.show {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+
+/* Sidebar, profile card, category dropdown, and overlay styling
+   now live entirely in header.css — the copies that used to be
+   here were conflicting with it. */
+
+.footer-section {
+  max-width: 1320px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 18px 0;
+  color: rgba(237, 231, 231, 0.76);
+}
+
+.footer-top-line {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.14);
+  margin-bottom: 14px;
+}
+
+.footer-section p {
+  margin: 0;
+  font-weight: bold;
+  color: white;
+}
+
+/* OVERLAY styling now lives in header.css */
+
+/* CHATBOT */
+.chatbot-icon {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 45;
+}
+
+.chatbot-icon img {
+  width: 85px;
+  height: 85px;
+  border-radius: 50%;
+}
+
+/* RESPONSIVE */
+@media (max-width: 1000px) {
+  .about-card,
+  .about-card.reverse {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .about-card-image img {
+    max-width: 100%;
+    height: 300px;
+  }
+
+  .about-card-text h2 {
+    font-size: 40px;
+  }
+
+  .about-card-text p {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 900px) {
+  .about-sections {
+    padding: 24px 24px 10px;
+  }
+
+  .about-card {
+    padding: 24px;
+    border-radius: 26px;
+  }
+}
+
+@media (max-width: 600px) {
+  .about-page {
+    padding: 100px 16px 18px;
+  }
+
+  .about-sections {
+    padding: 18px 0 8px;
+  }
+
+  .about-card {
+    padding: 18px;
+    gap: 20px;
+    border-radius: 20px;
+  }
+
+  .about-card-image img {
+    height: 220px;
+    border-radius: 18px;
+  }
+
+  .section-label {
+    font-size: 12px;
+  }
+
+  .about-card-text h2 {
+    font-size: 28px;
+    margin-bottom: 12px;
+  }
+
+  .about-card-text p {
+    font-size: 15px;
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+}
+/* =========================================================
+   LIGHT MODE
+   Mirrors the "nexgen-theme" toggle used across the app
+   (set on <html data-theme="light">, wired up in header.js /
+   theme_init.php — same mechanism as index.php and dashboard.css).
+   Scope: the About page background, the info cards, and the
+   footer. The shared topbar/sidebar have their own light-mode
+   rules in header.css, so they're not duplicated here.
+========================= */
+html[data-theme="light"] body,
+html[data-theme="light"] .about-page {
+  color: #0b1f73;
+  background: linear-gradient(160deg, #eaf4ff 0%, #bcdcff 50%, #d9ecff 100%);
+  background-attachment: fixed;
+}
+
+html[data-theme="light"] .about-page::before {
+  background:
+    radial-gradient(
+      circle at 20% 10%,
+      rgba(255, 255, 255, 0.7) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 85% 90%,
+      rgba(147, 197, 253, 0.4) 0%,
+      transparent 46%
+    );
+}
+
+html[data-theme="light"] .about-page::after {
+  background:
+    radial-gradient(
+      circle at 15% 20%,
+      rgba(59, 130, 246, 0.22) 0%,
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 85% 15%,
+      rgba(198, 134, 76, 0.22) 0%,
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 75% 85%,
+      rgba(125, 211, 252, 0.3) 0%,
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at 20% 80%,
+      rgba(59, 130, 246, 0.18) 0%,
+      transparent 30%
+    );
+}
+
+html[data-theme="light"] .about-particles span {
+  background: rgba(198, 134, 76, 0.75);
+  box-shadow: 0 0 8px 2px rgba(198, 134, 76, 0.5);
+}
+html[data-theme="light"] .about-particles span:nth-child(2),
+html[data-theme="light"] .about-particles span:nth-child(4),
+html[data-theme="light"] .about-particles span:nth-child(6) {
+  background: rgba(59, 130, 246, 0.75);
+  box-shadow: 0 0 8px 2px rgba(59, 130, 246, 0.5);
+}
+
+/* Light mode swaps Space Grotesk for Fraunces on the card
+   headings — a warm serif instead of a geometric tech face, so
+   this theme reads as its own design rather than a palette-swap
+   of the dark version. */
+html[data-theme="light"] {
+  --font-display: "Fraunces", Georgia, serif;
+}
+
+/* No more plain white box: a genuine sweep across the site's blue
+   scale (Maya -> Sky -> Uranian -> Columbia -> Alice) with a slow
+   drift, plus a warm gold glow in the corner to match the accent
+   used elsewhere on the page. */
+html[data-theme="light"] .about-card {
+  background:
+    radial-gradient(
+      circle at 88% 4%,
+      rgba(198, 134, 76, 0.18) 0%,
+      transparent 40%
+    ),
+    linear-gradient(
+      135deg,
+      var(--blue-alice) 0%,
+      var(--blue-columbia) 32%,
+      var(--blue-uranian) 60%,
+      var(--blue-sky) 85%,
+      var(--blue-maya) 100%
+    );
+  background-size:
+    100% 100%,
+    240% 240%;
+  animation: aboutCardDriftLight 16s ease-in-out infinite alternate;
+  border: 1.5px solid rgba(59, 130, 246, 0.28);
+  box-shadow:
+    0 18px 38px rgba(57, 88, 134, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+@keyframes aboutCardDriftLight {
+  0% {
+    background-position:
+      0% 0%,
+      0% 0%;
+  }
+  100% {
+    background-position:
+      0% 0%,
+      100% 100%;
+  }
+}
+
+html[data-theme="light"] .about-sections .hover-fade-card:hover {
+  background:
+    radial-gradient(
+      circle at 88% 4%,
+      rgba(198, 134, 76, 0.26) 0%,
+      transparent 42%
+    ),
+    linear-gradient(
+      135deg,
+      var(--blue-alice) 0%,
+      var(--blue-uranian) 40%,
+      var(--blue-sky) 75%,
+      var(--blue-maya) 100%
+    );
+  border-color: rgba(198, 134, 76, 0.45);
+  box-shadow:
+    0 22px 44px rgba(57, 88, 134, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 0 30px rgba(143, 201, 255, 0.4);
+}
+
+html[data-theme="light"] .about-card-image img {
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+html[data-theme="light"] .about-card:hover .about-card-image img {
+  border-color: rgba(198, 134, 76, 0.5);
+  box-shadow:
+    0 16px 38px rgba(57, 88, 134, 0.2),
+    0 0 0 1px rgba(198, 134, 76, 0.2),
+    0 0 30px rgba(59, 130, 246, 0.25);
+}
+
+html[data-theme="light"] .section-label {
+  color: #9a6a12;
+}
+
+html[data-theme="light"] .about-card-text h2 {
+  color: #0b1f73;
+}
+
+html[data-theme="light"] .about-card-text p {
+  color: #2d4570;
+}
+
+html[data-theme="light"] .footer-section {
+  color: #2d4570;
+}
+html[data-theme="light"] .footer-section p {
+  color: #0b1f73;
+}
+html[data-theme="light"] .footer-top-line {
+  background: rgba(11, 31, 115, 0.14);
+}
+html[data-theme="light"] .footer-section a {
+  color: #9a6a12 !important;
+}
+
+html[data-theme="light"] .chatbot-icon img {
+  box-shadow: 0 8px 20px rgba(57, 88, 134, 0.22);
+  border-radius: 50%;
+}

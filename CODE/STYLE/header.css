@@ -1,0 +1,1552 @@
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap");
+
+:root {
+  --ink-950: #060f1f;
+  --ink-900: #0a1a33;
+  --navy-800: #12295a;
+  --navy-700: #1c3872;
+
+  --copper-500: #c6864c;
+  --copper-300: #e3b27e;
+  --gold-100: #f1ddab;
+
+  --paper-50: #f7f4ec;
+  --paper-100: #efe9db;
+
+  --slate-300: #aeb8cb;
+  --slate-500: #7d879c;
+  --white: #ffffff;
+
+  --font-display: "Sora", system-ui, -apple-system, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+
+  /* ---- Theme tokens (page-level) ----
+     These are what module pages (Sales, AR, Manage Users, etc.)
+     should use for their own backgrounds/text going forward.
+     The sidebar + hamburger below intentionally reference the
+     --ink-950 / --navy-700 constants directly, NOT these tokens,
+     so they stay navy in both light and dark mode. */
+  --bg-page: var(--ink-950);
+  --bg-surface: var(--navy-800);
+  --bg-card: #12295a;
+  --text-heading: #ffffff;
+  --text-body: var(--slate-300);
+  --border-subtle: rgba(255, 255, 255, 0.12);
+  --shadow-color: rgba(0, 0, 0, 0.35);
+}
+
+/* LIGHT MODE — activated via data-theme="light" on <html>
+   Palette straight from the swatch set: Alice Blue / Columbia Blue /
+   Uranian Blue / Light Sky Blue / Maya Blue, lightest to boldest. */
+html[data-theme="light"] {
+  --bg-page: #e5f0fa; /* Alice Blue   — page canvas */
+  --bg-surface: #d1e8fc; /* Columbia Blue — module page surfaces */
+  --bg-card: #ffffff; /* cards stay white so content on top stays readable */
+  --text-heading: var(--ink-900);
+  --text-body: #4a5568;
+  --border-subtle: rgba(60, 120, 180, 0.22); /* Uranian-Blue-tinted hairline */
+  --shadow-color: rgba(10, 26, 51, 0.12);
+  /* --copper-500 / --gold-100 stay the same on purpose —
+     one accent color, both modes, same product identity. */
+}
+
+.topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 80;
+}
+
+.sidebar {
+  position: fixed;
+  z-index: 100;
+}
+
+.overlay {
+  position: fixed;
+  z-index: 90;
+}
+
+/* TOP BAR */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 2000;
+  height: 82px;
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 18px;
+  font-family: var(--font-body);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  max-width: calc(100% - 48px);
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* SHARED BUSINESS / BRANCH WORKSPACE PICKER
+   This header is included by every owner/employee module, so keeping the
+   picker here gives Dashboard, Inventory, Sales, Analytics, AR and Settings
+   the same behavior. The open list shows at most five rows before scrolling. */
+.workspace-topbar-control,
+.workspace-switch-form,
+.workspace-current-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.workspace-topbar-control,
+.workspace-switch-form {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.workspace-picker,
+.workspace-picker *,
+.workspace-switch-btn,
+.workspace-fallback-select,
+.workspace-current-badge,
+.workspace-manage-link {
+  box-sizing: border-box;
+}
+
+.workspace-switch-form {
+  position: relative;
+}
+
+.workspace-picker {
+  --workspace-option-height: 44px;
+  position: relative;
+  width: clamp(180px, 20vw, 270px);
+  max-width: 100%;
+  min-width: 0;
+}
+
+.workspace-picker-toggle,
+.workspace-switch-btn,
+.workspace-fallback-select,
+.workspace-current-badge,
+.workspace-manage-link {
+  min-height: 40px;
+  border: 1px solid rgba(145, 170, 225, 0.36);
+  border-radius: 11px;
+  background: rgba(18, 41, 90, 0.92);
+  color: #ffffff;
+  font: inherit;
+}
+
+.workspace-picker-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  padding: 0 11px 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 8px 22px rgba(6, 15, 31, 0.18);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.workspace-picker-toggle:hover,
+.workspace-picker.is-open .workspace-picker-toggle {
+  border-color: rgba(227, 178, 126, 0.72);
+  background: #18366f;
+  box-shadow: 0 10px 26px rgba(6, 15, 31, 0.28);
+}
+
+.workspace-picker-toggle:focus-visible,
+.workspace-picker-option:focus-visible,
+.workspace-manage-link:focus-visible,
+.workspace-switch-btn:focus-visible,
+.workspace-fallback-select:focus-visible {
+  outline: 3px solid var(--copper-300);
+  outline-offset: 3px;
+}
+
+.workspace-picker-toggle-label,
+.workspace-picker-option-label,
+.workspace-current-badge span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-picker-toggle-label,
+.workspace-picker-option-label {
+  display: block;
+  flex: 1 1 auto;
+  max-width: 100%;
+}
+
+.workspace-picker-chevron {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  transition: transform 0.2s ease;
+}
+
+.workspace-picker.is-open .workspace-picker-chevron {
+  transform: rotate(180deg);
+}
+
+.workspace-picker-list {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: auto;
+  left: 0;
+  z-index: 2200;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  overflow-x: hidden;
+  overflow-y: visible;
+  overscroll-behavior: contain;
+  border: 1px solid rgba(145, 170, 225, 0.38);
+  border-radius: 13px;
+  background: linear-gradient(160deg, #18366f 0%, #0a1a33 100%);
+  box-shadow: 0 20px 42px rgba(6, 15, 31, 0.45);
+}
+
+.workspace-picker-list[hidden] {
+  display: none;
+}
+
+.workspace-picker-list.is-scrollable {
+  /* Five 44px rows + four 4px gaps + padding and border. */
+  max-height: 250px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(227, 178, 126, 0.75) rgba(255, 255, 255, 0.08);
+}
+
+.workspace-picker-list.is-scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.workspace-picker-list.is-scrollable::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+.workspace-picker-list.is-scrollable::-webkit-scrollbar-thumb {
+  background: rgba(227, 178, 126, 0.75);
+  border-radius: 999px;
+}
+
+.workspace-picker-option {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: var(--workspace-option-height);
+  min-height: var(--workspace-option-height);
+  padding: 0 11px 0 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #edf4ff;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.workspace-picker-option:hover,
+.workspace-picker-option:focus-visible {
+  border-color: rgba(145, 170, 225, 0.34);
+  background: rgba(72, 105, 180, 0.3);
+  color: #ffffff;
+}
+
+.workspace-picker-option.is-selected {
+  border-color: rgba(227, 178, 126, 0.55);
+  background: rgba(198, 134, 76, 0.22);
+  color: #f7dfb8;
+  font-weight: 700;
+}
+
+.workspace-picker-option-check {
+  flex: 0 0 auto;
+  opacity: 0;
+  color: var(--copper-300);
+  font-size: 1rem;
+}
+
+.workspace-picker-option.is-selected .workspace-picker-option-check {
+  opacity: 1;
+}
+
+.workspace-switch-form.is-switching {
+  cursor: wait;
+}
+
+.workspace-switch-form.is-switching .workspace-picker-toggle {
+  pointer-events: none;
+  opacity: 0.68;
+}
+
+.workspace-switch-btn {
+  padding: 0 12px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.workspace-fallback-select {
+  max-width: 280px;
+  padding: 0 10px;
+  color-scheme: dark;
+}
+
+.workspace-current-badge {
+  padding: 0 12px;
+  max-width: 320px;
+}
+
+.workspace-manage-link {
+  width: 40px;
+  flex: 0 0 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.workspace-manage-link:hover {
+  border-color: rgba(227, 178, 126, 0.72);
+  background: #18366f;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+html[data-theme="light"] .workspace-picker-toggle,
+html[data-theme="light"] .workspace-switch-btn,
+html[data-theme="light"] .workspace-fallback-select,
+html[data-theme="light"] .workspace-current-badge,
+html[data-theme="light"] .workspace-manage-link {
+  border-color: rgba(59, 130, 246, 0.3);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink-900);
+}
+
+html[data-theme="light"] .workspace-picker-toggle:hover,
+html[data-theme="light"] .workspace-picker.is-open .workspace-picker-toggle,
+html[data-theme="light"] .workspace-manage-link:hover {
+  border-color: rgba(198, 134, 76, 0.62);
+  background: #ffffff;
+}
+
+html[data-theme="light"] .workspace-picker-list {
+  border-color: rgba(59, 130, 246, 0.28);
+  background: linear-gradient(160deg, #ffffff 0%, #eaf4ff 100%);
+  box-shadow: 0 20px 42px rgba(10, 26, 51, 0.22);
+}
+
+html[data-theme="light"] .workspace-picker-option {
+  color: #1e3a6e;
+}
+
+html[data-theme="light"] .workspace-picker-option:hover,
+html[data-theme="light"] .workspace-picker-option:focus-visible {
+  border-color: rgba(59, 130, 246, 0.3);
+  background: rgba(147, 197, 253, 0.38);
+  color: var(--ink-900);
+}
+
+html[data-theme="light"] .workspace-picker-option.is-selected {
+  border-color: rgba(198, 134, 76, 0.55);
+  background: rgba(255, 221, 85, 0.28);
+  color: #71451e;
+}
+
+html[data-theme="light"] .workspace-fallback-select {
+  color-scheme: light;
+}
+
+@media (max-width: 760px) {
+  .topbar-right,
+  .workspace-topbar-control {
+    gap: 6px;
+  }
+
+  .workspace-picker {
+    --workspace-option-height: 40px;
+    width: clamp(150px, 34vw, 210px);
+  }
+
+  .workspace-picker-list.is-scrollable {
+    /* Five compact tablet rows + gaps, padding and border. */
+    max-height: 230px;
+  }
+
+  .workspace-current-badge {
+    max-width: 190px;
+  }
+
+  .workspace-fallback-select {
+    max-width: 170px;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar-right {
+    gap: 6px;
+  }
+
+  .workspace-topbar-control {
+    gap: 5px;
+  }
+
+  .workspace-picker {
+    --workspace-option-height: 38px;
+    width: clamp(140px, 45vw, 175px);
+  }
+
+  .workspace-picker-list {
+    top: calc(100% + 6px);
+    padding: 5px;
+    gap: 3px;
+    border-radius: 11px;
+  }
+
+  .workspace-picker-list.is-scrollable {
+    /* Five phone rows + gaps, padding and border. */
+    max-height: 214px;
+  }
+
+  .workspace-picker-toggle {
+    min-height: 38px;
+    padding-inline: 9px;
+    gap: 7px;
+    font-size: 0.84rem;
+  }
+
+  .workspace-picker-option {
+    padding-inline: 9px;
+    gap: 7px;
+    font-size: 0.8rem;
+  }
+
+  .workspace-manage-link {
+    width: 36px;
+    min-height: 38px;
+    flex-basis: 36px;
+  }
+
+  .workspace-picker-list.is-scrollable::-webkit-scrollbar {
+    width: 6px;
+  }
+}
+
+/* THEME TOGGLE — sun/moon sliding pill, lives next to the hamburger */
+.theme-toggle {
+  position: relative;
+  width: 62px;
+  height: 34px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  background: linear-gradient(155deg, var(--navy-700) 0%, var(--ink-950) 100%);
+  transition:
+    background 0.35s ease,
+    border-color 0.35s ease;
+}
+
+.theme-toggle:hover {
+  border-color: rgba(227, 178, 126, 0.4);
+}
+
+.theme-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--ink-900), var(--ink-950));
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+  transition:
+    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.35s ease;
+}
+
+.theme-toggle-thumb i {
+  font-size: 13px;
+  color: var(--gold-100);
+  transition: color 0.25s ease;
+}
+
+/* Light mode state: pill turns sky-blue, thumb slides right and turns gold/sun */
+html[data-theme="light"] .theme-toggle {
+  background: linear-gradient(135deg, #a2d2ff, #8fc9ff);
+  border-color: rgba(10, 26, 51, 0.15);
+}
+
+html[data-theme="light"] .theme-toggle-thumb {
+  transform: translateX(28px);
+  background: linear-gradient(135deg, #ffd580, #f5b342);
+  box-shadow: 0 3px 8px rgba(10, 26, 51, 0.25);
+}
+
+html[data-theme="light"] .theme-toggle-thumb i {
+  color: #a8703c;
+}
+
+@media (max-width: 600px) {
+  .theme-toggle {
+    width: 54px;
+    height: 30px;
+  }
+
+  .theme-toggle-thumb {
+    width: 22px;
+    height: 22px;
+  }
+
+  html[data-theme="light"] .theme-toggle-thumb {
+    transform: translateX(24px);
+  }
+}
+
+.top-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px 8px 10px;
+  background: var(--paper-50);
+  border: 1px solid rgba(10, 26, 51, 0.06);
+  border-radius: 999px;
+  text-decoration: none;
+  box-shadow: 0 6px 16px rgba(10, 26, 51, 0.14);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.top-user-info:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(10, 26, 51, 0.18);
+  background: var(--white);
+}
+
+.top-user-img {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #ffffff;
+  border: 2px solid rgba(10, 26, 51, 0.1);
+}
+
+.top-user-name {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink-900);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.top-logo img {
+  width: 80px;
+  height: auto;
+  display: block;
+}
+
+.menu-btn {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  z-index: 4000;
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  font: inherit;
+  width: 32px;
+  min-width: 32px;
+  height: 100px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0 16px 16px 0;
+  background: transparent;
+  box-shadow: none;
+  transform: translateY(-50%);
+}
+
+.menu-btn::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 6px 6px 0;
+  background: linear-gradient(
+    180deg,
+    rgba(227, 178, 126, 0.45),
+    rgba(227, 178, 126, 0.12)
+  );
+  box-shadow: 2px 0 10px rgba(198, 134, 76, 0.14);
+  pointer-events: none;
+  transition:
+    width 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.menu-btn::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  left: 0;
+  width: 36px;
+  height: 96px;
+  border: 1px solid rgba(227, 178, 126, 0.42);
+  border-left: 0;
+  border-radius: 0 16px 16px 0;
+  background:
+    radial-gradient(
+      circle at 25% 20%,
+      rgba(241, 221, 171, 0.3),
+      transparent 34%
+    ),
+    linear-gradient(180deg, var(--navy-700), var(--ink-950));
+  box-shadow:
+    6px 0 22px rgba(6, 15, 31, 0.28),
+    0 0 0 4px rgba(227, 178, 126, 0.07);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-28px) translateY(-50%);
+  transition:
+    opacity 0.25s ease,
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.menu-btn:hover::before,
+.menu-btn:focus-visible::before,
+.menu-btn[aria-expanded="true"]::before {
+  width: 5px;
+  background: linear-gradient(180deg, var(--gold-100), var(--copper-500));
+  box-shadow: 2px 0 14px rgba(198, 134, 76, 0.42);
+}
+
+.menu-btn:hover::after,
+.menu-btn:focus-visible::after,
+.menu-btn[aria-expanded="true"]::after {
+  opacity: 1;
+  transform: translateX(0) translateY(-50%);
+}
+
+.menu-btn-icon {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 21px;
+  width: 21px;
+  height: 30px;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.menu-btn-icon span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  border-radius: 999px;
+  background: goldenrod;
+  transition:
+    transform 0.25s ease,
+    width 0.25s ease,
+    background 0.25s ease;
+}
+
+.menu-btn-icon span:nth-child(2) {
+  width: 68%;
+}
+
+.menu-btn:hover .menu-btn-icon span:nth-child(2),
+.menu-btn:focus-visible .menu-btn-icon span:nth-child(2),
+.menu-btn[aria-expanded="true"] .menu-btn-icon span:nth-child(2) {
+  width: 100%;
+}
+
+.menu-btn[aria-expanded="true"] .menu-btn-icon span:first-child {
+  transform: translateY(14px) rotate(45deg);
+}
+
+.menu-btn[aria-expanded="true"] .menu-btn-icon span:nth-child(2) {
+  opacity: 0;
+}
+
+.menu-btn[aria-expanded="true"] .menu-btn-icon span:last-child {
+  transform: translateY(-14px) rotate(-45deg);
+}
+
+.menu-btn:focus-visible,
+.close-sidebar:focus-visible,
+.menu-item:focus-visible,
+.dropdown-btn:focus-visible,
+.dropdown-content a:focus-visible {
+  outline: 3px solid var(--copper-300);
+  outline-offset: 3px;
+}
+
+/* SIDEBAR */
+.sidebar {
+  top: 0;
+  left: -390px;
+  width: 390px;
+  height: 100vh;
+  padding: 22px 22px 28px;
+  overflow-y: auto;
+  visibility: hidden;
+  transition:
+    left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.35s ease,
+    visibility 0s linear 0.35s;
+  background: linear-gradient(
+    180deg,
+    rgba(6, 15, 31, 0.985) 0%,
+    rgba(18, 41, 90, 0.96) 48%,
+    rgba(6, 15, 31, 0.985) 100%
+  );
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 18px 0 40px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  font-family: var(--font-body);
+}
+
+.sidebar.active {
+  left: 0;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+}
+
+.sidebar-top {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.close-sidebar {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  color: white;
+  font-size: 30px;
+  cursor: pointer;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.25s ease,
+    transform 0.25s ease;
+}
+
+.close-sidebar:hover {
+  background: rgba(198, 134, 76, 0.28);
+  transform: rotate(90deg);
+}
+
+/* PROFILE CARD — styled as a stamped ID / ledger heading */
+.profile-section {
+  position: relative;
+  text-align: center;
+  margin: 4px 0 28px;
+  padding: 28px 18px 20px;
+  border-radius: 20px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.03)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* corner "stamp" ticks — a card, not a template box */
+.profile-section::before,
+.profile-section::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-color: var(--copper-300);
+  opacity: 0.65;
+}
+
+.profile-section::before {
+  top: 10px;
+  left: 10px;
+  border-top: 2px solid var(--copper-300);
+  border-left: 2px solid var(--copper-300);
+}
+
+.profile-section::after {
+  bottom: 10px;
+  right: 10px;
+  border-bottom: 2px solid var(--copper-300);
+  border-right: 2px solid var(--copper-300);
+}
+
+.profile-section h2 {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 4px;
+  word-break: break-word;
+  letter-spacing: -0.01em;
+}
+
+.profile-fullname {
+  font-size: 13.5px;
+  opacity: 0.8;
+  line-height: 1.4;
+}
+
+/* the role, presented as a stamped credential rather than plain text */
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  padding: 5px 14px;
+  border: 1px solid rgba(227, 178, 126, 0.45);
+  border-radius: 999px;
+  background: rgba(227, 178, 126, 0.08);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-100) !important;
+}
+
+.role-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--copper-300);
+  box-shadow: 0 0 0 3px rgba(227, 178, 126, 0.18);
+}
+
+.profile-edit-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-image-wrapper {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 14px;
+}
+
+.profile-img {
+  width: 116px;
+  height: 116px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: white;
+  margin-left: 0 !important;
+  margin-bottom: 0 !important;
+  border: 3px solid rgba(227, 178, 126, 0.4);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.edit-profile-btn {
+  position: absolute;
+  right: -6px;
+  bottom: 8px;
+  background: var(--copper-300);
+  color: var(--ink-950);
+  font-size: 15px;
+  font-weight: 800;
+  padding: 7px 13px;
+  border-radius: 20px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.edit-profile-btn:hover {
+  transform: translateY(-2px);
+  background: var(--gold-100);
+}
+
+.hidden-upload-btn {
+  display: none;
+}
+
+/* MENU AREA — a dashed ledger-margin runs the length of the nav;
+   each row carries a tick that grows into a dash on hover/active,
+   like an item being checked off a manifest. */
+.sidebar-menu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-left: 14px;
+}
+
+.sidebar-menu::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 0;
+  border-left: 1.5px dashed rgba(174, 184, 203, 0.28);
+}
+
+.menu-item,
+.dropdown-btn,
+.dropdown-content a {
+  color: white;
+  text-decoration: none;
+}
+
+.menu-item,
+.dropdown-btn {
+  position: relative;
+  width: 100%;
+  min-height: 56px;
+  padding: 14px 16px;
+  font-family: var(--font-body);
+  font-size: 15.5px;
+  font-weight: 600;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  transition:
+    background 0.25s ease,
+    transform 0.2s ease,
+    border-color 0.25s ease;
+}
+
+.menu-item::before,
+.dropdown-btn::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--slate-300);
+  transition:
+    width 0.25s ease,
+    background 0.25s ease;
+}
+
+.menu-item:hover,
+.dropdown-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateX(3px);
+}
+
+.menu-item:hover::before,
+.dropdown-btn:hover::before {
+  width: 12px;
+  background: var(--copper-300);
+}
+
+.menu-item.active {
+  background: linear-gradient(
+    90deg,
+    rgba(198, 134, 76, 0.22),
+    rgba(255, 255, 255, 0.05)
+  );
+  border-color: rgba(227, 178, 126, 0.35);
+  color: var(--gold-100);
+}
+
+.menu-item.active::before {
+  width: 14px;
+  background: var(--copper-300);
+}
+
+.active-sub {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(227, 178, 126, 0.3);
+  color: var(--gold-100) !important;
+  font-weight: 700 !important;
+}
+
+.dropdown-btn {
+  border: none;
+  text-align: left;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.active-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(227, 178, 126, 0.28);
+}
+
+#dropdownArrow {
+  display: inline-block;
+  font-size: 13px;
+  margin-left: 14px;
+  color: var(--slate-300);
+  transition: transform 0.25s ease;
+}
+
+.dropdown-section {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* eyebrow-style label for the section — a mono, letter-spaced
+   utility voice reserved for structural/system labels only */
+.dropdown-btn span span {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dropdown-content {
+  display: none;
+  margin-top: 6px;
+  margin-left: 8px;
+  padding: 6px 0 2px 16px;
+  border-left: 1.5px dashed rgba(227, 178, 126, 0.3);
+}
+
+.dropdown-content.show {
+  display: block;
+}
+
+.dropdown-content a {
+  position: relative;
+  display: block;
+  margin: 6px 0;
+  padding: 11px 14px;
+  font-size: 14.5px;
+  font-weight: 500;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  transition:
+    background 0.25s ease,
+    transform 0.25s ease;
+}
+
+.dropdown-content a:hover {
+  background: rgba(255, 255, 255, 0.09);
+  transform: translateX(4px);
+}
+
+/* OVERLAY */
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 15, 31, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 2500;
+}
+
+.overlay.show {
+  display: block;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: -390px;
+  width: 390px;
+  height: 100vh;
+  z-index: 3000;
+}
+
+/* RESPONSIVE */
+@media (max-width: 600px) {
+  .topbar {
+    height: 72px;
+    padding: 0 max(12px, env(safe-area-inset-right)) 0
+      max(12px, env(safe-area-inset-left));
+  }
+
+  .topbar-right {
+    gap: 8px;
+    max-width: calc(100% - 42px);
+  }
+
+  .top-user-info {
+    padding: 6px 10px 6px 8px;
+    gap: 8px;
+  }
+
+  .top-user-img {
+    width: 34px;
+    height: 34px;
+  }
+
+  .top-user-name {
+    font-size: 13.5px;
+    max-width: 95px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .top-logo img {
+    width: 62px;
+  }
+
+  .workspace-topbar-control {
+    flex: 1 1 auto;
+    max-width: calc(100vw - 116px);
+  }
+
+  .workspace-picker,
+  .workspace-current-badge {
+    max-width: 100%;
+  }
+
+  .workspace-picker-toggle-label,
+  .workspace-current-badge span {
+    font-size: 0.84rem;
+  }
+
+  .menu-btn {
+    width: 36px;
+    min-width: 36px;
+    height: 92px;
+    padding: 0;
+    border-radius: 0 16px 16px 0;
+    transform: translateY(-50%);
+  }
+
+  .menu-btn:hover,
+  .menu-btn:focus-visible,
+  .menu-btn[aria-expanded="true"] {
+    transform: translateY(-50%);
+  }
+
+  .menu-btn::after {
+    width: 36px;
+    height: 88px;
+    transform: translateX(-28px) translateY(-50%);
+  }
+
+  .menu-btn-icon {
+    flex-basis: 18px;
+    width: 18px;
+    height: 26px;
+  }
+
+  .sidebar {
+    width: 300px;
+    left: -300px;
+    padding: 18px 16px 24px;
+  }
+
+  .profile-img {
+    width: 128px;
+    height: 128px;
+  }
+
+  .edit-profile-btn {
+    right: -6px;
+    bottom: 16px;
+    font-size: 15px;
+    padding: 7px 13px;
+  }
+
+  .menu-item,
+  .dropdown-btn {
+    min-height: 50px;
+    font-size: 14.5px;
+    padding: 12px 14px;
+    border-radius: 11px;
+  }
+
+  .dropdown-content {
+    margin-left: 6px;
+    padding-left: 12px;
+  }
+
+  .dropdown-content a {
+    font-size: 13.5px;
+    padding: 9px 12px;
+    border-radius: 10px;
+  }
+
+  .close-sidebar {
+    width: 38px;
+    height: 38px;
+    font-size: 26px;
+    border-radius: 11px;
+  }
+}
+
+@media (max-width: 380px) {
+  .topbar {
+    padding-inline: 9px;
+  }
+
+  .topbar-right {
+    gap: 5px;
+    max-width: calc(100% - 38px);
+  }
+
+  .workspace-topbar-control {
+    max-width: calc(100vw - 104px);
+  }
+
+  .workspace-picker {
+    width: min(42vw, 150px);
+  }
+
+  .theme-toggle {
+    width: 48px;
+    height: 28px;
+  }
+
+  .theme-toggle-thumb {
+    width: 20px;
+    height: 20px;
+  }
+
+  html[data-theme="light"] .theme-toggle-thumb {
+    transform: translateX(20px);
+  }
+}
+
+.sidebar-menu .menu-item,
+.sidebar-menu .dropdown-btn,
+.dropdown-content a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar-menu .menu-item i,
+.sidebar-menu .dropdown-btn i,
+.dropdown-content a i {
+  font-size: 17px;
+  min-width: 20px;
+  text-align: center;
+  color: var(--slate-300);
+  transition: color 0.25s ease;
+}
+
+.menu-item:hover i,
+.dropdown-btn:hover i,
+.menu-item.active i {
+  color: var(--copper-300);
+}
+
+.dropdown-btn {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.dropdown-btn .d-flex {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dropdown-content a {
+  text-decoration: none;
+}
+
+/* keep sidebar text readable/on-brand across every page it's included on */
+.sidebar .profile-section,
+.sidebar .profile-section h2,
+.sidebar .profile-fullname,
+.sidebar .profile-section p,
+.sidebar .profile-section span,
+.sidebar .profile-section small {
+  color: #ffffff !important;
+}
+
+.sidebar,
+.sidebar * {
+  color: #ffffff;
+}
+
+.sidebar .menu-item.active,
+.sidebar .active-sub {
+  color: var(--gold-100) !important;
+}
+
+.sidebar .role-badge {
+  color: var(--gold-100) !important;
+}
+/* =========================================================
+   LIGHT MODE — SIDEBAR
+   Dark mode sidebar above is untouched. This gives light mode its
+   own sky-blue-and-navy version instead of reusing the dark navy
+   panel on a light page. Same brand accents (copper/gold) carry
+   over so it still reads as the same app, just the other theme.
+========================= */
+html[data-theme="light"] .sidebar {
+  background:
+    radial-gradient(
+      circle at 18% 8%,
+      rgba(255, 255, 255, 0.75) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 88% 18%,
+      rgba(255, 221, 85, 0.2) 0%,
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at 65% 92%,
+      rgba(59, 130, 246, 0.4) 0%,
+      transparent 46%
+    ),
+    linear-gradient(165deg, #eaf4ff 0%, #bcdcff 55%, #d9ecff 100%);
+  border-right: 1px solid rgba(59, 130, 246, 0.25);
+  box-shadow: 18px 0 40px rgba(59, 130, 246, 0.18);
+}
+
+html[data-theme="light"] .sidebar::-webkit-scrollbar-thumb {
+  background: rgba(11, 31, 115, 0.2);
+}
+
+html[data-theme="light"] .close-sidebar {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  color: var(--ink-900);
+}
+
+html[data-theme="light"] .close-sidebar:hover {
+  background: linear-gradient(135deg, var(--copper-500), var(--copper-300));
+  border-color: transparent;
+  color: #ffffff;
+}
+
+/* profile card — crisp gradient card with a gold-to-blue accent bar,
+   not a washed-out translucent panel */
+html[data-theme="light"] .profile-section {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #ffffff 0%, #eaf4ff 100%);
+  border: 1.5px solid rgba(59, 130, 246, 0.3);
+  box-shadow:
+    0 16px 34px rgba(59, 130, 246, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+html[data-theme="light"] .profile-section::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--copper-500),
+    #3b82f6,
+    var(--copper-500)
+  );
+}
+
+html[data-theme="light"] .sidebar .profile-section,
+html[data-theme="light"] .sidebar .profile-section h2,
+html[data-theme="light"] .sidebar .profile-fullname,
+html[data-theme="light"] .sidebar .profile-section p,
+html[data-theme="light"] .sidebar .profile-section span,
+html[data-theme="light"] .sidebar .profile-section small {
+  color: var(--ink-900) !important;
+}
+
+html[data-theme="light"] .sidebar,
+html[data-theme="light"] .sidebar * {
+  color: var(--ink-900);
+}
+
+html[data-theme="light"] .sidebar .role-badge {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 221, 85, 0.35),
+    rgba(198, 134, 76, 0.25)
+  );
+  border-color: rgba(198, 134, 76, 0.55);
+  color: #7a4a1f !important;
+  box-shadow: 0 4px 10px rgba(198, 134, 76, 0.25);
+}
+
+/* nav items — real gradient chips, not a 6% tint */
+html[data-theme="light"] .menu-item,
+html[data-theme="light"] .dropdown-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.7),
+    rgba(191, 224, 255, 0.4)
+  );
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  color: #1e3a6e;
+}
+
+html[data-theme="light"] .menu-item:hover,
+html[data-theme="light"] .dropdown-btn:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.9),
+    rgba(147, 197, 253, 0.55)
+  );
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.16);
+}
+
+html[data-theme="light"] .sidebar-menu .menu-item i,
+html[data-theme="light"] .sidebar-menu .dropdown-btn i,
+html[data-theme="light"] .dropdown-content a i,
+html[data-theme="light"] #dropdownArrow {
+  color: #3a5a8f;
+}
+
+html[data-theme="light"] .menu-item:hover i,
+html[data-theme="light"] .dropdown-btn:hover i,
+html[data-theme="light"] .menu-item.active i {
+  color: var(--copper-500);
+}
+
+html[data-theme="light"] .sidebar .menu-item.active {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 221, 85, 0.45),
+    rgba(59, 130, 246, 0.2)
+  );
+  border-color: var(--copper-500);
+  color: #7a4a1f !important;
+  font-weight: 800;
+  box-shadow: 0 10px 22px rgba(59, 130, 246, 0.24);
+}
+
+html[data-theme="light"] .active-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.9),
+    rgba(147, 197, 253, 0.55)
+  );
+  border-color: rgba(198, 134, 76, 0.45);
+}
+
+html[data-theme="light"] .sidebar .active-sub {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 221, 85, 0.4),
+    rgba(59, 130, 246, 0.16)
+  ) !important;
+  border-color: rgba(198, 134, 76, 0.5);
+  color: #7a4a1f !important;
+}
+
+html[data-theme="light"] .dropdown-content {
+  border-left-color: rgba(198, 134, 76, 0.5);
+}
+
+html[data-theme="light"] .dropdown-content a {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.6),
+    rgba(191, 224, 255, 0.3)
+  );
+  border: 1px solid rgba(59, 130, 246, 0.16);
+  color: #1e3a6e;
+}
+
+html[data-theme="light"] .dropdown-content a:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.85),
+    rgba(147, 197, 253, 0.5)
+  );
+  border-color: rgba(59, 130, 246, 0.32);
+}

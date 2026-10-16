@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+CODE/PHP/uploads/valid_ids
+CODE/PHP/uploads/valid_ids/**
+CODE/PHP/uploads/**
+CODE/PHP/nexgen_private
+CODE/PHP/nexgen_private/**
+node_modules
+npm-debug.log
