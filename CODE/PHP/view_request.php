@@ -65,6 +65,10 @@ $filePath = $request['valid_id_path'] ?? '';
 $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 $isImage = in_array($ext, ['jpg','jpeg','png','gif','webp'], true);
 $isPdf = ($ext === 'pdf');
+$businessPermitPath = $request['business_permit_path'] ?? '';
+$businessPermitExt = strtolower(pathinfo($businessPermitPath, PATHINFO_EXTENSION));
+$businessPermitIsImage = in_array($businessPermitExt, ['jpg','jpeg','png','gif','webp'], true);
+$businessPermitIsPdf = ($businessPermitExt === 'pdf');
 
 // Request workflow rules:
 // pending  -> approve / reject / resubmit
@@ -800,6 +804,25 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                             <?php endif; ?>
                         </div>
                     </div>
+                    <?php if (($request['requested_role'] ?? '') === 'owner'): ?>
+                        <div class="kv-item" style="grid-column: 1 / -1;">
+                            <label>Business Permit</label>
+                            <div class="value">
+                                <?php if ($businessPermitPath !== ''): ?>
+                                    <a class="attachment-chip" href="/NexGen/CODE/PHP/valid_id_file.php?request_id=<?php echo (int)$request['id']; ?>&amp;slot=business_permit" target="_blank" rel="noopener" title="Open uploaded business permit">
+                                        <span class="attachment-icon"><?php echo $businessPermitIsImage ? '🖼️' : ($businessPermitIsPdf ? '📄' : '📎'); ?></span>
+                                        <span class="attachment-meta">
+                                            <span class="attachment-name">Business_Permit.<?php echo e($businessPermitExt ?: 'file'); ?></span>
+                                            <span class="attachment-sub"><?php echo $businessPermitIsImage ? 'Image file' : ($businessPermitIsPdf ? 'PDF document' : 'Uploaded file'); ?></span>
+                                        </span>
+                                        <span class="attachment-action">View &rarr;</span>
+                                    </a>
+                                <?php else: ?>
+                                    <span class="notice notice-error" style="display:inline-block;">No uploaded business permit found.</span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
 
             </div>
