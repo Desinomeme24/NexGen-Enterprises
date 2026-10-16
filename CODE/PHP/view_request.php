@@ -974,9 +974,16 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
 
                                 <div class="correction-field is-wide">
                                     <label for="replacementValidId">Replace Valid ID / Attachment (Optional)</label>
-                                    <input class="correction-file" id="replacementValidId" name="valid_id" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
-                                    <small class="correction-file-help">Accepted: JPG, PNG, or PDF up to 5 MB. The existing file remains when no replacement is selected.</small>
+                                    <input class="correction-file" id="replacementValidId" name="valid_id" type="file" accept=".jpg,.jpeg,.png,.heic,.heif,image/jpeg,image/png,image/heic,image/heif">
+                                    <small class="correction-file-help">Accepted: JPG or PNG up to 5 MB; HEIC or HEIF up to 10 MB. The existing file remains when no replacement is selected.</small>
                                 </div>
+                                <?php if (($request['requested_role'] ?? '') === 'owner'): ?>
+                                    <div class="correction-field is-wide">
+                                        <label for="replacementBusinessPermit">Replace Business Permit (Optional)</label>
+                                        <input class="correction-file" id="replacementBusinessPermit" name="business_permit" type="file" accept=".jpg,.jpeg,.png,.heic,.heif,.pdf,image/jpeg,image/png,image/heic,image/heif,application/pdf"<?php echo empty($request['business_permit_path']) ? ' required' : ''; ?>>
+                                        <small class="correction-file-help">Accepted: JPG or PNG up to 5 MB; HEIC, HEIF, or PDF up to 10 MB. The existing file remains when no replacement is selected.</small>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                         </div>
 

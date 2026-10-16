@@ -19,8 +19,20 @@ $signupCaptcha = generateImageCaptcha('signup_form');
 $loginCsrfToken = generateCsrfToken('client_login_form');
 $signupCsrfToken = generateCsrfToken('signup_form');
 
-$_SESSION['signup_privacy_ack_token'] = bin2hex(random_bytes(32));
-unset($_SESSION['signup_privacy_acknowledged_token']);
+$signupPrivacyAcknowledged = !isset($_SESSION['user_id'])
+    && isset($_GET['open'])
+    && $_GET['open'] === 'signup'
+    && isset($_GET['privacy_acknowledged'])
+    && $_GET['privacy_acknowledged'] === '1'
+    && isset($_SESSION['signup_privacy_ack_token'], $_SESSION['signup_privacy_acknowledged_token'])
+    && is_string($_SESSION['signup_privacy_ack_token'])
+    && is_string($_SESSION['signup_privacy_acknowledged_token'])
+    && preg_match('/^[a-f0-9]{64}$/D', $_SESSION['signup_privacy_ack_token'])
+    && hash_equals($_SESSION['signup_privacy_ack_token'], $_SESSION['signup_privacy_acknowledged_token']);
+if (!$signupPrivacyAcknowledged) {
+    $_SESSION['signup_privacy_ack_token'] = bin2hex(random_bytes(32));
+    unset($_SESSION['signup_privacy_acknowledged_token']);
+}
 $signupPrivacyAckToken = $_SESSION['signup_privacy_ack_token'];
 
 $popupMessage = "";
@@ -7126,7 +7138,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var expectedAckToken = signupForm
         ? signupForm.querySelector('[name="privacy_ack_token"]').value
         : '';
-    var privacyAcknowledged = false;
+    var privacyAcknowledged = <?php echo json_encode($signupPrivacyAcknowledged); ?>;
 
     function updateConsentState() {
         if (!consentCheckbox) return;

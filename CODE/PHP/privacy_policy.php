@@ -493,25 +493,26 @@ if ($returnTo === 'about_us') {
         const acknowledgementStatus = document.getElementById('policyAckStatus');
 
         if (acknowledgedToken) {
-            let signupTabNotified = false;
             try {
                 localStorage.setItem('nexgen_signup_privacy_ack', acknowledgedToken);
-                signupTabNotified = true;
             } catch (error) {
                 console.error('Unable to notify the signup tab about the privacy acknowledgement.', error);
                 if (acknowledgementStatus) {
-                    acknowledgementStatus.textContent = 'Your acknowledgement is recorded. Return to the signup tab and refresh it if the consent checkbox is still disabled.';
+                    acknowledgementStatus.textContent = 'Your acknowledgement is recorded. Returning to signup...';
                 }
             }
 
             window.close();
             window.setTimeout(() => {
-                if (!window.closed && acknowledgementStatus) {
-                    acknowledgementStatus.textContent = signupTabNotified
-                        ? 'Thank you. Your acknowledgement is recorded. Return to the signup tab to continue.'
-                        : 'Your acknowledgement is recorded. Return to the signup tab and refresh it if the consent checkbox is still disabled.';
+                if (!window.closed) {
+                    if (acknowledgementStatus) {
+                        acknowledgementStatus.textContent = 'Your acknowledgement is recorded. Returning to signup...';
+                    }
+                    window.location.replace(
+                        'index.php?open=signup&privacy_acknowledged=1'
+                    );
                 }
-            }, 250);
+            }, 500);
         }
     </script>
 </body>
