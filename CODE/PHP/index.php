@@ -19,6 +19,10 @@ $signupCaptcha = generateImageCaptcha('signup_form');
 $loginCsrfToken = generateCsrfToken('client_login_form');
 $signupCsrfToken = generateCsrfToken('signup_form');
 
+$_SESSION['signup_privacy_ack_token'] = bin2hex(random_bytes(32));
+unset($_SESSION['signup_privacy_acknowledged_token']);
+$signupPrivacyAckToken = $_SESSION['signup_privacy_ack_token'];
+
 $popupMessage = "";
 $popupType = "";
 $openLoginAfterLoad = false;
@@ -2457,6 +2461,11 @@ if (session_status() === PHP_SESSION_ACTIVE) {
             padding-right: 56px;
         }
 
+        #signupModal input[type="password"]::-ms-reveal,
+        #signupModal input[type="password"]::-ms-clear {
+            display: none;
+        }
+
         .password-toggle-btn {
             position: absolute;
             top: 50%;
@@ -2490,6 +2499,58 @@ if (session_status() === PHP_SESSION_ACTIVE) {
         .password-toggle-btn:focus-visible {
             box-shadow: none;
             border-color: rgba(247, 217, 139, 0.72);
+        }
+
+        #signupModal .password-toggle-btn,
+        #signupModal .password-toggle-btn:hover,
+        #signupModal .password-toggle-btn:focus,
+        #signupModal .password-toggle-btn:focus-visible,
+        #signupModal .password-toggle-btn:active {
+            all: unset !important;
+            position: absolute !important;
+            top: 50% !important;
+            right: 18px !important;
+            transform: translateY(-50%) !important;
+            width: 20px !important;
+            height: 20px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0 !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            background: transparent !important;
+            background-color: transparent !important;
+            background-image: none !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            outline: 0 !important;
+            box-shadow: none !important;
+            filter: none !important;
+            color: #f7d98b !important;
+            cursor: pointer !important;
+        }
+
+        #signupModal .password-toggle-btn::before,
+        #signupModal .password-toggle-btn::after {
+            content: none !important;
+            display: none !important;
+            background: none !important;
+            border: 0 !important;
+            box-shadow: none !important;
+        }
+
+        #signupModal .password-toggle-btn .eye-icon,
+        #signupModal .password-toggle-btn .eye-icon svg {
+            background: none !important;
+            border: 0 !important;
+            box-shadow: none !important;
+            filter: none !important;
+        }
+
+        #signupModal .password-toggle-btn .eye-icon svg {
+            fill: none !important;
+            stroke: currentColor !important;
         }
 
         .eye-icon {
@@ -3037,6 +3098,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
     font-weight: 700;
   }
   .field-help { display:block; margin-top:-3px; margin-bottom:8px; color:#777; font-size:11px; line-height:1.4; }
+  .field-validation-error { display:block; margin-top:-3px; margin-bottom:8px; color:#b42318; font-size:11px; line-height:1.4; }
   .signup-form-panel input[type="file"] { color:#333 !important; padding:8px; }
   .signup-form-panel input[type="file"]::file-selector-button {
     margin-right:10px; padding:7px 12px; border:0; border-radius:6px;
@@ -3200,6 +3262,21 @@ if (session_status() === PHP_SESSION_ACTIVE) {
   }
   .signup-modern-box .privacy-consent-wrap label {
     color: var(--text-muted) !important;
+  }
+  .signup-modern-box .privacy-consent-wrap a {
+    color: #f7d98b !important;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .signup-modern-box .privacy-consent-wrap a:hover {
+    color: #fff !important;
+  }
+  #signupSubmitBtn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    transform: none;
+    box-shadow: none;
   }
   .login-modern-box [href*="forgot_password"] {
     color: var(--text-faint) !important;
@@ -4125,6 +4202,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
                 <h2>Create Account</h2>
                 <form action="/NexGen/CODE/PHP/signup_process.php" method="POST" enctype="multipart/form-data" id="signupForm">
                     <input type="hidden" name="csrf_token" value="<?php echo e($signupCsrfToken); ?>">
+                    <input type="hidden" name="privacy_ack_token" value="<?php echo e($signupPrivacyAckToken); ?>">
                     <div class="signup-grid">
                         <div>
                             <label for="signupUsername">Username</label>
@@ -4152,7 +4230,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
 
                         <div>
                             <label for="signupPhone">Phone Number</label>
-                            <input type="tel" name="phone" id="signupPhone" required placeholder="09XXXXXXXXX" autocomplete="tel" maxlength="20">
+                            <input type="tel" name="phone" id="signupPhone" required placeholder="09XXXXXXXXX" autocomplete="tel" inputmode="numeric" minlength="11" maxlength="11" pattern="[0-9]{11}" title="Please enter an 11-digit Philippine phone number using digits only.">
                         </div>
 
                         <div class="full-width">
@@ -4208,39 +4286,48 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
                         <div>
                             <label for="signupPassword">Password</label>
                             <div class="password-field-wrap">
-                                <input type="password" name="signup_password" id="signupPassword" required minlength="12" maxlength="64" placeholder="Enter password" autocomplete="new-password">
+                                <input type="password" name="signup_password" id="signupPassword" required minlength="12" maxlength="64" placeholder="Enter password" autocomplete="new-password" aria-describedby="signupPasswordHelp signupPasswordError">
                                 <button type="button" class="password-toggle-btn" data-target="signupPassword" aria-label="Show or hide password">
                                     <span class="eye-icon eye-open"><svg viewBox="0 0 24 24"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="3.2"></circle></svg></span>
                                     <span class="eye-icon eye-closed" style="display:none;"><svg viewBox="0 0 24 24"><path d="M3 3l18 18"></path><path d="M10.6 6.3A11.2 11.2 0 0 1 12 6c6.4 0 10 6 10 6a17.6 17.6 0 0 1-3.1 3.8"></path><path d="M6.7 6.8C4.1 8.5 2 12 2 12a17.3 17.3 0 0 0 10 6c1.4 0 2.7-.2 3.8-.7"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path></svg></span>
                                 </button>
                             </div>
-                            <small class="field-help">Use 12–64 characters with uppercase, lowercase, a number, and a special character.</small>
+                            <small class="field-help" id="signupPasswordHelp">Use 12–64 characters with uppercase, lowercase, a number, and a special character.</small>
+                            <small class="field-validation-error" id="signupPasswordError" aria-live="polite"></small>
                         </div>
 
                         <div>
                             <label for="signupConfirmPassword">Confirm Password</label>
                             <div class="password-field-wrap">
-                                <input type="password" name="confirm_password" id="signupConfirmPassword" required minlength="12" maxlength="64" placeholder="Repeat password" autocomplete="new-password">
+                                <input type="password" name="confirm_password" id="signupConfirmPassword" required minlength="12" maxlength="64" placeholder="Repeat password" autocomplete="new-password" aria-describedby="signupConfirmPasswordError">
                                 <button type="button" class="password-toggle-btn" data-target="signupConfirmPassword" aria-label="Show or hide password">
                                     <span class="eye-icon eye-open"><svg viewBox="0 0 24 24"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="3.2"></circle></svg></span>
                                     <span class="eye-icon eye-closed" style="display:none;"><svg viewBox="0 0 24 24"><path d="M3 3l18 18"></path><path d="M10.6 6.3A11.2 11.2 0 0 1 12 6c6.4 0 10 6 10 6a17.6 17.6 0 0 1-3.1 3.8"></path><path d="M6.7 6.8C4.1 8.5 2 12 2 12a17.3 17.3 0 0 0 10 6c1.4 0 2.7-.2 3.8-.7"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path></svg></span>
                                 </button>
                             </div>
+                            <small class="field-validation-error" id="signupConfirmPasswordError" aria-live="polite"></small>
                         </div>
 
                         <div class="full-width">
-                            <label for="validId">Valid ID or Proof of Employment</label>
-                            <input type="file" name="valid_id" id="validId" accept=".jpg,.jpeg,.png,.pdf" required>
-                            <small class="field-help">Accepted: JPG, PNG, or PDF. Maximum size: 5 MB. Files are stored privately for administrator review.</small>
+                            <label for="validId">Government ID Photo</label>
+                            <input type="file" name="valid_id" id="validId" accept="image/jpeg,image/png,image/heic,image/heif,.jpg,.jpeg,.png,.heic,.heif" required>
+                            <small class="field-help">Accepted: JPG, PNG, HEIC, or HEIF. JPG/PNG up to 5 MB; HEIC/HEIF up to 10 MB before conversion.</small>
+                        </div>
+
+                        <div class="full-width role-fields owner-fields" hidden>
+                            <label for="businessPermit">Business Permit</label>
+                            <input type="file" name="business_permit" id="businessPermit" accept="image/jpeg,image/png,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.heic,.heif,.pdf">
+                            <small class="field-help">Required for SME Owners. Accepted: PDF up to 10 MB; JPG/PNG up to 5 MB; HEIC/HEIF up to 10 MB before conversion.</small>
                         </div>
                     </div>
+                    <p class="field-help signup-document-notice">Privacy notice: NexGen uses these documents only to review your registration. They are malware-scanned, sanitized, encrypted in private storage, and available only to authorized administrators. If your request is rejected, the stored documents and their encryption keys are deleted immediately. We record the notice version and your consent time.</p>
                     <div class="privacy-consent-wrap" id="signupPrivacyWrap">
-                        <input type="checkbox" name="privacy_consent" id="privacy_consent" required disabled>
-                        <label for="privacy_consent">I agree to the <a href="/NexGen/CODE/PHP/privacy_policy.php?return_to=signup" target="_blank" rel="noopener" id="privacyPolicyLink">Privacy Policy</a></label>
+                        <input type="checkbox" name="privacy_consent" id="privacy_consent" value="1" required disabled>
+                        <label for="privacy_consent">I agree to the <a href="<?php echo e(nxAppUrl('privacy_policy.php') . '?return_to=signup&ack_token=' . rawurlencode($signupPrivacyAckToken)); ?>" target="_blank" rel="noopener" id="privacyPolicyLink">Privacy Policy</a></label>
                     </div>
-                    <p class="privacy-consent-hint" id="privacyConsentHint"><span class="hint-icon">ℹ️</span><span id="privacyConsentHintText">Open the Privacy Policy above to enable the checkbox.</span></p>
+                    <p class="privacy-consent-hint" id="privacyConsentHint"><span class="hint-icon">ℹ️</span><span id="privacyConsentHintText">Read the Privacy Policy and click “I understand” to enable consent.</span></p>
                     <div class="captcha-checkbox-wrap" style="margin:10px 0;"><div class="captcha-checkbox-card"><div class="captcha-checkbox-left" style="gap:8px;"><input type="checkbox" id="signupRobotCheck"><label for="signupRobotCheck" style="font-size:13px; margin:0;">I'm not a robot</label></div><div class="captcha-checkbox-right"><img src="data:image/png;base64,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" alt="reCAPTCHA" width="32" height="32" style="width:32px;height:32px;object-fit:contain;display:block;" aria-hidden="true"><span>Manual<br>Captcha</span></div></div><div class="captcha-verified-text" id="signupVerifiedText" style="color:#28a745; font-size:12px; margin-top:5px; display:none;">Captcha verified.</div></div>
-                    <button type="submit" class="silver-btn">Submit Request</button>
+                    <button type="submit" class="silver-btn" id="signupSubmitBtn" disabled>Submit Request</button>
                 </form>
             </div>
 
@@ -6486,6 +6573,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (uncheck && signupRobotCheck) {
             signupRobotCheck.checked = false;
+            if (signupVerifiedText) signupVerifiedText.classList.remove('show');
+            document.querySelectorAll('#signupCaptchaPopup input[type="checkbox"]').forEach(function(box) {
+                box.checked = false;
+            });
+            document.dispatchEvent(new Event('signup-prerequisite-change'));
         }
     }
 
@@ -6498,6 +6590,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.querySelectorAll('#signupCaptchaPopup input[type="checkbox"]').forEach(function(box) {
                     box.checked = false;
                 });
+                document.dispatchEvent(new Event('signup-prerequisite-change'));
             }
         });
     }
@@ -6520,6 +6613,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (checked > 0) {
                 closeSignupCaptchaModal(false);
                 if (signupVerifiedText) signupVerifiedText.classList.add('show');
+                document.dispatchEvent(new Event('signup-prerequisite-change'));
             } else {
                 alert('Please select captcha images first.');
             }
@@ -6546,6 +6640,101 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         closeCaptchaNotice();
     });
+
+    const signupForm = document.getElementById('signupForm');
+    const signupPassword = document.getElementById('signupPassword');
+    const signupConfirmPassword = document.getElementById('signupConfirmPassword');
+    const signupPasswordError = document.getElementById('signupPasswordError');
+    const signupConfirmPasswordError = document.getElementById('signupConfirmPasswordError');
+    const signupPhone = document.getElementById('signupPhone');
+    let signupPasswordTouched = false;
+    let signupConfirmPasswordTouched = false;
+
+    if (signupPhone) {
+        signupPhone.addEventListener('beforeinput', function(event) {
+            if (event.data && /[^0-9]/.test(event.data)) {
+                event.preventDefault();
+            }
+        });
+        signupPhone.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11);
+        });
+    }
+
+    function validateSignupPasswords() {
+        if (!signupPassword || !signupConfirmPassword) return;
+
+        const password = signupPassword.value;
+        const passwordLength = Array.from(password).length;
+        let passwordMessage = '';
+
+        if (password && (passwordLength < 12 || new TextEncoder().encode(password).length > 64)) {
+            passwordMessage = 'Password must be 12–64 characters.';
+        } else if (password && /[\x00-\x1F\x7F]/.test(password)) {
+            passwordMessage = 'Password cannot contain control characters.';
+        } else if (password && (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/u.test(password))) {
+            passwordMessage = 'Include an uppercase letter, a lowercase letter, a number, and a special character.';
+        }
+
+        signupPassword.setCustomValidity(passwordMessage);
+        signupPassword.setAttribute('aria-invalid', signupPasswordTouched && (passwordMessage !== '' || password === '') ? 'true' : 'false');
+        if (signupPasswordError) {
+            signupPasswordError.textContent = signupPasswordTouched
+                ? (passwordMessage || (password === '' ? 'Please enter a password.' : ''))
+                : '';
+        }
+
+        let confirmMessage = '';
+        if (signupConfirmPassword.value && password !== signupConfirmPassword.value) {
+            confirmMessage = 'Passwords do not match.';
+        }
+
+        signupConfirmPassword.setCustomValidity(confirmMessage);
+        signupConfirmPassword.setAttribute('aria-invalid', signupConfirmPasswordTouched && (confirmMessage !== '' || signupConfirmPassword.value === '') ? 'true' : 'false');
+        if (signupConfirmPasswordError) {
+            signupConfirmPasswordError.textContent = signupConfirmPasswordTouched
+                ? (confirmMessage || (signupConfirmPassword.value === '' ? 'Please confirm your password.' : ''))
+                : '';
+        }
+    }
+
+    if (signupPassword && signupConfirmPassword) {
+        validateSignupPasswords();
+
+        signupPassword.addEventListener('input', function() {
+            signupPasswordTouched = true;
+            validateSignupPasswords();
+        });
+        signupPassword.addEventListener('blur', function() {
+            signupPasswordTouched = true;
+            validateSignupPasswords();
+        });
+        signupPassword.addEventListener('invalid', function() {
+            signupPasswordTouched = true;
+            validateSignupPasswords();
+        });
+
+        signupConfirmPassword.addEventListener('input', function() {
+            signupConfirmPasswordTouched = true;
+            validateSignupPasswords();
+        });
+        signupConfirmPassword.addEventListener('blur', function() {
+            signupConfirmPasswordTouched = true;
+            validateSignupPasswords();
+        });
+        signupConfirmPassword.addEventListener('invalid', function() {
+            signupConfirmPasswordTouched = true;
+            validateSignupPasswords();
+        });
+
+        if (signupForm) {
+            signupForm.addEventListener('submit', function() {
+                signupPasswordTouched = true;
+                signupConfirmPasswordTouched = true;
+                validateSignupPasswords();
+            });
+        }
+    }
 
     document.querySelectorAll('.password-toggle-btn').forEach(function(button) {
         button.addEventListener('click', function() {
@@ -6885,6 +7074,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const businessName = document.getElementById('businessName');
     const businessType = document.getElementById('businessType');
     const businessAddress = document.getElementById('businessAddress');
+    const businessPermit = document.getElementById('businessPermit');
     const businessCode = document.getElementById('businessCode');
     const branchCode = document.getElementById('branchCode');
     const employeeNumber = document.getElementById('employeeNumber');
@@ -6909,6 +7099,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setRequired(businessName, isOwner);
         setRequired(businessType, isOwner);
         setRequired(businessAddress, isOwner);
+        setRequired(businessPermit, isOwner);
         setRequired(businessCode, isEmployee);
         setRequired(branchCode, isEmployee);
         setRequired(employeeNumber, isEmployee);
@@ -6923,35 +7114,90 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // ========== PRIVACY POLICY GATE ==========
-    // The signup consent checkbox stays disabled until the user has
-    // actually opened the Privacy Policy at least once (link opens in a
-    // new tab so their in-progress form data isn't lost).
+    const signupForm = document.getElementById('signupForm');
+    const submitButton = document.getElementById('signupSubmitBtn');
     var policyLink = document.getElementById('privacyPolicyLink');
     var consentCheckbox = document.getElementById('privacy_consent');
     var consentHint = document.getElementById('privacyConsentHint');
     var consentHintText = document.getElementById('privacyConsentHintText');
+    var signupCaptchaPopup = document.getElementById('signupCaptchaPopup');
+    var signupVerifiedText = document.getElementById('signupVerifiedText');
+    var signupRobotCheck = document.getElementById('signupRobotCheck');
+    var expectedAckToken = signupForm
+        ? signupForm.querySelector('[name="privacy_ack_token"]').value
+        : '';
+    var privacyAcknowledged = false;
+
+    function updateConsentState() {
+        if (!consentCheckbox) return;
+        consentCheckbox.disabled = !privacyAcknowledged;
+        if (consentHint) {
+            consentHint.classList.toggle('is-cleared', privacyAcknowledged);
+        }
+        if (consentHintText) {
+            consentHintText.textContent = privacyAcknowledged
+                ? 'Thanks — you can check the box now.'
+                : 'Read the Privacy Policy and click “I understand” to enable consent.';
+        }
+    }
+
+    function signupCaptchaIsVerified() {
+        return !!signupCaptchaPopup
+            && !!signupVerifiedText
+            && !!signupRobotCheck
+            && signupRobotCheck.checked
+            && signupVerifiedText.classList.contains('show')
+            && signupCaptchaPopup.querySelectorAll('input[type="checkbox"]:checked').length > 0;
+    }
+
+    function updateSignupSubmitState() {
+        if (!signupForm || !submitButton || !consentCheckbox) return;
+
+        const fieldsAreValid = Array.from(signupForm.elements).every(function(control) {
+            return control.disabled || !control.willValidate || control.validity.valid;
+        });
+
+        submitButton.disabled = !fieldsAreValid
+            || !privacyAcknowledged
+            || !consentCheckbox.checked
+            || !signupCaptchaIsVerified();
+    }
+
+    updateConsentState();
 
     if (policyLink && consentCheckbox) {
-        var enableConsent = function () {
-            consentCheckbox.disabled = false;
-            if (consentHint) {
-                consentHint.classList.add('is-cleared');
+        window.addEventListener('storage', function(event) {
+            if (event.key !== 'nexgen_signup_privacy_ack' || event.newValue !== expectedAckToken) {
+                return;
             }
-            if (consentHintText) {
-                consentHintText.textContent = 'Thanks — you can check the box now.';
-            }
-        };
 
-        // Bound on pointerdown (fires before the browser acts on the link,
-        // so it can't be skipped by a popup blocker or tab-switch timing)
-        // and on click as a backup for keyboard/assistive-tech activation.
-        policyLink.addEventListener('pointerdown', enableConsent);
-        policyLink.addEventListener('click', enableConsent);
-        policyLink.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' || e.key === ' ') enableConsent();
+            privacyAcknowledged = true;
+            updateConsentState();
+            updateSignupSubmitState();
         });
     }
+
+    if (signupForm) {
+        signupForm.addEventListener('input', updateSignupSubmitState);
+        signupForm.addEventListener('change', updateSignupSubmitState);
+
+        signupForm.addEventListener('submit', function(event) {
+            updateSignupSubmitState();
+            if (submitButton.disabled) {
+                event.preventDefault();
+            }
+        });
+    }
+
+    if (signupCaptchaPopup) {
+        signupCaptchaPopup.addEventListener('change', updateSignupSubmitState);
+        signupCaptchaPopup.addEventListener('click', function() {
+            window.setTimeout(updateSignupSubmitState, 0);
+        });
+    }
+
+    document.addEventListener('signup-prerequisite-change', updateSignupSubmitState);
+    updateSignupSubmitState();
 });
 </script>
 

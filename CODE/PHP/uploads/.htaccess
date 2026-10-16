@@ -1,0 +1,6 @@
+Options -ExecCGI
+php_flag engine off
+
+<FilesMatch "(?i)\.(?:php[0-9]?|phtml|phar)(?:\..*)?$">
+    Require all denied
+</FilesMatch>

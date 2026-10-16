@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/tenant_helper.php';
+require_once __DIR__ . '/document_upload_security.php';
 
 $signupStartedAt = microtime(true);
 
@@ -9,6 +10,12 @@ function signupRedirect(string $message, string $type = 'error'): void
     $_SESSION[$type] = $message;
     if ($type === 'error') {
         $_SESSION['form_type'] = 'signup';
+    }
+    if ($type === 'success') {
+        unset(
+            $_SESSION['signup_privacy_ack_token'],
+            $_SESSION['signup_privacy_acknowledged_token']
+        );
     }
 
     header('Location: /NexGen/CODE/PHP/index.php?open=signup');
@@ -60,6 +67,17 @@ function normalizeSignupEmail(string $email): string
     }
 
     return $parts[0] . '@' . strtolower($parts[1]);
+}
+
+function signupDeleteSensitiveDocument(string $reference, string $slot): bool
+{
+    try {
+        return nxDeleteSensitiveDocument($reference, $slot);
+    } catch (Throwable $error) {
+        nxDocumentUploadLog('storage.cleanup_failed', ['slot' => $slot]);
+        error_log('NexGen signup document cleanup failed: ' . $error->getMessage());
+        return false;
+    }
 }
 
 function generateRequestCode(mysqli $conn): string
@@ -114,8 +132,27 @@ if (!validateImageCaptchaSelection('signup_form', (array)$captchaSelection)) {
     signupRedirect('Please complete the image captcha correctly.');
 }
 
-if (!isset($_POST['privacy_consent'])) {
+if (($_POST['privacy_consent'] ?? null) !== '1') {
     signupRedirect('You must agree to the Privacy Policy before submitting your account request.');
+}
+
+$privacyAckToken = isset($_POST['privacy_ack_token']) && is_string($_POST['privacy_ack_token'])
+    ? $_POST['privacy_ack_token']
+    : '';
+$expectedPrivacyAckToken = isset($_SESSION['signup_privacy_ack_token']) && is_string($_SESSION['signup_privacy_ack_token'])
+    ? $_SESSION['signup_privacy_ack_token']
+    : '';
+$acknowledgedPrivacyToken = isset($_SESSION['signup_privacy_acknowledged_token']) && is_string($_SESSION['signup_privacy_acknowledged_token'])
+    ? $_SESSION['signup_privacy_acknowledged_token']
+    : '';
+if (
+    !preg_match('/^[a-f0-9]{64}$/D', $privacyAckToken)
+    || $expectedPrivacyAckToken === ''
+    || $acknowledgedPrivacyToken === ''
+    || !hash_equals($expectedPrivacyAckToken, $privacyAckToken)
+    || !hash_equals($acknowledgedPrivacyToken, $privacyAckToken)
+) {
+    signupRedirect('Please read and acknowledge the Privacy Policy before submitting your account request.');
 }
 
 $username = trim((string)($_POST['signup_username'] ?? ''));
@@ -171,8 +208,8 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL) || !signupLengthBetween($email, 3
     signupRedirect('Please enter a valid email address of at most 100 characters.');
 }
 
-if (!preg_match('/^[0-9+().\- ]{7,20}$/', $phone)) {
-    signupRedirect('Please enter a valid phone number using 7 to 20 digits or common phone symbols.');
+if (!preg_match('/^[0-9]{11}$/', $phone)) {
+    signupRedirect('Please enter an 11-digit Philippine phone number using digits only.');
 }
 
 if (!signupLengthBetween($address, 5, 500) || signupHasControlCharacters($address)) {
@@ -306,27 +343,35 @@ if ($requestedRole === 'owner') {
     $businessAddress = (string)$business['business_address'];
 }
 
-if (!isset($_FILES['valid_id']) || $_FILES['valid_id']['error'] !== UPLOAD_ERR_OK) {
-    signupRedirect('Please upload a valid ID or proof of employment.');
-}
-
-$validIdFile = $_FILES['valid_id'];
-[$isValidUpload, $scanResult] = nxValidateSecureUpload($validIdFile, [
-    'allowed_extensions' => ['jpg', 'jpeg', 'png', 'pdf'],
-    'allowed_mime_types' => ['image/jpeg', 'image/png', 'application/pdf'],
-    'mime_extension_map' => [
-        'jpg' => ['image/jpeg'],
-        'jpeg' => ['image/jpeg'],
-        'png' => ['image/png'],
-        'pdf' => ['application/pdf'],
-    ],
-    'max_size' => 5 * 1024 * 1024,
-    'require_image' => false,
-    'allow_pdf' => true,
-]);
-
-if (!$isValidUpload) {
-    signupRedirect('Valid ID upload blocked: ' . $scanResult);
+try {
+    nxDocumentUploadValidateBag($_FILES, ['business_permit', 'valid_id']);
+    if (
+        nxDocumentUploadIsMissing($_FILES['valid_id'])
+        || (int)$_FILES['valid_id']['error'] !== UPLOAD_ERR_OK
+    ) {
+        throw new NxDocumentUploadRejected('A government ID photo is required.');
+    }
+    if (
+        $requestedRole === 'owner'
+        && (
+            nxDocumentUploadIsMissing($_FILES['business_permit'])
+            || (int)$_FILES['business_permit']['error'] !== UPLOAD_ERR_OK
+        )
+    ) {
+        throw new NxDocumentUploadRejected('A business permit is required for SME Owners.');
+    }
+    if (
+        $requestedRole !== 'owner'
+        && !nxDocumentUploadIsMissing($_FILES['business_permit'])
+    ) {
+        throw new NxDocumentUploadRejected('Unexpected document slot.');
+    }
+} catch (NxDocumentUploadRejected $uploadError) {
+    nxDocumentUploadLog('upload.rejected', ['slot' => 'signup']);
+    signupRedirect('Please choose the required documents in an allowed format and try again.');
+} catch (NxDocumentUploadUnavailable $uploadError) {
+    nxDocumentUploadLog('upload.unavailable', ['slot' => 'signup']);
+    signupRedirect('Secure document processing is temporarily unavailable. Please try again later.');
 }
 
 try {
@@ -386,25 +431,55 @@ try {
     signupInternalError($e->getMessage());
 }
 
-$targetDir = nxPrivateValidIdDirectory();
-if (!is_dir($targetDir) && !mkdir($targetDir, 0700, true) && !is_dir($targetDir)) {
-    signupInternalError('The private valid-ID upload directory could not be created.');
-}
-
-$extension = strtolower(pathinfo((string)$validIdFile['name'], PATHINFO_EXTENSION));
-$newFileName = 'valid_id_' . bin2hex(random_bytes(12)) . '.' . $extension;
-$targetFile = $targetDir . DIRECTORY_SEPARATOR . $newFileName;
-
+$stagedValidId = null;
+$stagedBusinessPermit = null;
+$validIdPath = null;
+$businessPermitPath = null;
+$storedReferences = [];
 try {
-    $validIdPath = nxCreatePrivateValidIdReference($newFileName);
-} catch (Throwable $e) {
-    signupInternalError($e->getMessage());
-}
+    $stagedValidId = nxStageSensitiveDocument($_FILES['valid_id'], 'valid_id', ['role' => 'signup']);
+    if ($requestedRole === 'owner') {
+        $stagedBusinessPermit = nxStageSensitiveDocument(
+            $_FILES['business_permit'],
+            'business_permit',
+            ['role' => 'signup']
+        );
+    }
 
-if (!move_uploaded_file((string)$validIdFile['tmp_name'], $targetFile)) {
-    signupInternalError('The uploaded valid ID could not be saved to private storage.');
+    $validIdPath = nxPersistSensitiveDocument($stagedValidId, 'valid_id');
+    $storedReferences[] = [$validIdPath, 'valid_id'];
+    $stagedValidId = null;
+
+    if ($stagedBusinessPermit !== null) {
+        $businessPermitPath = nxPersistSensitiveDocument($stagedBusinessPermit, 'business_permit');
+        $storedReferences[] = [$businessPermitPath, 'business_permit'];
+        $stagedBusinessPermit = null;
+    }
+} catch (NxDocumentUploadUnavailable $uploadError) {
+    nxDocumentUploadLog('upload.unavailable', ['slot' => 'signup']);
+    nxDiscardStagedSensitiveDocument($stagedValidId);
+    nxDiscardStagedSensitiveDocument($stagedBusinessPermit);
+    foreach ($storedReferences as [$reference, $slot]) {
+        signupDeleteSensitiveDocument($reference, $slot);
+    }
+    signupRedirect('Secure document processing is temporarily unavailable. Please try again later.');
+} catch (NxDocumentUploadRejected $uploadError) {
+    nxDocumentUploadLog('upload.rejected', ['slot' => 'signup']);
+    nxDiscardStagedSensitiveDocument($stagedValidId);
+    nxDiscardStagedSensitiveDocument($stagedBusinessPermit);
+    foreach ($storedReferences as [$reference, $slot]) {
+        signupDeleteSensitiveDocument($reference, $slot);
+    }
+    signupRedirect('One or more documents could not be accepted. Check the file requirements and try again.');
+} catch (Throwable $uploadError) {
+    nxDocumentUploadLog('upload.processing_failed', ['slot' => 'signup']);
+    nxDiscardStagedSensitiveDocument($stagedValidId);
+    nxDiscardStagedSensitiveDocument($stagedBusinessPermit);
+    foreach ($storedReferences as [$reference, $slot]) {
+        signupDeleteSensitiveDocument($reference, $slot);
+    }
+    signupInternalError('Sensitive document processing failed.');
 }
-@chmod($targetFile, 0600);
 
 try {
     $requestCode = generateRequestCode($conn);
@@ -414,21 +489,24 @@ try {
     $businessEntityIdForDb = $requestedRole === 'employee' ? $businessEntityId : null;
     $branchCodeForDb = $requestedRole === 'employee' ? $branchCode : null;
 
+    $privacyConsentAt = date('Y-m-d H:i:s');
+    $privacyNoticeVersion = '2026-10-v1';
     $insert = $conn->prepare(
         "INSERT INTO registration_requests (
             request_code, employee_no, full_name, email, phone, address,
-            username, password_hash, valid_id_path, requested_role,
+            username, password_hash, valid_id_path, business_permit_path,
+            privacy_consent_at, privacy_notice_version, requested_role,
             request_status, business_name, business_type, business_address,
             business_code, business_id, business_entity_id, branch_code,
             possible_duplicate, duplicate_business_id, duplicate_reason
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
     if (!$insert) {
         throw new RuntimeException('Unable to prepare the registration request.');
     }
 
     $insert->bind_param(
-        'ssssssssssssssiisiis',
+        str_repeat('s', 17) . 'iisii' . 's',
         $requestCode,
         $employeeNoForDb,
         $fullName,
@@ -438,6 +516,9 @@ try {
         $username,
         $hashedPassword,
         $validIdPath,
+        $businessPermitPath,
+        $privacyConsentAt,
+        $privacyNoticeVersion,
         $requestedRole,
         $businessName,
         $businessType,
@@ -454,12 +535,22 @@ try {
     if (!$insert->execute()) {
         throw new RuntimeException('Unable to submit the registration request.');
     }
+    $registrationRequestId = (int)$insert->insert_id;
     $insert->close();
+    foreach ($storedReferences as [, $slot]) {
+        nxDocumentUploadLog('upload.stored', [
+            'role' => 'signup',
+            'request_id' => $registrationRequestId,
+            'slot' => $slot,
+        ]);
+    }
 
     signupNeutralRedirect();
 } catch (Throwable $e) {
-    if (is_file($targetFile)) {
-        @unlink($targetFile);
+    foreach ($storedReferences as [$reference, $slot]) {
+        if (!signupDeleteSensitiveDocument($reference, $slot)) {
+            nxDocumentUploadLog('storage.cleanup_failed', ['slot' => $slot]);
+        }
     }
 
     if ((int)$e->getCode() === 1062) {

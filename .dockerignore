@@ -6,6 +6,7 @@
 CODE/PHP/uploads/valid_ids
 CODE/PHP/uploads/valid_ids/**
 CODE/PHP/uploads/**
+!CODE/PHP/uploads/.htaccess
 CODE/PHP/nexgen_private
 CODE/PHP/nexgen_private/**
 node_modules

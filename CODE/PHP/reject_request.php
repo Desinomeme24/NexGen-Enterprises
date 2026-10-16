@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/resend_config.php';
+require_once __DIR__ . '/document_upload_security.php';
 
 function nxRejectRequestWantsJson(): bool
 {
@@ -109,7 +110,8 @@ try {
     $conn->begin_transaction();
 
     $stmt = $conn->prepare(
-        "SELECT id, request_code, full_name, email, request_status
+        "SELECT id, request_code, full_name, email, request_status,
+                valid_id_path, business_permit_path
          FROM registration_requests
          WHERE id = ?
          FOR UPDATE"
@@ -167,6 +169,56 @@ try {
 
     $conn->commit();
     $_SESSION['last_activity'] = time();
+
+    foreach ([
+        ['valid_id_path', 'valid_id'],
+        ['business_permit_path', 'business_permit'],
+    ] as [$pathField, $slot]) {
+        $reference = (string)($requestData[$pathField] ?? '');
+        if ($reference === '') {
+            continue;
+        }
+
+        try {
+            $documentRemoved = nxDeleteSensitiveDocument($reference, $slot);
+        } catch (Throwable $cleanupError) {
+            $documentRemoved = false;
+            error_log('NexGen rejected-document cleanup failed: ' . $cleanupError->getMessage());
+        }
+        if (!$documentRemoved) {
+            nxDocumentUploadLog('rejection.cleanup_failed', [
+                'user_id' => $adminId,
+                'role' => 'system_admin',
+                'request_id' => $requestId,
+                'slot' => $slot,
+            ]);
+            continue;
+        }
+
+        try {
+            $clearReference = $conn->prepare(
+                "UPDATE registration_requests
+                 SET {$pathField} = NULL
+                 WHERE id = ? AND request_status = 'rejected' AND {$pathField} = ?"
+            );
+            if (!$clearReference) {
+                throw new RuntimeException('Unable to clear a deleted document reference.');
+            }
+            $clearReference->bind_param('is', $requestId, $reference);
+            if (!$clearReference->execute()) {
+                throw new RuntimeException('Unable to clear a deleted document reference.');
+            }
+            $clearReference->close();
+        } catch (Throwable $cleanupError) {
+            nxDocumentUploadLog('rejection.reference_cleanup_failed', [
+                'user_id' => $adminId,
+                'role' => 'system_admin',
+                'request_id' => $requestId,
+                'slot' => $slot,
+            ]);
+            error_log('NexGen rejected-document reference cleanup failed: ' . $cleanupError->getMessage());
+        }
+    }
 } catch (Throwable $e) {
     try {
         $conn->rollback();

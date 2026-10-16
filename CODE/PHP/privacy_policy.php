@@ -3,7 +3,64 @@ session_start();
 
 $backLink = "/NexGen/CODE/PHP/index.php";
 $returnTo = $_GET['return_to'] ?? '';
-$isSignupReturn = !isset($_SESSION['user_id']) && $returnTo === 'signup';
+$acknowledgedParam = isset($_GET['acknowledged']) && is_string($_GET['acknowledged'])
+    ? $_GET['acknowledged']
+    : '';
+$ackToken = isset($_GET['ack_token']) && is_string($_GET['ack_token'])
+    ? $_GET['ack_token']
+    : '';
+$ackError = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $returnTo = isset($_POST['return_to']) && is_string($_POST['return_to'])
+        ? $_POST['return_to']
+        : '';
+    $ackToken = isset($_POST['ack_token']) && is_string($_POST['ack_token'])
+        ? $_POST['ack_token']
+        : '';
+    $expectedAckToken = isset($_SESSION['signup_privacy_ack_token']) && is_string($_SESSION['signup_privacy_ack_token'])
+        ? $_SESSION['signup_privacy_ack_token']
+        : '';
+
+    if (
+        !isset($_POST['action'])
+        || !is_string($_POST['action'])
+        || $_POST['action'] !== 'acknowledge_signup_policy'
+        || isset($_SESSION['user_id'])
+        || $returnTo !== 'signup'
+        || !preg_match('/^[a-f0-9]{64}$/D', $ackToken)
+        || $expectedAckToken === ''
+        || !hash_equals($expectedAckToken, $ackToken)
+    ) {
+        http_response_code(400);
+        $ackError = 'This acknowledgement link is invalid or expired. Please reopen the Privacy Policy from the signup form.';
+    } else {
+        $_SESSION['signup_privacy_acknowledged_token'] = $ackToken;
+        header(
+            'Location: privacy_policy.php?return_to=signup&acknowledged=1&ack_token=' . rawurlencode($ackToken),
+            true,
+            303
+        );
+        exit();
+    }
+}
+
+$expectedAckToken = isset($_SESSION['signup_privacy_ack_token']) && is_string($_SESSION['signup_privacy_ack_token'])
+    ? $_SESSION['signup_privacy_ack_token']
+    : '';
+$isSignupReturn = !isset($_SESSION['user_id'])
+    && $returnTo === 'signup'
+    && preg_match('/^[a-f0-9]{64}$/D', $ackToken)
+    && $expectedAckToken !== ''
+    && hash_equals($expectedAckToken, $ackToken);
+$isSignupAcknowledged = $isSignupReturn
+    && $acknowledgedParam === '1'
+    && isset($_SESSION['signup_privacy_acknowledged_token'])
+    && is_string($_SESSION['signup_privacy_acknowledged_token'])
+    && hash_equals($ackToken, $_SESSION['signup_privacy_acknowledged_token']);
+if ($returnTo === 'signup' && !$isSignupReturn && $ackError === '') {
+    $ackError = 'This acknowledgement link is invalid or expired. Please reopen the Privacy Policy from the signup form.';
+}
 
 if ($returnTo === 'about_us') {
     $backLink = "about_us.php";
@@ -106,6 +163,15 @@ if ($returnTo === 'about_us') {
         }
 
         .understand-btn:hover { transform: translateY(-1px); }
+        .policy-ack-form { margin: 0; }
+        .policy-ack-status {
+            max-width: 520px;
+            margin: 0;
+            color: var(--success);
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        .policy-ack-status[role="alert"] { color: #ffb4ab; }
 
         .policy-shell {
             overflow: hidden;
@@ -396,38 +462,57 @@ if ($returnTo === 'about_us') {
 
             <footer class="policy-footer">
                 <p>By continuing to use NexGen, you acknowledge that your information may be processed for authentication, access control, security monitoring, legitimate system operations, and essential session handling.</p>
-                <a
-                    href="<?php echo htmlspecialchars($backLink, ENT_QUOTES, 'UTF-8'); ?>"
-                    class="understand-btn"
-                    id="understand-btn"
-                    data-close-signup="<?php echo $isSignupReturn ? 'true' : 'false'; ?>"
-                    aria-label="Acknowledge the privacy policy"
-                >I understand <span aria-hidden="true">→</span></a>
+                <?php if ($ackError !== ''): ?>
+                    <p class="policy-ack-status" role="alert"><?php echo htmlspecialchars($ackError, ENT_QUOTES, 'UTF-8'); ?></p>
+                <?php endif; ?>
+
+                <?php if ($isSignupReturn && !$isSignupAcknowledged): ?>
+                    <form method="post" class="policy-ack-form">
+                        <input type="hidden" name="action" value="acknowledge_signup_policy">
+                        <input type="hidden" name="return_to" value="signup">
+                        <input type="hidden" name="ack_token" value="<?php echo htmlspecialchars($ackToken, ENT_QUOTES, 'UTF-8'); ?>">
+                        <button type="submit" class="understand-btn" aria-label="Acknowledge the privacy policy">
+                            I understand <span aria-hidden="true">→</span>
+                        </button>
+                    </form>
+                <?php elseif ($isSignupAcknowledged): ?>
+                    <p class="policy-ack-status" id="policyAckStatus" role="status">Thank you. Your acknowledgement is recorded; return to the signup tab to continue.</p>
+                <?php else: ?>
+                    <a
+                        href="<?php echo htmlspecialchars($backLink, ENT_QUOTES, 'UTF-8'); ?>"
+                        class="understand-btn"
+                        aria-label="Return from the privacy policy"
+                    >I understand <span aria-hidden="true">→</span></a>
+                <?php endif; ?>
             </footer>
         </section>
     </main>
 
     <script>
-        (() => {
-            const understandButton = document.getElementById('understand-btn');
-            if (!understandButton || understandButton.dataset.closeSignup !== 'true') {
-                return;
+        const acknowledgedToken = <?php echo json_encode($isSignupAcknowledged ? $ackToken : ''); ?>;
+        const acknowledgementStatus = document.getElementById('policyAckStatus');
+
+        if (acknowledgedToken) {
+            let signupTabNotified = false;
+            try {
+                localStorage.setItem('nexgen_signup_privacy_ack', acknowledgedToken);
+                signupTabNotified = true;
+            } catch (error) {
+                console.error('Unable to notify the signup tab about the privacy acknowledgement.', error);
+                if (acknowledgementStatus) {
+                    acknowledgementStatus.textContent = 'Your acknowledgement is recorded. Return to the signup tab and refresh it if the consent checkbox is still disabled.';
+                }
             }
 
-            understandButton.addEventListener('click', (event) => {
-                event.preventDefault();
-
-                // Browsers only allow window.close() when this page was opened by script.
-                window.close();
-
-                // If the browser blocks closing, return the user to the signup screen.
-                window.setTimeout(() => {
-                    if (!window.closed) {
-                        window.location.replace(understandButton.href);
-                    }
-                }, 250);
-            });
-        })();
+            window.close();
+            window.setTimeout(() => {
+                if (!window.closed && acknowledgementStatus) {
+                    acknowledgementStatus.textContent = signupTabNotified
+                        ? 'Thank you. Your acknowledgement is recorded. Return to the signup tab to continue.'
+                        : 'Your acknowledgement is recorded. Return to the signup tab and refresh it if the consent checkbox is still disabled.';
+                }
+            }, 250);
+        }
     </script>
 </body>
 </html>

@@ -1198,67 +1198,6 @@ if (!function_exists('nxSaleReceiptPath')) {
     }
 }
 
-if (!function_exists('nxPrivateValidIdDirectory')) {
-    function nxPrivateValidIdDirectory(): string
-    {
-        $configured = trim((string)(getenv('NEXGEN_PRIVATE_UPLOAD_DIR') ?: ''));
-        if ($configured !== '') {
-            return rtrim($configured, "\\/") . DIRECTORY_SEPARATOR . 'valid_ids';
-        }
-
-        return dirname(__DIR__, 4) . DIRECTORY_SEPARATOR . 'nexgen_private'
-            . DIRECTORY_SEPARATOR . 'valid_ids';
-    }
-}
-
-if (!function_exists('nxCreatePrivateValidIdReference')) {
-    function nxCreatePrivateValidIdReference(string $filename): string
-    {
-        if (!preg_match('/^valid_id_[a-f0-9]{24}\.(?:jpe?g|png|pdf)$/', $filename)) {
-            throw new InvalidArgumentException('Invalid private document filename.');
-        }
-
-        return 'private-valid-id:' . $filename;
-    }
-}
-
-if (!function_exists('nxResolveValidIdPath')) {
-    function nxResolveValidIdPath(string $storedReference): ?string
-    {
-        $filename = '';
-        $baseDirectory = '';
-
-        if (str_starts_with($storedReference, 'private-valid-id:')) {
-            $filename = substr($storedReference, strlen('private-valid-id:'));
-            $baseDirectory = nxPrivateValidIdDirectory();
-        } elseif (str_starts_with($storedReference, 'uploads/valid_ids/')) {
-            // Backward-compatible access for files created before private storage.
-            $filename = basename($storedReference);
-            $baseDirectory = __DIR__ . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'valid_ids';
-        } else {
-            return null;
-        }
-
-        if (!preg_match('/^valid_id_[a-f0-9]{24}\.(?:jpe?g|png|gif|webp|pdf)$/', $filename)) {
-            return null;
-        }
-
-        $realBase = realpath($baseDirectory);
-        $candidate = $baseDirectory . DIRECTORY_SEPARATOR . $filename;
-        $realCandidate = realpath($candidate);
-        if ($realBase === false || $realCandidate === false || !is_file($realCandidate)) {
-            return null;
-        }
-
-        $basePrefix = rtrim($realBase, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-        if (!str_starts_with($realCandidate, $basePrefix)) {
-            return null;
-        }
-
-        return $realCandidate;
-    }
-}
-
 /* =========================================================================
    GENERAL AUDIT LOGS (DEPRECATED — audit_logs was repurposed, see below)
    ========================================================================= */

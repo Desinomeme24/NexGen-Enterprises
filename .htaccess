@@ -2,6 +2,13 @@
 # Place this file in C:\xampp\htdocs\NexGen\.htaccess.
 
 RewriteEngine On
+LimitRequestBody 23068672
+php_value upload_max_filesize 10M
+php_value post_max_size 22M
+php_value max_file_uploads 3
+
+# The sanitizer is a server-side worker, never a browser-accessible endpoint.
+RewriteRule ^NexGen/CODE/PHP/upload_sanitizer\.py$ - [F,L,NC]
 
 # Hide direct requests for the administrator filename before compatibility
 # rewrites can map the legacy XAMPP path to the public root.

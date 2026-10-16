@@ -2,6 +2,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/resend_config.php';
 require_once __DIR__ . '/tenant_helper.php';
+require_once __DIR__ . '/document_upload_security.php';
 
 function nxResubmitRequestWantsJson(): bool
 {
@@ -66,6 +67,22 @@ function nxResubmitNormalizeEmail(string $email): string
     }
 
     return $parts[0] . '@' . strtolower($parts[1]);
+}
+
+function nxResubmitDeleteDocument(string $reference, string $slot, int $adminId, int $requestId): bool
+{
+    try {
+        return nxDeleteSensitiveDocument($reference, $slot);
+    } catch (Throwable $error) {
+        nxDocumentUploadLog('document.cleanup_failed', [
+            'user_id' => $adminId,
+            'role' => 'system_admin',
+            'request_id' => $requestId,
+            'slot' => $slot,
+        ]);
+        error_log('NexGen resubmission document cleanup failed: ' . $error->getMessage());
+        return false;
+    }
 }
 
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'system_admin') {
@@ -140,36 +157,181 @@ if (!nxResubmitLengthBetween($address, 5, 500) || nxResubmitHasControlCharacters
     nxResubmitRequestRespond(false, 'Personal address must be 5 to 500 valid characters.', $requestId, 422);
 }
 
-$replacementUpload = null;
-if (isset($_FILES['valid_id']) && (int)($_FILES['valid_id']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
-    $replacementUpload = $_FILES['valid_id'];
-
-    [$uploadIsValid, $uploadMessage] = nxValidateSecureUpload($replacementUpload, [
-        'allowed_extensions' => ['jpg', 'jpeg', 'png', 'pdf'],
-        'allowed_mime_types' => ['image/jpeg', 'image/png', 'application/pdf'],
-        'mime_extension_map' => [
-            'jpg' => ['image/jpeg'],
-            'jpeg' => ['image/jpeg'],
-            'png' => ['image/png'],
-            'pdf' => ['application/pdf'],
-        ],
-        'max_size' => 5 * 1024 * 1024,
-        'require_image' => false,
-        'allow_pdf' => true,
-    ]);
-
-    if (!$uploadIsValid) {
-        nxResubmitRequestRespond(
-            false,
-            'Replacement attachment blocked: ' . $uploadMessage,
-            $requestId,
-            422
-        );
-    }
+$adminStmt = $conn->prepare(
+    "SELECT id
+     FROM users
+     WHERE id = ? AND role = 'system_admin' AND account_status = 'active'
+     LIMIT 1"
+);
+if (!$adminStmt) {
+    nxResubmitRequestRespond(false, 'Unable to verify the administrator account.', $requestId, 500);
+}
+$adminStmt->bind_param('i', $adminId);
+$adminStmt->execute();
+$adminIsActive = (bool)$adminStmt->get_result()->fetch_assoc();
+$adminStmt->close();
+if (!$adminIsActive) {
+    nxResubmitRequestRespond(
+        false,
+        'Your administrator account is no longer active.',
+        $requestId,
+        403,
+        '/NexGen/CODE/PHP/index.php?open=login'
+    );
 }
 
-$newPhysicalPath = null;
-$oldPhysicalPath = null;
+$replacementUpload = null;
+$replacementPermitUpload = null;
+$newValidIdReference = null;
+$newBusinessPermitReference = null;
+$oldValidIdReference = null;
+$oldBusinessPermitReference = null;
+$stagedValidId = null;
+$stagedBusinessPermit = null;
+
+try {
+    $requestLookup = $conn->prepare(
+        "SELECT requested_role, valid_id_path, business_permit_path
+         FROM registration_requests
+         WHERE id = ? AND request_status IN ('pending', 'resubmit')
+         LIMIT 1"
+    );
+    if (!$requestLookup) {
+        throw new RuntimeException('Unable to prepare the document request lookup.');
+    }
+    $requestLookup->bind_param('i', $requestId);
+    $requestLookup->execute();
+    $documentRequest = $requestLookup->get_result()->fetch_assoc();
+    $requestLookup->close();
+    if (!$documentRequest) {
+        throw new NxDocumentUploadRejected('Registration request is unavailable.');
+    }
+
+    $isOwnerRequest = ($documentRequest['requested_role'] ?? '') === 'owner';
+    $expectedUploadFields = $isOwnerRequest
+        ? ['business_permit', 'valid_id']
+        : ['valid_id'];
+    nxDocumentUploadValidateBag($_FILES, $expectedUploadFields);
+
+    foreach ($_FILES as $upload) {
+        $error = (int)$upload['error'];
+        if ($error !== UPLOAD_ERR_OK && $error !== UPLOAD_ERR_NO_FILE) {
+            throw new NxDocumentUploadRejected('The replacement upload could not be received.');
+        }
+    }
+
+    $replacementUpload = !nxDocumentUploadIsMissing($_FILES['valid_id'])
+        ? $_FILES['valid_id']
+        : null;
+    if ($isOwnerRequest) {
+        $replacementPermitUpload = !nxDocumentUploadIsMissing($_FILES['business_permit'])
+            ? $_FILES['business_permit']
+            : null;
+        if (
+            empty($documentRequest['business_permit_path'])
+            && $replacementPermitUpload === null
+        ) {
+            throw new NxDocumentUploadRejected('A business permit is required for this owner request.');
+        }
+    }
+
+    if ($replacementUpload !== null || $replacementPermitUpload !== null) {
+        $userUploadLimit = nxConsumeSecurityRateLimit(
+            $conn,
+            'admin_document_upload_user',
+            (string)$adminId,
+            10,
+            900,
+            1800
+        );
+        $ipUploadLimit = nxConsumeSecurityRateLimit(
+            $conn,
+            'admin_document_upload_ip',
+            (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+            10,
+            900,
+            1800
+        );
+        if (!$userUploadLimit['configured'] || !$ipUploadLimit['configured']) {
+            throw new NxDocumentUploadUnavailable('Document upload rate limiting is unavailable.');
+        }
+        if (!$userUploadLimit['allowed'] || !$ipUploadLimit['allowed']) {
+            nxResubmitRequestRespond(false, 'Too many document uploads. Please try again later.', $requestId, 429);
+        }
+    }
+
+    if ($replacementUpload !== null) {
+        $stagedValidId = nxStageSensitiveDocument($replacementUpload, 'valid_id', [
+            'user_id' => $adminId,
+            'role' => 'system_admin',
+            'request_id' => $requestId,
+        ]);
+    }
+    if ($replacementPermitUpload !== null) {
+        $stagedBusinessPermit = nxStageSensitiveDocument($replacementPermitUpload, 'business_permit', [
+            'user_id' => $adminId,
+            'role' => 'system_admin',
+            'request_id' => $requestId,
+        ]);
+    }
+    if ($stagedValidId !== null) {
+        $newValidIdReference = nxPersistSensitiveDocument($stagedValidId, 'valid_id');
+        $stagedValidId = null;
+    }
+    if ($stagedBusinessPermit !== null) {
+        $newBusinessPermitReference = nxPersistSensitiveDocument($stagedBusinessPermit, 'business_permit');
+        $stagedBusinessPermit = null;
+    }
+} catch (NxDocumentUploadUnavailable $uploadError) {
+    nxDocumentUploadLog('upload.unavailable', [
+        'user_id' => $adminId,
+        'role' => 'system_admin',
+        'request_id' => $requestId,
+        'slot' => 'admin_resubmission',
+    ]);
+    nxDiscardStagedSensitiveDocument($stagedValidId);
+    nxDiscardStagedSensitiveDocument($stagedBusinessPermit);
+    if ($newValidIdReference !== null) {
+        nxResubmitDeleteDocument($newValidIdReference, 'valid_id', $adminId, $requestId);
+    }
+    if ($newBusinessPermitReference !== null) {
+        nxResubmitDeleteDocument($newBusinessPermitReference, 'business_permit', $adminId, $requestId);
+    }
+    nxResubmitRequestRespond(false, 'Secure document processing is temporarily unavailable. Please try again later.', $requestId, 503);
+} catch (NxDocumentUploadRejected $uploadError) {
+    nxDocumentUploadLog('upload.rejected', [
+        'user_id' => $adminId,
+        'role' => 'system_admin',
+        'request_id' => $requestId,
+        'slot' => 'admin_resubmission',
+    ]);
+    nxDiscardStagedSensitiveDocument($stagedValidId);
+    nxDiscardStagedSensitiveDocument($stagedBusinessPermit);
+    if ($newValidIdReference !== null) {
+        nxResubmitDeleteDocument($newValidIdReference, 'valid_id', $adminId, $requestId);
+    }
+    if ($newBusinessPermitReference !== null) {
+        nxResubmitDeleteDocument($newBusinessPermitReference, 'business_permit', $adminId, $requestId);
+    }
+    nxResubmitRequestRespond(false, 'One or more documents could not be accepted. Check the file requirements and try again.', $requestId, 422);
+} catch (Throwable $uploadError) {
+    nxDocumentUploadLog('upload.processing_failed', [
+        'user_id' => $adminId,
+        'role' => 'system_admin',
+        'request_id' => $requestId,
+        'slot' => 'admin_resubmission',
+    ]);
+    nxDiscardStagedSensitiveDocument($stagedValidId);
+    nxDiscardStagedSensitiveDocument($stagedBusinessPermit);
+    if ($newValidIdReference !== null) {
+        nxResubmitDeleteDocument($newValidIdReference, 'valid_id', $adminId, $requestId);
+    }
+    if ($newBusinessPermitReference !== null) {
+        nxResubmitDeleteDocument($newBusinessPermitReference, 'business_permit', $adminId, $requestId);
+    }
+    nxResubmitRequestRespond(false, 'The document update could not be completed. Please try again later.', $requestId, 500);
+}
+
 $request = null;
 $changedFields = [];
 
@@ -372,28 +534,16 @@ try {
         $employeeNoForDb = $employeeNo;
     }
 
-    $validIdReference = (string)$request['valid_id_path'];
+    $validIdReference = $newValidIdReference ?? (string)$request['valid_id_path'];
+    $businessPermitReference = $newBusinessPermitReference
+        ?? ($request['business_permit_path'] ?? null);
     if ($replacementUpload !== null) {
-        $targetDirectory = nxPrivateValidIdDirectory();
-        if (
-            !is_dir($targetDirectory)
-            && !mkdir($targetDirectory, 0700, true)
-            && !is_dir($targetDirectory)
-        ) {
-            throw new RuntimeException('The private attachment directory could not be created.');
-        }
-
-        $extension = strtolower(pathinfo((string)$replacementUpload['name'], PATHINFO_EXTENSION));
-        $newFilename = 'valid_id_' . bin2hex(random_bytes(12)) . '.' . $extension;
-        $newPhysicalPath = $targetDirectory . DIRECTORY_SEPARATOR . $newFilename;
-        $validIdReference = nxCreatePrivateValidIdReference($newFilename);
-
-        if (!move_uploaded_file((string)$replacementUpload['tmp_name'], $newPhysicalPath)) {
-            throw new RuntimeException('The replacement attachment could not be stored.');
-        }
-        @chmod($newPhysicalPath, 0600);
-        $oldPhysicalPath = nxResolveValidIdPath((string)$request['valid_id_path']);
+        $oldValidIdReference = (string)$request['valid_id_path'];
         $changedFields[] = 'valid ID attachment';
+    }
+    if ($replacementPermitUpload !== null) {
+        $oldBusinessPermitReference = (string)($request['business_permit_path'] ?? '');
+        $changedFields[] = 'business permit attachment';
     }
 
     $trackedFields = [
@@ -424,6 +574,7 @@ try {
              address = ?,
              username = ?,
              valid_id_path = ?,
+             business_permit_path = ?,
              employee_no = ?,
              business_name = ?,
              business_type = ?,
@@ -447,13 +598,14 @@ try {
     }
 
     $stmt->bind_param(
-        'sssssssssssiisiissisi',
+        'ssssssssssssiisiissisi',
         $fullName,
         $email,
         $phone,
         $address,
         $username,
         $validIdReference,
+        $businessPermitReference,
         $employeeNoForDb,
         $businessName,
         $businessType,
@@ -496,13 +648,39 @@ try {
     $_SESSION['last_activity'] = time();
 
     if (
-        $newPhysicalPath !== null
-        && $oldPhysicalPath !== null
-        && !hash_equals($newPhysicalPath, $oldPhysicalPath)
-        && is_file($oldPhysicalPath)
+        $oldValidIdReference !== null
+        && !nxResubmitDeleteDocument($oldValidIdReference, 'valid_id', $adminId, $requestId)
     ) {
-        if (!@unlink($oldPhysicalPath)) {
-            error_log("Unable to remove replaced valid ID for request #{$requestId}.");
+        nxDocumentUploadLog('replacement.cleanup_failed', [
+            'user_id' => $adminId,
+            'role' => 'system_admin',
+            'request_id' => $requestId,
+            'slot' => 'valid_id',
+        ]);
+    }
+    if (
+        $oldBusinessPermitReference !== null
+        && $oldBusinessPermitReference !== ''
+        && !nxResubmitDeleteDocument($oldBusinessPermitReference, 'business_permit', $adminId, $requestId)
+    ) {
+        nxDocumentUploadLog('replacement.cleanup_failed', [
+            'user_id' => $adminId,
+            'role' => 'system_admin',
+            'request_id' => $requestId,
+            'slot' => 'business_permit',
+        ]);
+    }
+    foreach ([
+        [$newValidIdReference, 'valid_id'],
+        [$newBusinessPermitReference, 'business_permit'],
+    ] as [$newReference, $slot]) {
+        if ($newReference !== null) {
+            nxDocumentUploadLog('upload.stored', [
+                'user_id' => $adminId,
+                'role' => 'system_admin',
+                'request_id' => $requestId,
+                'slot' => $slot,
+            ]);
         }
     }
 } catch (Throwable $e) {
@@ -512,8 +690,11 @@ try {
         error_log('NexGen resubmission rollback failed: ' . $rollbackError->getMessage());
     }
 
-    if ($newPhysicalPath !== null && is_file($newPhysicalPath)) {
-        @unlink($newPhysicalPath);
+    if ($newValidIdReference !== null) {
+        nxResubmitDeleteDocument($newValidIdReference, 'valid_id', $adminId, $requestId);
+    }
+    if ($newBusinessPermitReference !== null) {
+        nxResubmitDeleteDocument($newBusinessPermitReference, 'business_permit', $adminId, $requestId);
     }
 
     error_log(
@@ -523,7 +704,7 @@ try {
 
     nxResubmitRequestRespond(
         false,
-        'Resubmission update failed: ' . $e->getMessage(),
+        'The resubmission update could not be completed. Please try again.',
         $requestId,
         422,
         '/NexGen/CODE/PHP/view_request.php?id=' . $requestId

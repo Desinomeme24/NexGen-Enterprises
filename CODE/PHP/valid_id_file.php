@@ -1,118 +1,126 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/document_upload_security.php';
 
-/* Compatibility guard: the shared resolver lives in the hardened config.php,
-   but keeping the same containment checks here prevents a fatal error during a
-   staged deployment where this endpoint is copied before config.php. */
-function nxValidIdControllerResolvePath(string $storedReference): ?string
+function nxDocumentDeliveryFail(int $status, int $adminId = 0, int $requestId = 0, string $slot = 'unknown'): void
 {
-    if (function_exists('nxResolveValidIdPath')) {
-        return nxResolveValidIdPath($storedReference);
-    }
-
-    if (str_starts_with($storedReference, 'private-valid-id:')) {
-        $filename = substr($storedReference, strlen('private-valid-id:'));
-        $configuredParent = trim((string)(getenv('NEXGEN_PRIVATE_UPLOAD_DIR') ?: ''));
-        $baseDirectory = $configuredParent !== ''
-            ? rtrim($configuredParent, "\\/") . DIRECTORY_SEPARATOR . 'valid_ids'
-            : dirname(__DIR__, 4) . DIRECTORY_SEPARATOR . 'nexgen_private'
-                . DIRECTORY_SEPARATOR . 'valid_ids';
-    } elseif (str_starts_with($storedReference, 'uploads/valid_ids/')) {
-        $filename = basename($storedReference);
-        $baseDirectory = __DIR__ . DIRECTORY_SEPARATOR . 'uploads'
-            . DIRECTORY_SEPARATOR . 'valid_ids';
-    } else {
-        return null;
-    }
-
-    if (!preg_match('/^valid_id_[a-f0-9]{24}\.(?:jpe?g|png|gif|webp|pdf)$/', $filename)) {
-        return null;
-    }
-
-    $realBase = realpath($baseDirectory);
-    $realFile = realpath($baseDirectory . DIRECTORY_SEPARATOR . $filename);
-    if ($realBase === false || $realFile === false || !is_file($realFile)) {
-        return null;
-    }
-
-    $basePrefix = rtrim($realBase, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-    return str_starts_with($realFile, $basePrefix) ? $realFile : null;
+    nxDocumentUploadLog('document.access_denied', [
+        'user_id' => $adminId,
+        'role' => $adminId > 0 ? 'system_admin' : 'unauthenticated',
+        'request_id' => $requestId,
+        'slot' => $slot,
+    ]);
+    http_response_code($status);
+    header('Cache-Control: private, no-store, max-age=0');
+    header('X-Content-Type-Options: nosniff');
+    exit;
 }
 
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'system_admin') {
-    http_response_code(403);
-    exit;
+$adminId = (int)($_SESSION['user_id'] ?? 0);
+if ($adminId <= 0 || ($_SESSION['role'] ?? '') !== 'system_admin') {
+    nxDocumentDeliveryFail(403, $adminId);
 }
 
 enforceSessionTimeout();
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') {
+    nxDocumentDeliveryFail(405, $adminId);
+}
 
-$requestId = filter_input(INPUT_GET, 'request_id', FILTER_VALIDATE_INT, [
+$requestId = filter_var($_GET['request_id'] ?? null, FILTER_VALIDATE_INT, [
     'options' => ['min_range' => 1],
 ]);
-if (!is_int($requestId)) {
-    http_response_code(404);
-    exit;
+$slot = (string)($_GET['slot'] ?? 'valid_id');
+if (!is_int($requestId) || !in_array($slot, ['valid_id', 'business_permit'], true)) {
+    nxDocumentDeliveryFail(404, $adminId, is_int($requestId) ? $requestId : 0, $slot);
 }
 
 try {
-    $stmt = $conn->prepare(
-        'SELECT valid_id_path FROM registration_requests WHERE id = ? LIMIT 1'
+    $adminStmt = $conn->prepare(
+        "SELECT id
+         FROM users
+         WHERE id = ? AND role = 'system_admin' AND account_status = 'active'
+         LIMIT 1"
     );
-    if (!$stmt) {
-        throw new RuntimeException('Unable to prepare the valid-ID lookup.');
+    if (!$adminStmt) {
+        throw new RuntimeException('Administrator authorization lookup failed.');
+    }
+    $adminStmt->bind_param('i', $adminId);
+    $adminStmt->execute();
+    $activeAdmin = (bool)$adminStmt->get_result()->fetch_assoc();
+    $adminStmt->close();
+    if (!$activeAdmin) {
+        nxDocumentDeliveryFail(403, $adminId, $requestId, $slot);
     }
 
+    $documentColumn = $slot === 'valid_id' ? 'valid_id_path' : 'business_permit_path';
+    $stmt = $conn->prepare(
+        "SELECT {$documentColumn} AS document_reference, request_status
+         FROM registration_requests
+         WHERE id = ?
+         LIMIT 1"
+    );
+    if (!$stmt) {
+        throw new RuntimeException('Document authorization lookup failed.');
+    }
     $stmt->bind_param('i', $requestId);
     $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
+    $request = $stmt->get_result()->fetch_assoc();
     $stmt->close();
-} catch (Throwable $e) {
-    error_log('NexGen valid-ID delivery error: ' . $e->getMessage());
-    http_response_code(404);
-    exit;
+} catch (Throwable $error) {
+    error_log('NexGen private document lookup failed: ' . $error->getMessage());
+    nxDocumentDeliveryFail(404, $adminId, $requestId, $slot);
 }
 
-$filePath = $row ? nxValidIdControllerResolvePath((string)$row['valid_id_path']) : null;
-if ($filePath === null) {
-    http_response_code(404);
-    exit;
+if (
+    !$request
+    || (string)$request['request_status'] === 'rejected'
+    || empty($request['document_reference'])
+) {
+    nxDocumentDeliveryFail(404, $adminId, $requestId, $slot);
 }
 
-$extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-$allowedTypes = [
-    'jpg' => ['image/jpeg', 'inline'],
-    'jpeg' => ['image/jpeg', 'inline'],
-    'png' => ['image/png', 'inline'],
-    // Legacy formats remain readable, but new signup uploads no longer accept them.
-    'gif' => ['image/gif', 'inline'],
-    'webp' => ['image/webp', 'inline'],
-    'pdf' => ['application/pdf', 'attachment'],
-];
-if (!isset($allowedTypes[$extension])) {
-    http_response_code(415);
-    exit;
-}
+$temporaryDocument = null;
+try {
+    $temporaryDocument = nxReadSensitiveDocument((string)$request['document_reference'], $slot);
+    if ($temporaryDocument === null) {
+        nxDocumentDeliveryFail(404, $adminId, $requestId, $slot);
+    }
 
-$finfo = finfo_open(FILEINFO_MIME_TYPE);
-$detectedMime = $finfo ? finfo_file($finfo, $filePath) : false;
-if ($finfo) {
-    finfo_close($finfo);
-}
+    nxDocumentUploadLog('document.accessed', [
+        'user_id' => $adminId,
+        'role' => 'system_admin',
+        'request_id' => $requestId,
+        'slot' => $slot,
+    ]);
 
-[$expectedMime, $disposition] = $allowedTypes[$extension];
-if (!is_string($detectedMime) || !hash_equals($expectedMime, $detectedMime)) {
-    http_response_code(415);
-    exit;
+    $downloadName = 'registration_' . $requestId . '_' . $slot . '.' . $temporaryDocument['extension'];
+    session_write_close();
+    header('Content-Type: ' . $temporaryDocument['mime']);
+    header('Content-Length: ' . (string)filesize($temporaryDocument['path']));
+    header('Content-Disposition: ' . $temporaryDocument['disposition'] . '; filename="' . $downloadName . '"');
+    header('Cache-Control: private, no-store, max-age=0');
+    header('Pragma: no-cache');
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
+    header('Cross-Origin-Resource-Policy: same-origin');
+    header("Content-Security-Policy: default-src 'none'; sandbox");
+    readfile($temporaryDocument['path']);
+} catch (Throwable $error) {
+    error_log('NexGen private document delivery failed: ' . $error->getMessage());
+    nxDocumentUploadLog('document.access_denied', [
+        'user_id' => $adminId,
+        'role' => 'system_admin',
+        'request_id' => $requestId,
+        'slot' => $slot,
+    ]);
+    if (!headers_sent()) {
+        http_response_code(404);
+        header('Cache-Control: private, no-store, max-age=0');
+        header('X-Content-Type-Options: nosniff');
+    }
+} finally {
+    if ($temporaryDocument !== null && is_file((string)$temporaryDocument['path'])) {
+        unlink((string)$temporaryDocument['path']);
+    }
 }
-
-$downloadName = 'registration_' . $requestId . '_document.' . $extension;
-session_write_close();
-header('Content-Type: ' . $expectedMime);
-header('Content-Length: ' . (string)filesize($filePath));
-header('Content-Disposition: ' . $disposition . '; filename="' . $downloadName . '"');
-header('Cache-Control: no-store, private, max-age=0');
-header('X-Content-Type-Options: nosniff');
-header('Cross-Origin-Resource-Policy: same-origin');
-header("Content-Security-Policy: default-src 'none'; sandbox");
-readfile($filePath);
 exit;

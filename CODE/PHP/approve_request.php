@@ -2,6 +2,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/resend_config.php';
 require_once __DIR__ . '/tenant_helper.php';
+require_once __DIR__ . '/document_upload_security.php';
 
 function nxApproveRequestWantsJson(): bool
 {
@@ -172,6 +173,21 @@ try {
     if (!in_array($role, ['owner', 'employee'], true)) {
         throw new RuntimeException('The requested role is invalid.');
     }
+    if (
+        empty($request['valid_id_path'])
+        || nxDocumentUploadResolveReference((string)$request['valid_id_path'], 'valid_id') === null
+    ) {
+        throw new RuntimeException('The required ID photo is unavailable or has not been migrated to secure storage.');
+    }
+    if (
+        $role === 'owner'
+        && (
+            empty($request['business_permit_path'])
+            || nxDocumentUploadResolveReference((string)$request['business_permit_path'], 'business_permit') === null
+        )
+    ) {
+        throw new RuntimeException('A verified business permit is required before approving an owner request.');
+    }
 
     if (!nxWorkspaceSchemaReady($conn)) {
         throw new RuntimeException(
@@ -322,11 +338,11 @@ try {
         "INSERT INTO users (
             business_id, username, full_name, employee_no, email, phone, address,
             otp_preference, password, role, account_status, profile_image,
-            valid_id_path, is_verified, can_inventory, can_sales,
+            valid_id_path, business_permit_path, is_verified, can_inventory, can_sales,
             can_sales_analytics, can_accounts_receivable, approved_by, approved_at
         ) VALUES (
             ?, ?, ?, ?, ?, ?, ?, 'email', ?, ?, 'active',
-            'uploads/default.png', ?, 1, ?, ?, ?, ?, ?, ?
+            'uploads/default.png', ?, ?, 1, ?, ?, ?, ?, ?, ?
         )"
     );
 
@@ -335,7 +351,7 @@ try {
     }
 
     $stmt->bind_param(
-        'isssssssssiiiiis',
+        'issssssssssiiiiis',
         $businessId,
         $request['username'],
         $request['full_name'],
@@ -346,6 +362,7 @@ try {
         $request['password_hash'],
         $role,
         $request['valid_id_path'],
+        $request['business_permit_path'],
         $canInventory,
         $canSales,
         $canSalesAnalytics,

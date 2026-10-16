@@ -1,11 +1,13 @@
 FROM php:8.2-apache
 
-ENV NEXGEN_PRIVATE_UPLOAD_DIR=/var/www/html/uploads/.nexgen-private \
+ENV NEXGEN_PRIVATE_UPLOAD_DIR=/data/nexgen-private \
+    NEXGEN_UPLOAD_QUARANTINE_DIR=/tmp/nexgen-upload-quarantine \
     NEXGEN_PUBLIC_UPLOAD_DIR=/var/www/html/uploads
 
-# Install Node.js and npm.
+# Install Node.js, Python, and the HEIF/PDF runtime dependencies.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl libonig-dev \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates curl libonig-dev libheif1 python3 python3-venv \
     && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && apt-get clean \
@@ -23,30 +25,42 @@ RUN test -f /app/CODE/PHP/index.php \
     && test -d /app/IMAGES/captcha \
     && test -f /app/IMAGES/introbg.png \
     && test -f /app/IMAGES/default-product.svg \
-    && test -f /app/VIDEOS/nexgen-intro.mp4
+    && test -f /app/requirements-upload.txt
 
 # Stop the image build if any PHP source file has a syntax error.
 RUN find /app/CODE/PHP -type f -name '*.php' -exec php -l {} \;
 
 # Install the PHP extensions used by the application.
 RUN docker-php-ext-install -j"$(nproc)" mysqli pdo pdo_mysql mbstring \
-    && php -m | grep -qx mbstring
+    && php -m | grep -qx mbstring \
+    && php -m | grep -qx sodium
+
+# Keep upload image/PDF decoders isolated in a dedicated Python environment.
+RUN python3 -m venv /opt/nexgen-upload-venv \
+    && /opt/nexgen-upload-venv/bin/pip install --no-cache-dir \
+        -r /app/requirements-upload.txt
+
+# Configure PHP request-size limits for the two signup document slots.
+COPY docker/php-upload-limits.ini /usr/local/etc/php/conf.d/zz-upload-limits.ini
+ENV NEXGEN_PYTHON_BIN=/opt/nexgen-upload-venv/bin/python
+ENV NEXGEN_UPLOAD_SANITIZER_PATH=/app/CODE/PHP/upload_sanitizer.py
 
 # Install production Node dependencies.
 RUN npm install --omit=dev
 
-# Publish the PHP application and all browser-accessible assets. The source
-# layout is mapped to root-level URLs such as /JS, /STYLE, /IMAGES, and /VIDEOS.
+# Publish the PHP application and browser-accessible assets at root-level URLs.
 RUN rm -rf /var/www/html/* \
     && cp -a /app/CODE/PHP/. /var/www/html/ \
+    && rm -f /var/www/html/upload_sanitizer.py \
     && cp -a /app/CODE/JS /var/www/html/JS \
     && cp -a /app/CODE/STYLE /var/www/html/STYLE \
     && cp -a /app/IMAGES /var/www/html/IMAGES \
-    && cp -a /app/VIDEOS /var/www/html/VIDEOS \
     && rm -rf /var/www/html/uploads/valid_ids \
     && mkdir -p /var/www/html/uploads/products \
     && printf '%s\n' \
         'RewriteEngine On' \
+        'LimitRequestBody 23068672' \
+        'RewriteRule ^upload_sanitizer\.py$ - [F,L,NC]' \
         'RewriteCond %{THE_REQUEST} \s/+NexGen/CODE/PHP/admin_login\.php(?:[?\s]|$) [NC]' \
         'RewriteRule ^NexGen/CODE/PHP/admin_login\.php$ - [R=404,L,NC]' \
         'RewriteCond %{REQUEST_METHOD} POST' \
@@ -79,7 +93,7 @@ RUN rm -rf /var/www/html/* \
         > /var/www/html/.htaccess \
     && chown -R www-data:www-data /var/www/html
 
-# Enable exactly one MPM and Apache URL rewriting.
+# Enable exactly one Apache MPM plus rewriting.
 RUN rm -f /etc/apache2/mods-enabled/mpm_*.load \
           /etc/apache2/mods-enabled/mpm_*.conf \
     && a2enmod mpm_prefork rewrite \
@@ -90,4 +104,4 @@ RUN rm -f /etc/apache2/mods-enabled/mpm_*.load \
 
 EXPOSE 80
 
-CMD ["sh", "-c", "PORT=\"${PORT:-80}\"; UPLOAD_DIR=\"${NEXGEN_PUBLIC_UPLOAD_DIR:-/var/www/html/uploads}\"; PRIVATE_UPLOAD_DIR=\"${NEXGEN_PRIVATE_UPLOAD_DIR:-${UPLOAD_DIR}/.nexgen-private}\"; mkdir -p \"${UPLOAD_DIR}/products\" \"${PRIVATE_UPLOAD_DIR}/valid_ids\"; chown -R www-data:www-data \"${UPLOAD_DIR}\"; chmod 0750 \"${PRIVATE_UPLOAD_DIR}\" \"${PRIVATE_UPLOAD_DIR}/valid_ids\"; rm -f /etc/apache2/mods-enabled/mpm_*.load /etc/apache2/mods-enabled/mpm_*.conf; a2enmod mpm_prefork; sed -ri \"s/Listen 80/Listen ${PORT}/\" /etc/apache2/ports.conf; sed -ri \"s/<VirtualHost \\\\*:80>/<VirtualHost *:${PORT}>/\" /etc/apache2/sites-available/000-default.conf; apache2ctl configtest; exec apache2-foreground"]
+CMD ["sh", "-c", "PORT=\"${PORT:-80}\"; UPLOAD_DIR=\"${NEXGEN_PUBLIC_UPLOAD_DIR:-/var/www/html/uploads}\"; PRIVATE_UPLOAD_DIR=\"${NEXGEN_PRIVATE_UPLOAD_DIR:-/data/nexgen-private}\"; QUARANTINE_DIR=\"${NEXGEN_UPLOAD_QUARANTINE_DIR:-/tmp/nexgen-upload-quarantine}\"; mkdir -p \"${UPLOAD_DIR}/products\" \"${PRIVATE_UPLOAD_DIR}/valid_ids\" \"${PRIVATE_UPLOAD_DIR}/business_permits\" \"${QUARANTINE_DIR}\"; chown -R www-data:www-data \"${UPLOAD_DIR}\" \"${PRIVATE_UPLOAD_DIR}\" \"${QUARANTINE_DIR}\"; chmod 0750 \"${PRIVATE_UPLOAD_DIR}\" \"${PRIVATE_UPLOAD_DIR}/valid_ids\" \"${PRIVATE_UPLOAD_DIR}/business_permits\"; chmod 0700 \"${QUARANTINE_DIR}\"; rm -f /etc/apache2/mods-enabled/mpm_*.load /etc/apache2/mods-enabled/mpm_*.conf; a2enmod mpm_prefork; sed -ri \"s/Listen 80/Listen ${PORT}/\" /etc/apache2/ports.conf; sed -ri \"s/<VirtualHost \\\\*:80>/<VirtualHost *:${PORT}>/\" /etc/apache2/sites-available/000-default.conf; apache2ctl configtest; exec apache2-foreground"]
