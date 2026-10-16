@@ -36,7 +36,7 @@ NEXGEN_PYTHON_BIN=/opt/nexgen-upload-venv/bin/python
 CLAMAV_HOST=<private ClamAV service host>
 CLAMAV_PORT=3310
 CLAMAV_TIMEOUT_SECONDS=8
-NEXGEN_PUBLIC_UPLOAD_DIR=/var/www/html/uploads
+NEXGEN_PUBLIC_UPLOAD_DIR=/data/nexgen-private/public-uploads
 NEXGEN_RESEND_API_KEY=<Railway secret>
 NEXGEN_RESEND_FROM_ADDRESS=<verified Resend sender>
 NEXGEN_RESEND_FROM_NAME=NexGen
@@ -56,12 +56,37 @@ readiness; confirm those separately before accepting users.
 Attach a persistent volume to the PHP service at:
 
 - `/data/nexgen-private` for encrypted signup ID and business-permit documents
+- Public profile and product images are stored in the `public-uploads`
+  subdirectory of this same volume and served at `/uploads/...`.
 
-`NEXGEN_PRIVATE_UPLOAD_DIR` must match this mount. Quarantine and conversion
-temporary files use `/tmp/nexgen-upload-quarantine`, not the persistent volume.
-The signup documents are encrypted before being written to permanent storage
-and are delivered only through the authenticated `valid_id_file.php` endpoint.
-Do not mount this volume below `/var/www/html` or expose it as a static asset.
+Railway allows only one volume per service, so keep the existing volume mounted
+at `/data/nexgen-private`; do not add a second volume or change this mount path.
+Set `NEXGEN_PRIVATE_UPLOAD_DIR=/data/nexgen-private` and
+`NEXGEN_PUBLIC_UPLOAD_DIR=/data/nexgen-private/public-uploads`. Apache maps only
+the public subdirectory to `/uploads/`; the encrypted signup documents remain
+outside the document root and are delivered only through the authenticated
+`valid_id_file.php` endpoint. Quarantine and conversion temporary files use
+`/tmp/nexgen-upload-quarantine`, not the persistent volume.
+
+Before deploying the new image, use the running app service shell to copy any
+still-existing legacy profile and product images into the persistent volume.
+Copy only the generated image filenames; never copy `valid_ids` or other
+private files into `public-uploads`:
+
+```sh
+mkdir -p /data/nexgen-private/public-uploads/products
+find /var/www/html/uploads -maxdepth 1 -type f -regextype posix-extended \
+  -regex '.*/profile_[a-f0-9]{24}\.(jpg|jpeg|png|gif|webp)' \
+  -exec cp -n -- {} /data/nexgen-private/public-uploads/ \;
+find /var/www/html/uploads/products -maxdepth 1 -type f -regextype posix-extended \
+  -regex '.*/product_[a-f0-9]{16}\.(jpg|jpeg|png|webp)' \
+  -exec cp -n -- {} /data/nexgen-private/public-uploads/products/ \;
+```
+
+The old files may already be gone if the app container was replaced; a volume
+cannot restore files that no longer exist. After migration, set the
+`NEXGEN_PUBLIC_UPLOAD_DIR` variable as above and deploy. New uploads then
+survive app restarts and deployments.
 
 The PHP service also requires a private-network ClamAV service. Deploy the
 official `clamav/clamav` image separately, keep its TCP 3310 port private, and

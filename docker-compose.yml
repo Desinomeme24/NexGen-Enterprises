@@ -16,6 +16,7 @@ services:
       NEXGEN_DB_USER: ${NEXGEN_DB_USER:?Set NEXGEN_DB_USER in .env}
       NEXGEN_DB_PASSWORD: ${NEXGEN_DB_PASSWORD:?Set NEXGEN_DB_PASSWORD in .env}
       NEXGEN_PRIVATE_UPLOAD_DIR: /data/nexgen-private
+      NEXGEN_PUBLIC_UPLOAD_DIR: /data/nexgen-private/public-uploads
       NEXGEN_UPLOAD_QUARANTINE_DIR: /tmp/nexgen-upload-quarantine
       NEXGEN_UPLOAD_ENCRYPTION_KEY: ${NEXGEN_UPLOAD_ENCRYPTION_KEY:?Set NEXGEN_UPLOAD_ENCRYPTION_KEY in .env}
       NEXGEN_PYTHON_BIN: /opt/nexgen-upload-venv/bin/python

@@ -2,7 +2,7 @@ FROM php:8.2-apache
 
 ENV NEXGEN_PRIVATE_UPLOAD_DIR=/data/nexgen-private \
     NEXGEN_UPLOAD_QUARANTINE_DIR=/tmp/nexgen-upload-quarantine \
-    NEXGEN_PUBLIC_UPLOAD_DIR=/var/www/html/uploads
+    NEXGEN_PUBLIC_UPLOAD_DIR=/data/nexgen-private/public-uploads
 
 # Install Node.js, Python, and the HEIF/PDF runtime dependencies.
 RUN apt-get update \
@@ -91,6 +91,18 @@ RUN rm -rf /var/www/html/* \
         'RewriteRule ^uploads/valid_ids(?:/|$) - [R=404,L,NC]' \
         'RewriteRule ^uploads/\.nexgen-private(?:/|$) - [R=404,L,NC]' \
         > /var/www/html/.htaccess \
+    && printf '%s\n' \
+        'Alias "/uploads/" "/data/nexgen-private/public-uploads/"' \
+        '<Directory "/data/nexgen-private/public-uploads">' \
+        '    Options -Indexes -ExecCGI' \
+        '    AllowOverride None' \
+        '    Require all granted' \
+        '    <FilesMatch "(?i)\.(?:php[0-9]?|phtml|phar)(?:\..*)?$">' \
+        '        Require all denied' \
+        '    </FilesMatch>' \
+        '</Directory>' \
+        > /etc/apache2/conf-available/nexgen-public-uploads.conf \
+    && a2enconf nexgen-public-uploads \
     && chown -R www-data:www-data /var/www/html
 
 # Enable exactly one Apache MPM plus rewriting.
@@ -104,4 +116,4 @@ RUN rm -f /etc/apache2/mods-enabled/mpm_*.load \
 
 EXPOSE 80
 
-CMD ["sh", "-c", "PORT=\"${PORT:-80}\"; UPLOAD_DIR=\"${NEXGEN_PUBLIC_UPLOAD_DIR:-/var/www/html/uploads}\"; PRIVATE_UPLOAD_DIR=\"${NEXGEN_PRIVATE_UPLOAD_DIR:-/data/nexgen-private}\"; QUARANTINE_DIR=\"${NEXGEN_UPLOAD_QUARANTINE_DIR:-/tmp/nexgen-upload-quarantine}\"; mkdir -p \"${UPLOAD_DIR}/products\" \"${PRIVATE_UPLOAD_DIR}/valid_ids\" \"${PRIVATE_UPLOAD_DIR}/business_permits\" \"${QUARANTINE_DIR}\"; chown -R www-data:www-data \"${UPLOAD_DIR}\" \"${PRIVATE_UPLOAD_DIR}\" \"${QUARANTINE_DIR}\"; chmod 0750 \"${PRIVATE_UPLOAD_DIR}\" \"${PRIVATE_UPLOAD_DIR}/valid_ids\" \"${PRIVATE_UPLOAD_DIR}/business_permits\"; chmod 0700 \"${QUARANTINE_DIR}\"; rm -f /etc/apache2/mods-enabled/mpm_*.load /etc/apache2/mods-enabled/mpm_*.conf; a2enmod mpm_prefork; sed -ri \"s/Listen 80/Listen ${PORT}/\" /etc/apache2/ports.conf; sed -ri \"s/<VirtualHost \\\\*:80>/<VirtualHost *:${PORT}>/\" /etc/apache2/sites-available/000-default.conf; apache2ctl configtest; exec apache2-foreground"]
+CMD ["sh", "-c", "PORT=\"${PORT:-80}\"; UPLOAD_DIR=\"${NEXGEN_PUBLIC_UPLOAD_DIR:-/data/nexgen-private/public-uploads}\"; PRIVATE_UPLOAD_DIR=\"${NEXGEN_PRIVATE_UPLOAD_DIR:-/data/nexgen-private}\"; QUARANTINE_DIR=\"${NEXGEN_UPLOAD_QUARANTINE_DIR:-/tmp/nexgen-upload-quarantine}\"; mkdir -p \"${UPLOAD_DIR}/products\" \"${PRIVATE_UPLOAD_DIR}/valid_ids\" \"${PRIVATE_UPLOAD_DIR}/business_permits\" \"${QUARANTINE_DIR}\"; chown -R www-data:www-data \"${UPLOAD_DIR}\" \"${PRIVATE_UPLOAD_DIR}\" \"${QUARANTINE_DIR}\"; chmod 0750 \"${PRIVATE_UPLOAD_DIR}\" \"${PRIVATE_UPLOAD_DIR}/valid_ids\" \"${PRIVATE_UPLOAD_DIR}/business_permits\"; chmod 0700 \"${QUARANTINE_DIR}\"; rm -f /etc/apache2/mods-enabled/mpm_*.load /etc/apache2/mods-enabled/mpm_*.conf; a2enmod mpm_prefork; sed -ri \"s/Listen 80/Listen ${PORT}/\" /etc/apache2/ports.conf; sed -ri \"s/<VirtualHost \\\\*:80>/<VirtualHost *:${PORT}>/\" /etc/apache2/sites-available/000-default.conf; apache2ctl configtest; exec apache2-foreground"]
