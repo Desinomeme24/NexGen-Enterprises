@@ -1928,7 +1928,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
       right: 0;
       height: 100%;
       height: 100dvh;
-      width: min(300px, 82vw);
+      width: min(280px, 55vw);
       margin: 0;
       background: var(--bg-deep);
       color: var(--text-muted);
@@ -1940,7 +1940,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
       align-items: flex-start;
       justify-content: flex-start;
       gap: 2px;
-      padding: 100px 28px 40px;
+      padding: 72px 20px 24px;
       transform: translateX(100%);
       transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
       z-index: 90;
@@ -1953,7 +1953,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
     .nav-links a {
       display: block;
       width: 100%;
-      padding: 16px 4px;
+      padding: 8px 4px;
       font-size: 17px;
       color: var(--text-muted);
       border-bottom: 1px solid var(--line);
@@ -1975,8 +1975,8 @@ if (session_status() === PHP_SESSION_ACTIVE) {
       box-shadow: none;
       border: none;
       background: transparent;
-      padding: 4px 0 14px 4px;
-      gap: 22px;
+      padding: 4px 0 10px 4px;
+      gap: 12px;
     }
     .nav-links .has-dropdown.active .dropdown-menu {
       display: flex;
@@ -2049,7 +2049,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
     .modal-box { padding: 24px 18px; border-radius: 24px; }
     .signup-box { padding: 24px 18px; }
     .cta-box { padding: 40px 20px; }
-    .nav-links { width: 88vw; padding: 90px 22px 32px; }
+    .nav-links { width: 55vw; padding: 72px 18px 24px; }
     .nav-cta .btn { padding: 8px 14px; font-size: 12px; }
   }
 
@@ -4689,7 +4689,6 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
           <span class="avatar-placeholder">
             <img src="../../IMAGES/wina.jpg" alt="Team member photo" draggable="false" oncontextmenu="return false">
           </span>
-          <span class="avatar-add" title="Upload a photo">+</span>
         </div>
       </div>
     </div>
@@ -5139,7 +5138,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
       <p>Join hundreds of companies already using NexGen to streamline operations and accelerate growth.</p>
       <div class="cta-buttons">
         <button type="button" id="openLoginFromBot" class="btn btn-primary btn-glow magnetic-btn">Let's Get Started</button>
-        <a href="#demo" class="btn btn-ghost magnetic-btn">Come In!</a>
+        <button type="button" class="btn btn-ghost magnetic-btn" disabled aria-disabled="true">Come In!</button>
       </div>
     </div>
   </div>

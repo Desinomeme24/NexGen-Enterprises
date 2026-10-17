@@ -1476,6 +1476,16 @@ html[data-theme="light"] .sidebar .role-badge {
   box-shadow: 0 4px 10px rgba(198, 134, 76, 0.25);
 }
 
+html[data-theme="light"] #sidebar .profile-section h2,
+html[data-theme="light"] #sidebar .profile-section .profile-fullname,
+html[data-theme="light"] #sidebar .profile-section p {
+  color: var(--ink-900) !important;
+}
+
+html[data-theme="light"] #sidebar .profile-section .role-badge {
+  color: #654018 !important;
+}
+
 /* nav items — real gradient chips, not a 6% tint */
 html[data-theme="light"] .menu-item,
 html[data-theme="light"] .dropdown-btn {

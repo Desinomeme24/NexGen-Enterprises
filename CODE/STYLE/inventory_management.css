@@ -3999,25 +3999,34 @@ html[data-theme="light"] .category-list::-webkit-scrollbar-thumb {
   font-size: 15px;
 }
 
-#inventoryConfirmModal .stock-modal {
-  max-width: 420px;
+#inventoryConfirmModal .stock-modal,
+#inventoryWarningModal .stock-modal,
+#inventoryConflictModal .stock-modal {
+  width: min(360px, calc(100vw - 32px));
+  max-width: 360px;
   max-height: calc(100dvh - 32px);
-  padding: 20px;
-  border-radius: 20px;
+  padding: 16px;
+  border-radius: 18px;
 }
 
-#inventoryConfirmModal .modal-header {
-  margin-bottom: 10px;
+#inventoryConfirmModal .modal-header,
+#inventoryWarningModal .modal-header,
+#inventoryConflictModal .modal-header {
+  margin-bottom: 8px;
 }
 
-#inventoryConfirmModal .modal-header h2 {
-  font-size: 24px;
+#inventoryConfirmModal .modal-header h2,
+#inventoryWarningModal .modal-header h2,
+#inventoryConflictModal .modal-header h2 {
+  font-size: 20px;
 }
 
-#inventoryConfirmModal p {
-  margin-bottom: 14px;
-  font-size: 15px;
-  line-height: 1.45;
+#inventoryConfirmModal p,
+#inventoryWarningModal p,
+#inventoryConflictModal p {
+  margin-bottom: 12px;
+  font-size: 14px;
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 
@@ -4030,26 +4039,6 @@ html[data-theme="light"] .category-list::-webkit-scrollbar-thumb {
   min-width: 0;
   min-height: 44px;
   padding: 10px 12px;
-}
-
-#inventoryConflictModal .stock-modal {
-  max-width: 420px;
-  padding: 20px;
-}
-
-#inventoryConflictModal .modal-header {
-  margin-bottom: 10px;
-}
-
-#inventoryConflictModal .modal-header h2 {
-  font-size: 23px;
-}
-
-#inventoryConflictModal p {
-  margin-bottom: 14px;
-  font-size: 14px;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
 }
 
 html[data-theme="light"] .inventory-table tbody td,
@@ -4111,13 +4100,41 @@ html[data-theme="light"] .filter-chip.active {
   }
 
   #inventoryConfirmModal .stock-modal,
+  #inventoryWarningModal .stock-modal,
   #inventoryConflictModal .stock-modal {
-    width: min(420px, calc(100vw - 32px));
-    padding: 18px;
+    width: min(360px, calc(100vw - 32px));
+    padding: 15px;
   }
 
   #inventoryConfirmModal .modal-header h2,
+  #inventoryWarningModal .modal-header h2,
   #inventoryConflictModal .modal-header h2 {
-    font-size: 21px;
+    font-size: 19px;
+  }
+}
+
+html[data-theme="light"] #inventoryConfirmModal .stock-modal,
+html[data-theme="light"] #inventoryWarningModal .stock-modal,
+html[data-theme="light"] #inventoryConflictModal .stock-modal,
+html[data-theme="light"] #inventoryConfirmModal .stock-modal p,
+html[data-theme="light"] #inventoryWarningModal .stock-modal p,
+html[data-theme="light"] #inventoryConflictModal .stock-modal p {
+  color: var(--ink) !important;
+}
+
+html[data-theme="light"] #inventoryConfirmModal .drop-batch-cancel-btn {
+  background: rgba(74, 143, 224, 0.12);
+  border-color: rgba(74, 143, 224, 0.28);
+  color: var(--ink);
+}
+
+@media (max-width: 768px) {
+  html[data-theme="light"] .product-modal .step-node,
+  html[data-theme="light"] .product-modal .step-node.is-active {
+    color: var(--ink) !important;
+  }
+
+  html[data-theme="light"] .product-modal .step-node .step-label {
+    color: var(--ink) !important;
   }
 }

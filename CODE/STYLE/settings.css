@@ -2384,3 +2384,16 @@ html[data-theme="light"] .back-link.back-to-dashboard {
   border-color: rgba(62, 111, 179, 0.14);
   background: rgba(255, 255, 255, 0.38);
 }
+
+html[data-theme="light"] .settings-page .profile-remove-btn {
+  color: #142452;
+}
+
+html[data-theme="light"] .settings-page .profile-remove-btn:hover {
+  color: #7a4a1f;
+}
+
+html[data-theme="light"] .settings-page .form-group label,
+html[data-theme="light"] .settings-page .step-label {
+  color: #435a80;
+}

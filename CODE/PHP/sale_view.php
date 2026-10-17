@@ -337,17 +337,6 @@ unset($_SESSION['success'], $_SESSION['error']);
             gap: 14px;
         }
 
-        .menu-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            background: linear-gradient(180deg, #3b82f6, #0033ff);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-        }
-
         .header-title {
             font-size: 24px;
             font-weight: 700;
@@ -1011,15 +1000,6 @@ unset($_SESSION['success'], $_SESSION['error']);
 
         .header-left { gap: 16px; }
 
-        .menu-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 14px;
-            background: linear-gradient(145deg, #77a4ff, #376be0 58%, #2145a9);
-            box-shadow: 0 12px 26px rgba(49, 94, 218, 0.38), inset 0 1px 0 rgba(255,255,255,.35);
-            font-size: 20px;
-        }
-
         .header-title {
             font-size: clamp(22px, 3vw, 30px);
             letter-spacing: -0.04em;
@@ -1190,7 +1170,7 @@ unset($_SESSION['success'], $_SESSION['error']);
     <div class="page-shell">
         <div class="header">
             <div class="header-left">
-                <div class="menu-icon">👁</div>
+            
                 <div class="header-title">Sale Details</div>
             </div>
             <a href="<?php echo htmlspecialchars(
