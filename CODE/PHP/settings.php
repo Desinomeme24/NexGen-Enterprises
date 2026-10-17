@@ -59,7 +59,7 @@ if (isset($_SESSION['success'])) {
     unset($_SESSION['error']);
 }
 
-$profileImage = !empty($user['profile_image']) ? $user['profile_image'] : 'uploads/default.png';
+$profileImage = nxProfileImageUrl($user['profile_image'] ?? null);
 
 $backLink = "/NexGen/CODE/PHP/dashboard.php";
 if (isset($_SESSION['role']) && $_SESSION['role'] === 'system_admin') {
@@ -146,10 +146,11 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
                 <form action="<?php echo e(nxAppUrl('update_profile_image.php')); ?>" method="POST" enctype="multipart/form-data" class="profile-edit-form" id="profileImageForm">
                     <input type="hidden" name="csrf_token" value="<?php echo e(generateCsrfToken('profile_image_form')); ?>">
                     <div class="profile-image-wrapper">
-                        <img src="<?php echo e(nxAppUrl($profileImage)); ?>" alt="Profile" class="sidebar-profile-img">
+                        <img src="<?php echo e($profileImage); ?>" alt="Profile" class="sidebar-profile-img">
                         <label for="new_profile_image" class="profile-edit-btn"><i class="bi bi-camera-fill"></i></label>
                         <input type="file" name="new_profile_image" id="new_profile_image" accept="image/*" hidden>
                     </div>
+                    <button type="submit" class="profile-remove-btn" name="remove_profile_image" value="1">Remove photo</button>
                 </form>
 
                 <div class="sidebar-profile-info">
@@ -241,7 +242,7 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
             <?php else: ?>
                 <div class="workspace-summary">
                     <h3><?php echo e($activeWorkspace['business_name']); ?> — <?php echo e($activeWorkspace['branch_name']); ?></h3>
-                    <p><?php echo e($activeWorkspace['business_type']); ?><br><?php echo e($activeWorkspace['business_address']); ?></p>
+                    <p><?php echo e(nxBusinessTypeLabel($activeWorkspace['business_type'] ?? '', $activeWorkspace['business_type_other'] ?? '')); ?><br><?php echo e($activeWorkspace['business_address']); ?></p>
                     <div class="workspace-code-row">
                         <span class="workspace-code-chip"><strong>Business:</strong> <?php echo e($activeWorkspace['business_code']); ?></span>
                         <span class="workspace-code-chip"><strong>Branch:</strong> <?php echo e($activeWorkspace['branch_code']); ?></span>

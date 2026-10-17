@@ -204,7 +204,9 @@ try {
     if ($role === 'owner') {
         if (trim((string) $request['business_name']) === '' ||
             trim((string) $request['business_type']) === '' ||
-            trim((string) $request['business_address']) === '') {
+            trim((string) $request['business_address']) === '' ||
+            ((string)$request['business_type'] === 'Others'
+                && trim((string)($request['business_type_other'] ?? '')) === '')) {
             throw new RuntimeException('The owner request has incomplete SME business information.');
         }
 
@@ -224,17 +226,21 @@ try {
 
         $stmt = $conn->prepare(
             'INSERT INTO businesses
-                (business_name, business_type, business_address, business_code)
-             VALUES (?, ?, ?, ?)'
+                (business_name, business_type, business_type_other, business_address, business_code)
+             VALUES (?, ?, ?, ?, ?)'
         );
         if (!$stmt) {
             throw new RuntimeException('Unable to create the SME business: ' . $conn->error);
         }
 
+        $businessTypeOther = (string)$request['business_type'] === 'Others'
+            ? (string)($request['business_type_other'] ?? '')
+            : null;
         $stmt->bind_param(
-            'ssss',
+            'sssss',
             $request['business_name'],
             $request['business_type'],
+            $businessTypeOther,
             $request['business_address'],
             $businessCode
         );
@@ -268,6 +274,21 @@ try {
         $businessCode = (string) $ownerWorkspace['business_code'];
         $branchCode = (string) $ownerWorkspace['branch_code'];
         $branchName = (string) $ownerWorkspace['branch_name'];
+
+        if ((string)$request['business_type'] === 'Others') {
+            $typeStmt = $conn->prepare(
+                'UPDATE business_entities SET business_type_other = ? WHERE id = ?'
+            );
+            if (!$typeStmt) {
+                throw new RuntimeException('Unable to save the specified SME business type.');
+            }
+            $businessTypeOther = (string)($request['business_type_other'] ?? '');
+            $typeStmt->bind_param('si', $businessTypeOther, $businessEntityId);
+            if (!$typeStmt->execute()) {
+                throw new RuntimeException('Unable to save the specified SME business type.');
+            }
+            $typeStmt->close();
+        }
     } else {
         if ($businessCode === '' || $branchCode === '') {
             throw new RuntimeException('The employee request must contain both the SME business code and branch code.');
@@ -342,7 +363,7 @@ try {
             can_sales_analytics, can_accounts_receivable, approved_by, approved_at
         ) VALUES (
             ?, ?, ?, ?, ?, ?, ?, 'email', ?, ?, 'active',
-            'uploads/default.png', ?, ?, 1, ?, ?, ?, ?, ?, ?
+            'IMAGES/default-avatar.png', ?, ?, 1, ?, ?, ?, ?, ?, ?
         )"
     );
 
@@ -377,6 +398,14 @@ try {
 
     $newUserId = (int) $stmt->insert_id;
     $stmt->close();
+
+    if ($role === 'owner') {
+        nxSeedDefaultInventoryCategories(
+            $conn,
+            $businessId,
+            (string)$request['business_type']
+        );
+    }
 
     /* Save the exact entity and branch at approval time. Employees receive
        only the submitted branch. Owners receive the new business entity and

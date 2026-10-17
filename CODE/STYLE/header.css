@@ -960,6 +960,21 @@ html[data-theme="light"] .theme-toggle-thumb i {
   display: none;
 }
 
+.profile-remove-btn {
+  display: block;
+  margin: 4px auto 0;
+  padding: 4px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.profile-remove-btn:hover {
+  color: var(--danger, #ff8a75);
+}
+
 /* MENU AREA — a dashed ledger-margin runs the length of the nav;
    each row carries a tick that grows into a dash on hover/active,
    like an item being checked off a manifest. */

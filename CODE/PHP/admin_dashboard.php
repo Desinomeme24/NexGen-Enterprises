@@ -167,7 +167,7 @@ $reviewQueue = [];
 try {
     $accountResult = $conn->query(
         "SELECT id, request_code, full_name, username, requested_role,
-                business_name, business_type, business_code, branch_code,
+                business_name, business_type, business_type_other, business_code, branch_code,
                 possible_duplicate, created_at
          FROM registration_requests
          WHERE request_status = 'pending'
@@ -193,7 +193,10 @@ try {
                 'username' => (string)$request['username'],
                 'workspace_name' => (string)($request['business_name'] ?? ''),
                 'workspace_detail' => $isOwner
-                    ? (string)($request['business_type'] ?? 'New owner business')
+                    ? nxBusinessTypeLabel(
+                        (string)($request['business_type'] ?? 'New owner business'),
+                        (string)($request['business_type_other'] ?? '')
+                    )
                     : ($codeSummary !== '' ? $codeSummary : 'Branch assignment pending'),
                 'integrity_label' => !empty($request['possible_duplicate'])
                     ? 'Review duplicate'

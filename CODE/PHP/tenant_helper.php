@@ -313,7 +313,7 @@ if (!function_exists('nxGetAccessibleWorkspaces')) {
             }
 
             $stmt = $conn->prepare(
-                'SELECT id AS business_id, business_name, business_type, business_address,
+                'SELECT id AS business_id, business_name, business_type, business_type_other, business_address,
                         business_code, NULL AS business_entity_id, NULL AS branch_code,
                         business_name AS branch_name, 1 AS is_main_branch
                  FROM businesses WHERE id = ? LIMIT 1'
@@ -340,6 +340,7 @@ if (!function_exists('nxGetAccessibleWorkspaces')) {
                 be.business_code,
                 be.business_name,
                 be.business_type,
+                be.business_type_other,
                 b.branch_code,
                 b.branch_name,
                 b.business_address,
@@ -387,6 +388,7 @@ if (!function_exists('nxApplyWorkspaceToSession')) {
         $_SESSION['business_code'] = (string)($workspace['business_code'] ?? '');
         $_SESSION['business_name'] = (string)($workspace['business_name'] ?? '');
         $_SESSION['business_type'] = (string)($workspace['business_type'] ?? '');
+        $_SESSION['business_type_other'] = (string)($workspace['business_type_other'] ?? '');
         $_SESSION['branch_code'] = (string)($workspace['branch_code'] ?? '');
         $_SESSION['branch_name'] = (string)($workspace['branch_name'] ?? 'Main Branch');
         $_SESSION['branch_address'] = (string)($workspace['business_address'] ?? '');
@@ -522,6 +524,94 @@ if (!function_exists('nxSetActiveWorkspace')) {
         nxApplyWorkspaceToSession($selected);
 
         return $selected;
+    }
+}
+
+if (!function_exists('nxDefaultInventoryCategories')) {
+    function nxDefaultInventoryCategories(string $businessType): array
+    {
+        $categories = [
+            'Hardware / Construction Supplies' => [
+                'Cement & Aggregates',
+                'Steel & Metal',
+                'Lumber & Plywood',
+                'Plumbing',
+                'Electrical',
+                'Paints & Finishes',
+                'Hand & Power Tools',
+            ],
+            'Mini Grocery / Sari-Sari Store' => [
+                'Canned & Packaged Goods',
+                'Rice, Grains & Cooking Essentials',
+                'Snacks',
+                'Beverages',
+                'Condiments & Seasonings',
+                'Toiletries & Personal Care',
+                'Household & Cleaning',
+            ],
+            'Pharmacy / Drugstore' => [
+                'Prescription Medicines',
+                'Over-the-Counter Medicines',
+                'Vitamins & Supplements',
+                'First Aid & Wound Care',
+                'Personal Care & Hygiene',
+                'Baby & Mother Care',
+                'Medical Devices',
+            ],
+            'School / Office Supplies' => [
+                'Writing Instruments',
+                'Paper Products',
+                'Filing & Organizers',
+                'Art & Craft Supplies',
+                'Desk Accessories',
+                'School Bags & Cases',
+                'Printing & Computer Supplies',
+            ],
+            'Others' => [
+                'Consumables',
+                'Equipment & Tools',
+                'Parts & Accessories',
+                'Supplies & Materials',
+                'Packaging',
+                'Maintenance & Cleaning',
+                'Miscellaneous',
+            ],
+        ];
+
+        return $categories[$businessType] ?? $categories['Others'];
+    }
+}
+
+if (!function_exists('nxSeedDefaultInventoryCategories')) {
+    function nxSeedDefaultInventoryCategories(mysqli $conn, int $businessId, string $businessType): void
+    {
+        if ($businessId <= 0) {
+            throw new InvalidArgumentException('A valid business is required to seed inventory categories.');
+        }
+
+        $existsStmt = $conn->prepare(
+            'SELECT id FROM categories WHERE business_id = ? AND category_name = ? LIMIT 1'
+        );
+        $insertStmt = $conn->prepare(
+            'INSERT INTO categories (business_id, category_name) VALUES (?, ?)'
+        );
+        if (!$existsStmt || !$insertStmt) {
+            throw new RuntimeException('Unable to prepare default inventory categories.');
+        }
+
+        foreach (nxDefaultInventoryCategories($businessType) as $categoryName) {
+            $existsStmt->bind_param('is', $businessId, $categoryName);
+            $existsStmt->execute();
+            if ($existsStmt->get_result()->num_rows > 0) {
+                continue;
+            }
+
+            $insertStmt->bind_param('is', $businessId, $categoryName);
+            $insertStmt->execute();
+        }
+
+        $existsStmt->close();
+        $insertStmt->close();
     }
 }
 

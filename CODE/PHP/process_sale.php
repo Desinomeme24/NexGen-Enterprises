@@ -275,7 +275,7 @@ try {
 
         $updateStock = $conn->prepare("
             UPDATE products
-            SET stock_quantity = stock_quantity - ?
+            SET stock_quantity = stock_quantity - ?, version = version + 1
             WHERE id = ? AND business_id = ?
         ");
 

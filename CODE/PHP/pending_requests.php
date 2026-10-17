@@ -183,7 +183,7 @@ function renderPendingRequestsTable(array $requests): void
                                 <?php elseif ($row['requested_role'] === 'employee'): ?>
                                     <?php echo e(($row['business_code'] ?: 'No business code') . ' / ' . ($row['branch_code'] ?: 'No branch code')); ?>
                                 <?php else: ?>
-                                    <?php echo e($row['business_type'] . ' — ' . $row['business_address']); ?>
+                                    <?php echo e(nxBusinessTypeLabel($row['business_type'] ?? '', $row['business_type_other'] ?? '') . ' — ' . $row['business_address']); ?>
                                 <?php endif; ?>
                             </small>
                         </td>

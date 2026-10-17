@@ -20,6 +20,35 @@ if (!validateCsrfToken('profile_image_form', $_POST['csrf_token'] ?? '')) {
     exit();
 }
 
+$user_id = (int)$_SESSION['user_id'];
+if (isset($_POST['remove_profile_image'])) {
+    $getOldStmt = $conn->prepare('SELECT profile_image FROM users WHERE id = ? LIMIT 1');
+    $getOldStmt->bind_param('i', $user_id);
+    $getOldStmt->execute();
+    $oldPath = (string)($getOldStmt->get_result()->fetch_assoc()['profile_image'] ?? '');
+    $getOldStmt->close();
+
+    $removeStmt = $conn->prepare('UPDATE users SET profile_image = ? WHERE id = ?');
+    $defaultImage = 'IMAGES/default-avatar.png';
+    $removeStmt->bind_param('si', $defaultImage, $user_id);
+    if ($removeStmt->execute()) {
+        $_SESSION['profile_image'] = $defaultImage;
+        $_SESSION['success'] = 'Profile picture removed.';
+        if (str_starts_with($oldPath, 'uploads/profile_')) {
+            $oldFile = rtrim(nxPublicUploadDirectory(), "\\/")
+                . DIRECTORY_SEPARATOR . basename($oldPath);
+            if (is_file($oldFile)) {
+                @unlink($oldFile);
+            }
+        }
+    } else {
+        $_SESSION['error'] = 'Failed to remove profile picture.';
+    }
+    $removeStmt->close();
+    header('Location: ' . nxAppUrl('dashboard.php'));
+    exit();
+}
+
 if (!isset($_FILES['new_profile_image']) || $_FILES['new_profile_image']['error'] !== 0) {
     $_SESSION['error'] = "Please select an image first.";
     header('Location: ' . nxAppUrl('dashboard.php'));
@@ -69,8 +98,6 @@ if (!move_uploaded_file($profileFile['tmp_name'], $target_file)) {
 }
 @chmod($target_file, 0640);
 
-$user_id = (int)$_SESSION['user_id'];
-
 $getOldSql = "SELECT profile_image FROM users WHERE id = ? LIMIT 1";
 $getOldStmt = $conn->prepare($getOldSql);
 $getOldStmt->bind_param("i", $user_id);
@@ -96,7 +123,7 @@ if ($stmt->execute()) {
     $_SESSION['success'] = "Profile picture updated successfully.";
 
     $oldPath = $oldUser['profile_image'] ?? '';
-    if (!empty($oldPath) && $oldPath !== 'uploads/default.png') {
+    if (str_starts_with((string)$oldPath, 'uploads/profile_')) {
         $oldFullPath = rtrim(nxPublicUploadDirectory(), "\\/")
             . DIRECTORY_SEPARATOR . basename($oldPath);
         if (is_file($oldFullPath)) {

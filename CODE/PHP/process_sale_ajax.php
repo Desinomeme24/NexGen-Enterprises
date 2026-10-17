@@ -374,10 +374,23 @@ try {
             // FEFO consumption; this also keeps products.stock_quantity in
             // sync via the product_batches triggers, so no direct UPDATE here.
             nxDeductFefo($conn, $businessId, $item['product_id'], $item['quantity'], $blockExpiredBatches);
+            $versionStmt = $conn->prepare("
+                UPDATE products
+                SET version = version + 1
+                WHERE id = ? AND business_id = ?
+            ");
+            if (!$versionStmt) {
+                throw new Exception('Failed to prepare inventory version update.');
+            }
+            $versionStmt->bind_param('ii', $item['product_id'], $businessId);
+            if (!$versionStmt->execute()) {
+                throw new Exception('Failed to update inventory version.');
+            }
+            $versionStmt->close();
         } else {
             $stockStmt = $conn->prepare("
                 UPDATE products
-                SET stock_quantity = stock_quantity - ?
+                SET stock_quantity = stock_quantity - ?, version = version + 1
                 WHERE id = ? AND business_id = ?
             ");
 

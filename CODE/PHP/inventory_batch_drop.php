@@ -19,8 +19,9 @@ if (!validateCsrfToken('inventory_batch_drop', $_POST['csrf_token'] ?? null)) {
 $businessId = (int)nxRequireBusinessId($conn);
 $userId = (int)$_SESSION['user_id'];
 $batchId = (int)($_POST['batch_id'] ?? 0);
+$expectedVersion = (int)($_POST['version'] ?? 0);
 
-if ($batchId <= 0) {
+if ($batchId <= 0 || $expectedVersion <= 0) {
     $_SESSION['inventory_error'] = 'Invalid batch.';
     header("Location: /NexGen/CODE/PHP/inventory_management.php");
     exit();
@@ -31,7 +32,8 @@ try {
     // Only a currently-expired, still-active batch may be dropped - never a
     // valid batch, and never a batch that was already dropped before.
     $lockStmt = $conn->prepare("
-        SELECT pb.id, pb.product_id, pb.batch_number, pb.quantity, pb.expiry_date, pb.status, p.product_name
+        SELECT pb.id, pb.product_id, pb.batch_number, pb.quantity, pb.expiry_date, pb.status,
+               p.product_name, p.version
         FROM product_batches pb
         INNER JOIN products p ON p.id = pb.product_id AND p.business_id = pb.business_id
         WHERE pb.id = ? AND pb.business_id = ?
@@ -44,6 +46,7 @@ try {
     $lockStmt->close();
 
     if (!$batch) { throw new Exception('Batch not found in your business.'); }
+    if ((int)$batch['version'] !== $expectedVersion) { throw new RuntimeException('INVENTORY_CONFLICT'); }
     if ($batch['status'] !== 'active') { throw new Exception('This batch has already been dropped.'); }
     if (empty($batch['expiry_date']) || strtotime($batch['expiry_date']) >= strtotime(date('Y-m-d'))) {
         throw new Exception('Only expired batches can be dropped. This batch is still valid.');
@@ -69,11 +72,26 @@ try {
         $moveStmt->close();
     }
 
+    $versionStmt = $conn->prepare(
+        'UPDATE products SET version = version + 1
+         WHERE id = ? AND business_id = ? AND version = ?'
+    );
+    $versionStmt->bind_param('iii', $batch['product_id'], $businessId, $expectedVersion);
+    $versionStmt->execute();
+    if ($versionStmt->affected_rows !== 1) {
+        throw new RuntimeException('INVENTORY_CONFLICT');
+    }
+    $versionStmt->close();
+
     $conn->commit();
     $_SESSION['inventory_success'] = "Dropped expired batch {$batch['batch_number']} for {$batch['product_name']} (" . formatQty($droppedQty) . " units).";
 } catch (Throwable $e) {
     $conn->rollback();
-    $_SESSION['inventory_error'] = $e->getMessage();
+    if ($e->getMessage() === 'INVENTORY_CONFLICT') {
+        $_SESSION['inventory_conflict'] = true;
+    } else {
+        $_SESSION['inventory_error'] = $e->getMessage();
+    }
 }
 
 header("Location: /NexGen/CODE/PHP/inventory_management.php");

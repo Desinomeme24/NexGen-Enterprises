@@ -28,6 +28,14 @@ const closePlaceOrderModal = document.getElementById("closePlaceOrderModal");
 const categoryModal = document.getElementById("categoryModal");
 const openCategoryModal = document.getElementById("openCategoryModal");
 const closeCategoryModal = document.getElementById("closeCategoryModal");
+const inventoryConfirmModal = document.getElementById("inventoryConfirmModal");
+const inventoryConfirmMessage = document.getElementById("inventoryConfirmMessage");
+const inventoryConfirmCancel = document.getElementById("inventoryConfirmCancel");
+const inventoryConfirmDelete = document.getElementById("inventoryConfirmDelete");
+const inventoryActionWarningModal = document.getElementById("inventoryActionWarningModal");
+const inventoryActionWarningMessage = document.getElementById("inventoryActionWarningMessage");
+const inventoryActionWarningClose = document.getElementById("inventoryActionWarningClose");
+let pendingDeleteForm = null;
 
 const batchesModal = document.getElementById("batchesModal");
 const closeBatchesModal = document.getElementById("closeBatchesModal");
@@ -45,6 +53,7 @@ const dropBatchConfirmNumber = document.getElementById(
 const dropBatchCancelBtn = document.getElementById("dropBatchCancelBtn");
 const dropBatchConfirmBtn = document.getElementById("dropBatchConfirmBtn");
 let pendingDropBatchId = null;
+let pendingDropBatchVersion = null;
 
 const productImageInput = document.getElementById("product_image");
 const previewImage = document.getElementById("previewImage");
@@ -593,7 +602,7 @@ function escapeHtml(value) {
   );
 }
 
-function renderBatchesTable(batches) {
+function renderBatchesTable(batches, productVersion) {
   if (!batchesModalBody) {return;}
 
   if (!batches.length) {
@@ -623,7 +632,7 @@ function renderBatchesTable(batches) {
 
       const safeBatchNumber = escapeHtml(batch.batch_number);
       const dropCell = batch.can_drop
-        ? `<button type="button" class="batch-drop-btn" data-drop-batch-id="${batch.id}" data-drop-batch-number="${safeBatchNumber}">Drop</button>`
+        ? `<button type="button" class="batch-drop-btn" data-drop-batch-id="${batch.id}" data-drop-batch-number="${safeBatchNumber}" data-version="${productVersion}">Drop</button>`
         : "";
 
       return `<tr>
@@ -637,7 +646,7 @@ function renderBatchesTable(batches) {
     .join("");
 }
 
-function openBatchesModal(productId, productName) {
+function openBatchesModal(productId, productName, productVersion) {
   if (batchesProductName)
     {batchesProductName.textContent = productName || "Product";}
   if (batchesModalBody) {
@@ -664,7 +673,7 @@ function openBatchesModal(productId, productName) {
         }
         return;
       }
-      renderBatchesTable(data.batches || []);
+      renderBatchesTable(data.batches || [], productVersion);
     })
     .catch((error) => {
       console.error("Failed to load batches:", error);
@@ -675,9 +684,10 @@ function openBatchesModal(productId, productName) {
     });
 }
 
-function openDropBatchConfirm(batchId, batchNumber) {
+function openDropBatchConfirm(batchId, batchNumber, productVersion) {
   if (!dropBatchConfirmOverlay) {return;}
   pendingDropBatchId = batchId;
+  pendingDropBatchVersion = productVersion;
   if (dropBatchConfirmNumber) {dropBatchConfirmNumber.textContent = batchNumber;}
   dropBatchConfirmOverlay.classList.add("show");
 }
@@ -685,6 +695,7 @@ function openDropBatchConfirm(batchId, batchNumber) {
 function closeDropBatchConfirm() {
   if (!dropBatchConfirmOverlay) {return;}
   pendingDropBatchId = null;
+  pendingDropBatchVersion = null;
   dropBatchConfirmOverlay.classList.remove("show");
 }
 
@@ -712,6 +723,8 @@ if (dropBatchConfirmBtn) {
   dropBatchConfirmBtn.addEventListener("click", function () {
     if (pendingDropBatchId && batchDropForm && batchDropId) {
       batchDropId.value = pendingDropBatchId;
+      const versionInput = document.getElementById("batchDropVersion");
+      if (versionInput) versionInput.value = pendingDropBatchVersion || "";
       batchDropForm.submit();
     }
   });
@@ -872,6 +885,7 @@ document.addEventListener("click", (event) => {
   const editButton = event.target.closest(".edit-btn");
   if (editButton) {
     setValue("edit_id", editButton.dataset.id);
+    setValue("edit_version", editButton.dataset.version);
     setValue("edit_product_code", editButton.dataset.code);
     setValue("edit_product_name", editButton.dataset.name);
     setValue("edit_category_id", editButton.dataset.category);
@@ -904,12 +918,14 @@ document.addEventListener("click", (event) => {
   if (stockButton) {
     const productId = document.getElementById("stock_product_id");
     const productName = document.getElementById("stock_product_name");
+    const productVersion = document.getElementById("stock_product_version");
     const currentOnOrder = document.getElementById("stock_current_on_order");
     const onOrderAdd = document.getElementById("on_order_add");
     const deductCheckbox = document.getElementById("deduct_from_on_order");
 
     if (productId) {productId.value = stockButton.dataset.stockId;}
     if (productName) {productName.value = stockButton.dataset.stockName;}
+    if (productVersion) productVersion.value = stockButton.dataset.version;
     if (currentOnOrder)
       {currentOnOrder.value = stockButton.dataset.currentOnorder || "0";}
     if (onOrderAdd) {onOrderAdd.value = "0";}
@@ -926,6 +942,7 @@ document.addEventListener("click", (event) => {
     openBatchesModal(
       batchesButton.dataset.batchesId,
       batchesButton.dataset.batchesName,
+      batchesButton.dataset.version,
     );
     return;
   }
@@ -935,6 +952,7 @@ document.addEventListener("click", (event) => {
     openDropBatchConfirm(
       dropBatchButton.dataset.dropBatchId,
       dropBatchButton.dataset.dropBatchNumber || "this batch",
+      dropBatchButton.dataset.version,
     );
     return;
   }
@@ -943,6 +961,7 @@ document.addEventListener("click", (event) => {
   if (receiveButton) {
     const productId = document.getElementById("receive_product_id");
     const productName = document.getElementById("receive_product_name");
+    const productVersion = document.getElementById("receive_product_version");
     const expectedQty = document.getElementById("receive_expected_qty");
     const quantity = document.getElementById("receive_quantity");
     const remarks = document.getElementById("receive_remarks");
@@ -951,6 +970,7 @@ document.addEventListener("click", (event) => {
 
     if (productId) {productId.value = receiveButton.dataset.receiveId;}
     if (productName) {productName.value = receiveButton.dataset.receiveName;}
+    if (productVersion) productVersion.value = receiveButton.dataset.version;
     if (expectedQty) {expectedQty.value = onOrderQty;}
 
     // Default the received quantity to what's expected. Editable so a
@@ -967,12 +987,14 @@ document.addEventListener("click", (event) => {
   if (placeOrderButton) {
     const productId = document.getElementById("order_product_id");
     const productName = document.getElementById("order_product_name");
+    const productVersion = document.getElementById("order_product_version");
     const currentOnOrder = document.getElementById("order_current_on_order");
     const quantity = document.getElementById("order_quantity");
     const remarks = document.getElementById("order_remarks");
 
     if (productId) {productId.value = placeOrderButton.dataset.orderId;}
     if (productName) {productName.value = placeOrderButton.dataset.orderName;}
+    if (productVersion) productVersion.value = placeOrderButton.dataset.version;
     if (currentOnOrder)
       {currentOnOrder.value = placeOrderButton.dataset.orderCurrent || "0";}
     if (quantity) {quantity.value = "";}
@@ -1013,6 +1035,78 @@ document.addEventListener("click", (event) => {
     closeFloatingTools();
   }
 });
+
+function showInventoryActionWarning(message) {
+  if (inventoryActionWarningMessage) {
+    inventoryActionWarningMessage.textContent = message;
+  }
+  openModal(inventoryActionWarningModal);
+}
+
+document.addEventListener("click", function (event) {
+  const productDeleteButton = event.target.closest("[data-delete-product]");
+  const categoryDeleteButton = event.target.closest("[data-delete-category]");
+
+  if (productDeleteButton) {
+    const remainingStock = Number(productDeleteButton.dataset.stock || 0);
+    const activeBatchStock = Number(productDeleteButton.dataset.batchStock || 0);
+    if (remainingStock > 0 || activeBatchStock > 0) {
+      showInventoryActionWarning(
+        "This product still has existing stock and cannot be deleted.",
+      );
+      return;
+    }
+
+    const productId = document.getElementById("deleteProductId");
+    const productVersion = document.getElementById("deleteProductVersion");
+    pendingDeleteForm = document.getElementById("productDeleteForm");
+    if (productId) productId.value = productDeleteButton.dataset.id;
+    if (productVersion) productVersion.value = productDeleteButton.dataset.version;
+    if (inventoryConfirmMessage) {
+      inventoryConfirmMessage.textContent =
+        "Are you sure you want to permanently delete this product? This cannot be undone.";
+    }
+    openModal(inventoryConfirmModal);
+    return;
+  }
+
+  if (categoryDeleteButton) {
+    if (Number(categoryDeleteButton.dataset.productCount || 0) > 0) {
+      showInventoryActionWarning(
+        "This category still has existing products and cannot be deleted. Move or delete the products first.",
+      );
+      return;
+    }
+
+    const categoryId = document.getElementById("deleteCategoryId");
+    pendingDeleteForm = document.getElementById("categoryDeleteForm");
+    if (categoryId) categoryId.value = categoryDeleteButton.dataset.id;
+    if (inventoryConfirmMessage) {
+      inventoryConfirmMessage.textContent =
+        "Are you sure you want to permanently delete this category? This cannot be undone.";
+    }
+    openModal(inventoryConfirmModal);
+  }
+});
+
+if (inventoryConfirmCancel) {
+  inventoryConfirmCancel.addEventListener("click", function () {
+    pendingDeleteForm = null;
+    closeModal(inventoryConfirmModal);
+  });
+}
+
+if (inventoryConfirmDelete) {
+  inventoryConfirmDelete.addEventListener("click", function () {
+    if (pendingDeleteForm) pendingDeleteForm.submit();
+  });
+}
+
+if (inventoryActionWarningClose) {
+  inventoryActionWarningClose.addEventListener("click", function () {
+    closeModal(inventoryActionWarningModal);
+  });
+}
 
 /* FILTER FORM SUBMIT */
 document.addEventListener("submit", (event) => {

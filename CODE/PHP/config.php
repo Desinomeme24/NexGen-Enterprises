@@ -220,6 +220,71 @@ if (!function_exists('nxCodeUrl')) {
     }
 }
 
+if (!function_exists('nxProfileImageUrl')) {
+    function nxProfileImageUrl(?string $path): string
+    {
+        $defaultPath = 'IMAGES/default-avatar.png';
+        $path = trim((string)$path);
+        $isProjectAsset = str_starts_with($path, 'IMAGES/');
+
+        if (
+            $path === ''
+            || str_contains($path, '..')
+            || str_starts_with($path, '/')
+            || str_starts_with($path, '\\')
+            || $path === 'uploads/default.png'
+        ) {
+            $path = $defaultPath;
+            $isProjectAsset = true;
+        }
+
+        if ($isProjectAsset) {
+            $root = dirname(__DIR__, 2);
+            $relativePath = $path;
+        } elseif (str_starts_with($path, 'uploads/')) {
+            $root = nxPublicUploadDirectory();
+            $relativePath = substr($path, strlen('uploads/'));
+        } else {
+            return nxProjectUrl($defaultPath);
+        }
+
+        $absolutePath = realpath($root . DIRECTORY_SEPARATOR . str_replace(
+            ['/', '\\'],
+            DIRECTORY_SEPARATOR,
+            $relativePath
+        ));
+        $realRoot = realpath($root);
+
+        if (
+            $absolutePath === false
+            || $realRoot === false
+            || !is_file($absolutePath)
+            || !str_starts_with(
+                strtolower($absolutePath),
+                strtolower($realRoot . DIRECTORY_SEPARATOR)
+            )
+        ) {
+            return nxProjectUrl($defaultPath);
+        }
+
+        return $isProjectAsset
+            ? nxProjectUrl($path)
+            : nxAppUrl($path);
+    }
+}
+
+if (!function_exists('nxBusinessTypeLabel')) {
+    function nxBusinessTypeLabel(?string $businessType, ?string $businessTypeOther = null): string
+    {
+        $businessType = trim((string)$businessType);
+        $businessTypeOther = trim((string)$businessTypeOther);
+
+        return $businessType === 'Others' && $businessTypeOther !== ''
+            ? $businessTypeOther
+            : $businessType;
+    }
+}
+
 /* SESSION SECURITY: timeout constant */
 if (!defined('SESSION_TIMEOUT_SECONDS')) {
     define('SESSION_TIMEOUT_SECONDS', 600); // 10 minutes

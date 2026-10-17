@@ -371,7 +371,9 @@ session_regenerate_id(true);
 $_SESSION['user_id'] = $user['id'];
 $_SESSION['username'] = $user['username'];
 $_SESSION['full_name'] = $user['full_name'];
-$_SESSION['profile_image'] = !empty($user['profile_image']) ? $user['profile_image'] : 'uploads/default.png';
+$_SESSION['profile_image'] = !empty($user['profile_image'])
+    ? $user['profile_image']
+    : 'IMAGES/default-avatar.png';
 $_SESSION['role'] = $user['role'];
 $_SESSION['account_status'] = $user['account_status'];
 $_SESSION['can_inventory'] = (int)($user['can_inventory'] ?? 0);
@@ -485,7 +487,9 @@ $loginSuccessRedirectUrl = $redirectUrl;
 
         $loginSuccessProfileImage = trim((string)($_SESSION['profile_image'] ?? ''));
         if ($loginSuccessProfileImage === '') {
-            $loginSuccessProfileImage = nxAppUrl('uploads/default.png');
+            $loginSuccessProfileImage = nxProfileImageUrl('');
+        } else {
+            $loginSuccessProfileImage = nxProfileImageUrl($loginSuccessProfileImage);
         }
 
         $loginSuccessRole = (string)($_SESSION['role'] ?? '');
@@ -1026,7 +1030,7 @@ $loginSuccessRedirectUrl = $redirectUrl;
                         class="profile-img"
                         src="<?php echo htmlspecialchars($loginSuccessProfileImage, ENT_QUOTES, 'UTF-8'); ?>"
                         alt=""
-                        onerror="this.src='<?php echo e(nxAppUrl('uploads/default.png')); ?>'"
+                        onerror="this.src='<?php echo e(nxProfileImageUrl('')); ?>'"
                     >
                 </div>
 

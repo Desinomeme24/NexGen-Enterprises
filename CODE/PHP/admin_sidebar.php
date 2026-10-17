@@ -9,7 +9,7 @@ if (!function_exists('e')) {
     }
 }
 
-$profileImage  = !empty($_SESSION['profile_image']) ? $_SESSION['profile_image'] : 'uploads/default.png';
+$profileImage  = nxProfileImageUrl($_SESSION['profile_image'] ?? null);
 $adminFullName = $_SESSION['full_name'] ?? 'System Administrator';
 $currentPage   = basename($_SERVER['PHP_SELF']);
 $pendingRequestCount = 0;
@@ -66,7 +66,7 @@ $pendingPageActive = in_array(
             aria-controls="adminProfileDropdown"
         >
             <span class="avatar-ring">
-                <img src="/NexGen/CODE/PHP/<?php echo e($profileImage); ?>" alt="Profile">
+                <img src="<?php echo e($profileImage); ?>" alt="Profile">
                 <span class="status-dot" title="Online"></span>
             </span>
             <span class="brand-meta">

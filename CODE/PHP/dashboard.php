@@ -89,7 +89,7 @@ $_SESSION['username'] = (string)$account['username'];
 $_SESSION['full_name'] = (string)$account['full_name'];
 $_SESSION['profile_image'] = !empty($account['profile_image'])
     ? (string)$account['profile_image']
-    : 'uploads/default.png';
+    : 'IMAGES/default-avatar.png';
 $_SESSION['role'] = $role;
 $_SESSION['account_status'] = (string)$account['account_status'];
 $_SESSION['can_inventory'] = (int)$account['can_inventory'];
@@ -121,6 +121,7 @@ if (!$hasActiveWorkspace) {
         $_SESSION['business_code'],
         $_SESSION['business_name'],
         $_SESSION['business_type'],
+        $_SESSION['business_type_other'],
         $_SESSION['branch_code'],
         $_SESSION['branch_name'],
         $_SESSION['branch_address']

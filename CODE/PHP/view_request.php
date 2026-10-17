@@ -82,6 +82,7 @@ $allowedBusinessTypes = [
     'Mini Grocery / Sari-Sari Store',
     'Pharmacy / Drugstore',
     'School / Office Supplies',
+    'Others',
 ];
 $currentBusinessType = trim((string)($request['business_type'] ?? ''));
 if ($currentBusinessType !== '' && !in_array($currentBusinessType, $allowedBusinessTypes, true)) {
@@ -835,7 +836,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
             <div class="panel-body">
                 <div class="kv-grid">
                     <div class="kv-item"><label>Business Name</label><div class="value"><?php echo e($request['business_name'] ?? ''); ?></div></div>
-                    <div class="kv-item"><label>Business Type</label><div class="value"><?php echo e($request['business_type'] ?? ''); ?></div></div>
+                    <div class="kv-item"><label>Business Type</label><div class="value"><?php echo e(nxBusinessTypeLabel($request['business_type'] ?? '', $request['business_type_other'] ?? '')); ?></div></div>
                     <div class="kv-item"><label>Business Address</label><div class="value"><?php echo e($request['business_address'] ?? ''); ?></div></div>
                     <div class="kv-item">
                         <label>SME Business Code</label>
@@ -970,6 +971,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                                     </div>
                                     <input type="hidden" name="business_name" value="<?php echo e($request['business_name'] ?? ''); ?>">
                                     <input type="hidden" name="business_type" value="<?php echo e($request['business_type'] ?? ''); ?>">
+                                    <input type="hidden" name="business_type_other" value="<?php echo e($request['business_type_other'] ?? ''); ?>">
                                     <input type="hidden" name="business_address" value="<?php echo e($request['business_address'] ?? ''); ?>">
                                 <?php else: ?>
                                     <div class="correction-field">
@@ -985,6 +987,10 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
+                                    </div>
+                                    <div class="correction-field" id="correctionBusinessTypeOtherGroup" <?php echo $currentBusinessType === 'Others' ? '' : 'hidden'; ?>>
+                                        <label for="correctionBusinessTypeOther">Please specify your business type</label>
+                                        <input class="correction-input" id="correctionBusinessTypeOther" name="business_type_other" type="text" maxlength="100" value="<?php echo e($request['business_type_other'] ?? ''); ?>">
                                     </div>
                                     <div class="correction-field is-wide">
                                         <label for="correctionBusinessAddress">Business Address</label>
@@ -1350,6 +1356,23 @@ document.addEventListener('keydown', function(e) {
             document.body.style.overflow = '';
         }
     }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const businessTypeSelect = document.getElementById('correctionBusinessType');
+    const businessTypeOtherGroup = document.getElementById('correctionBusinessTypeOtherGroup');
+    const businessTypeOtherInput = document.getElementById('correctionBusinessTypeOther');
+    if (!businessTypeSelect || !businessTypeOtherGroup || !businessTypeOtherInput) return;
+
+    function syncOtherBusinessType() {
+        const isOther = businessTypeSelect.value === 'Others';
+        businessTypeOtherGroup.hidden = !isOther;
+        businessTypeOtherInput.required = isOther;
+        if (!isOther) businessTypeOtherInput.value = '';
+    }
+
+    businessTypeSelect.addEventListener('change', syncOtherBusinessType);
+    syncOtherBusinessType();
 });
 </script>
 </body>

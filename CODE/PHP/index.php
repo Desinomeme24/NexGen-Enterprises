@@ -2278,6 +2278,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
         .captcha-popup-overlay {
             position: fixed;
             inset: 0;
+            overflow-y: auto;
             background: var(--captcha-overlay-bg);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
@@ -2300,7 +2301,9 @@ if (session_status() === PHP_SESSION_ACTIVE) {
 
         .captcha-popup-box {
             width: 100%;
-            max-width: 560px;
+            max-width: min(560px, 100%);
+            max-height: calc(100dvh - 40px);
+            overflow-y: auto;
             background: linear-gradient(180deg, var(--captcha-box-grad-1) 0%, var(--captcha-box-grad-2) 100%);
             border-radius: 22px;
             padding: 22px 20px 18px;
@@ -2355,7 +2358,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
 
         .captcha-popup-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 10px;
         }
 
@@ -2375,8 +2378,25 @@ if (session_status() === PHP_SESSION_ACTIVE) {
         .captcha-popup-item img {
             display: block;
             width: 100%;
-            height: 110px;
-            object-fit: cover;
+            max-width: 100%;
+            height: auto;
+            aspect-ratio: 1;
+            object-fit: contain;
+        }
+
+        @media (max-width: 480px) {
+            .captcha-popup-overlay {
+                padding: 12px;
+            }
+
+            .captcha-popup-box {
+                padding: 18px 14px 14px;
+                border-radius: 16px;
+            }
+
+            .captcha-popup-grid {
+                gap: 7px;
+            }
         }
 
         .captcha-popup-item span {
@@ -4267,7 +4287,13 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
                                 <option value="Mini Grocery / Sari-Sari Store">Mini Grocery / Sari-Sari Store</option>
                                 <option value="Pharmacy / Drugstore">Pharmacy / Drugstore</option>
                                 <option value="School / Office Supplies">School / Office Supplies</option>
+                                <option value="Others">Others</option>
                             </select>
+                        </div>
+
+                        <div class="role-fields owner-fields" id="businessTypeOtherGroup" hidden>
+                            <label for="businessTypeOther">Please specify your business type</label>
+                            <input type="text" name="business_type_other" id="businessTypeOther" maxlength="100" placeholder="e.g., Auto Supply / Parts, Agriculture / Poultry Supply">
                         </div>
 
                         <div class="role-fields owner-fields" hidden>
@@ -7085,6 +7111,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const employeeFields = document.querySelectorAll('.employee-fields');
     const businessName = document.getElementById('businessName');
     const businessType = document.getElementById('businessType');
+    const businessTypeOther = document.getElementById('businessTypeOther');
+    const businessTypeOtherGroup = document.getElementById('businessTypeOtherGroup');
     const businessAddress = document.getElementById('businessAddress');
     const businessPermit = document.getElementById('businessPermit');
     const businessCode = document.getElementById('businessCode');
@@ -7110,6 +7138,9 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleGroup(employeeFields, isEmployee);
         setRequired(businessName, isOwner);
         setRequired(businessType, isOwner);
+        const isOtherBusinessType = isOwner && businessType && businessType.value === 'Others';
+        if (businessTypeOtherGroup) businessTypeOtherGroup.hidden = !isOtherBusinessType;
+        setRequired(businessTypeOther, isOtherBusinessType);
         setRequired(businessAddress, isOwner);
         setRequired(businessPermit, isOwner);
         setRequired(businessCode, isEmployee);
@@ -7120,6 +7151,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (roleSelect) {
         roleSelect.addEventListener('change', updateSignupRoleFields);
         updateSignupRoleFields();
+    }
+    if (businessType) {
+        businessType.addEventListener('change', updateSignupRoleFields);
     }
 });
 </script>

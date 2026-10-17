@@ -20,3 +20,4 @@ __pycache__/
 
 /CODE/PHP/nexgen_private/
 *.sql
+!nexgen_profile_inventory_updates_migration.sql

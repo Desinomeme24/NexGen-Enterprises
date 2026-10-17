@@ -12,7 +12,7 @@ enforceSessionTimeout();
 
 $displayName  = $_SESSION['username'] ?? 'Client';
 $fullName     = $_SESSION['full_name'] ?? 'Client';
-$profileImage = !empty($_SESSION['profile_image']) ? $_SESSION['profile_image'] : 'uploads/default.png';
+$profileImage = nxProfileImageUrl($_SESSION['profile_image'] ?? null);
 $currentPage  = basename($_SERVER['PHP_SELF']);
 $role         = $_SESSION['role'] ?? 'employee';
 $isOwner      = $role === 'owner';
@@ -58,10 +58,11 @@ window.NEXGEN_PATHS = <?php echo json_encode([
         <form action="<?php echo e(nxAppUrl('update_profile_image.php')); ?>" method="POST" enctype="multipart/form-data" class="profile-edit-form">
             <input type="hidden" name="csrf_token" value="<?php echo e(generateCsrfToken('profile_image_form')); ?>">
             <div class="profile-image-wrapper">
-                <img src="<?php echo e(nxAppUrl($profileImage)); ?>" alt="Profile" class="profile-img">
+                <img src="<?php echo e($profileImage); ?>" alt="Profile" class="profile-img">
                 <label for="new_profile_image" class="edit-profile-btn">✎</label>
                 <input type="file" name="new_profile_image" id="new_profile_image" accept="image/*" hidden>
             </div>
+            <button type="submit" class="profile-remove-btn" name="remove_profile_image" value="1">Remove photo</button>
             <button type="submit" class="hidden-upload-btn" id="submitProfileBtn">Upload</button>
         </form>
 

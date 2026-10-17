@@ -40,8 +40,9 @@ $businessTypeStmt->close();
 $isBatchTracked = nxIsBatchTrackedType($businessType);
 
 $product_id = intval($_POST['product_id'] ?? 0);
+$expectedVersion = (int)($_POST['version'] ?? 0);
 
-if ($product_id <= 0) {
+if ($product_id <= 0 || $expectedVersion <= 0) {
     $_SESSION['inventory_error'] = "Invalid product.";
     header("Location: /NexGen/CODE/PHP/inventory_management.php");
     exit();
@@ -67,7 +68,7 @@ if ($placeOrder) {
         $conn->begin_transaction();
 
         $productStmt = $conn->prepare("
-            SELECT id, product_name, on_order_level
+            SELECT id, product_name, on_order_level, version
             FROM products
             WHERE id = ? AND business_id = ?
             FOR UPDATE
@@ -86,24 +87,30 @@ if ($placeOrder) {
         if (!$product) {
             throw new Exception("Invalid product.");
         }
+        if ((int)$product['version'] !== $expectedVersion) {
+            throw new RuntimeException('INVENTORY_CONFLICT');
+        }
 
         $productName = $product['product_name'] ?? 'Product';
         $newOnOrder = (float)($product['on_order_level'] ?? 0) + $orderQty;
 
         $updateStmt = $conn->prepare("
             UPDATE products
-            SET on_order_level = ?
-            WHERE id = ? AND business_id = ?
+            SET on_order_level = ?, version = version + 1
+            WHERE id = ? AND business_id = ? AND version = ?
         ");
 
         if (!$updateStmt) {
             throw new Exception("Failed to prepare on-order update query.");
         }
 
-        $updateStmt->bind_param("dii", $newOnOrder, $product_id, $businessId);
+        $updateStmt->bind_param("diii", $newOnOrder, $product_id, $businessId, $expectedVersion);
 
         if (!$updateStmt->execute()) {
             throw new Exception("Failed to update on-order level.");
+        }
+        if ($updateStmt->affected_rows !== 1) {
+            throw new RuntimeException('INVENTORY_CONFLICT');
         }
 
         $updateStmt->close();
@@ -137,7 +144,11 @@ if ($placeOrder) {
         $_SESSION['inventory_success'] = "Order placed: " . formatQty($orderQty) . " unit(s) added to on-order for {$productName}.";
     } catch (Exception $e) {
         $conn->rollback();
-        $_SESSION['inventory_error'] = $e->getMessage();
+        if ($e->getMessage() === 'INVENTORY_CONFLICT') {
+            $_SESSION['inventory_conflict'] = true;
+        } else {
+            $_SESSION['inventory_error'] = $e->getMessage();
+        }
     }
 
     header("Location: /NexGen/CODE/PHP/inventory_management.php");
@@ -178,7 +189,7 @@ try {
 
     
     $productStmt = $conn->prepare("
-        SELECT id, product_name, stock_quantity, on_order_level, is_active
+        SELECT id, product_name, stock_quantity, on_order_level, is_active, version
         FROM products
         WHERE id = ? AND business_id = ?
         FOR UPDATE
@@ -196,6 +207,9 @@ try {
 
     if (!$product) {
         throw new Exception("Invalid product.");
+    }
+    if ((int)$product['version'] !== $expectedVersion) {
+        throw new RuntimeException('INVENTORY_CONFLICT');
     }
 
     $currentStock = (float)($product['stock_quantity'] ?? 0);
@@ -307,6 +321,17 @@ try {
         $updateStmt->close();
     }
 
+    $versionStmt = $conn->prepare(
+        'UPDATE products SET version = version + 1
+         WHERE id = ? AND business_id = ? AND version = ?'
+    );
+    $versionStmt->bind_param('iii', $product_id, $businessId, $expectedVersion);
+    $versionStmt->execute();
+    if ($versionStmt->affected_rows !== 1) {
+        throw new RuntimeException('INVENTORY_CONFLICT');
+    }
+    $versionStmt->close();
+
     $movementStmt = $conn->prepare("
         INSERT INTO stock_movements (business_id, product_id, movement_type, quantity, remarks, created_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?, NOW())
@@ -334,7 +359,11 @@ try {
 
 } catch (Exception $e) {
     $conn->rollback();
-    $_SESSION['inventory_error'] = $e->getMessage();
+    if ($e->getMessage() === 'INVENTORY_CONFLICT') {
+        $_SESSION['inventory_conflict'] = true;
+    } else {
+        $_SESSION['inventory_error'] = $e->getMessage();
+    }
 }
 
 header("Location: /NexGen/CODE/PHP/inventory_management.php");

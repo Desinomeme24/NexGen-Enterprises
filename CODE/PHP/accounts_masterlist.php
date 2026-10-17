@@ -65,20 +65,13 @@ function initialsFromName(string $name): string
 function renderAccountAvatar(array $account, string $className): void
 {
     $name = (string)($account['full_name'] ?? 'User');
-    $imagePath = trim((string)($account['profile_image'] ?? ''));
+    $imageUrl = nxProfileImageUrl($account['profile_image'] ?? null);
     ?>
     <div class="account-avatar <?php echo e($className); ?>" title="<?php echo e($name); ?>">
         <span class="account-avatar-initials" aria-hidden="true">
             <?php echo e(initialsFromName($name)); ?>
         </span>
-        <?php if ($imagePath !== ''): ?>
-            <img
-                src="<?php echo e($imagePath); ?>"
-                alt=""
-                loading="lazy"
-                onerror="this.remove();"
-            >
-        <?php endif; ?>
+        <img src="<?php echo e($imageUrl); ?>" alt="" loading="lazy">
     </div>
     <?php
 }

@@ -166,6 +166,7 @@ $confirmPassword = (string)($_POST['confirm_password'] ?? '');
 
 $businessName = trim((string)($_POST['business_name'] ?? ''));
 $businessType = trim((string)($_POST['business_type'] ?? ''));
+$businessTypeOther = trim((string)($_POST['business_type_other'] ?? ''));
 $businessAddress = trim((string)($_POST['business_address'] ?? ''));
 $businessCode = strtoupper(trim((string)($_POST['business_code'] ?? '')));
 $branchCode = strtoupper(trim((string)($_POST['branch_code'] ?? '')));
@@ -245,12 +246,17 @@ if ($requestedRole === 'owner') {
         'Mini Grocery / Sari-Sari Store',
         'Pharmacy / Drugstore',
         'School / Office Supplies',
+        'Others',
     ];
 
     if (
         !signupLengthBetween($businessName, 2, 150)
         || signupHasControlCharacters($businessName)
         || !in_array($businessType, $allowedBusinessTypes, true)
+        || ($businessType === 'Others' && (
+            !signupLengthBetween($businessTypeOther, 2, 100)
+            || signupHasControlCharacters($businessTypeOther)
+        ))
         || !signupLengthBetween($businessAddress, 5, 500)
         || signupHasControlCharacters($businessAddress)
     ) {
@@ -264,7 +270,7 @@ if ($requestedRole === 'owner') {
 
     try {
         $duplicateStmt = $conn->prepare(
-            "SELECT b.id, be.business_name, be.business_type, b.business_address
+            "SELECT b.id, be.business_name, be.business_type, be.business_type_other, b.business_address
              FROM business_entities be
              INNER JOIN businesses b ON b.business_entity_id = be.id
              WHERE be.status = 'active' AND b.branch_status = 'active'"
@@ -278,8 +284,15 @@ if ($requestedRole === 'owner') {
         while ($existing = $duplicateResult->fetch_assoc()) {
             $sameName = nxNormalizeBusinessIdentity((string)$existing['business_name'])
                 === nxNormalizeBusinessIdentity($businessName);
-            $sameType = nxNormalizeBusinessIdentity((string)$existing['business_type'])
-                === nxNormalizeBusinessIdentity($businessType);
+            $existingBusinessType = nxBusinessTypeLabel(
+                (string)$existing['business_type'],
+                (string)($existing['business_type_other'] ?? '')
+            );
+            $requestedBusinessType = $businessType === 'Others'
+                ? $businessTypeOther
+                : $businessType;
+            $sameType = nxNormalizeBusinessIdentity($existingBusinessType)
+                === nxNormalizeBusinessIdentity($requestedBusinessType);
             $sameAddress = nxNormalizeBusinessIdentity((string)$existing['business_address'])
                 === nxNormalizeBusinessIdentity($businessAddress);
 
@@ -313,6 +326,7 @@ if ($requestedRole === 'owner') {
     try {
         $businessStmt = $conn->prepare(
             "SELECT b.id, b.business_entity_id, be.business_name, be.business_type,
+                    be.business_type_other,
                     b.business_address, be.business_code, b.branch_code
              FROM businesses b
              INNER JOIN business_entities be ON be.id = b.business_entity_id
@@ -340,6 +354,7 @@ if ($requestedRole === 'owner') {
     $businessEntityId = (int)$business['business_entity_id'];
     $businessName = (string)$business['business_name'];
     $businessType = (string)$business['business_type'];
+    $businessTypeOther = (string)($business['business_type_other'] ?? '');
     $businessAddress = (string)$business['business_address'];
 }
 
@@ -498,22 +513,23 @@ try {
 
     $privacyConsentAt = date('Y-m-d H:i:s');
     $privacyNoticeVersion = '2026-10-v1';
+    $businessTypeOtherForDb = $businessType === 'Others' ? $businessTypeOther : null;
     $insert = $conn->prepare(
         "INSERT INTO registration_requests (
             request_code, employee_no, full_name, email, phone, address,
             username, password_hash, valid_id_path, business_permit_path,
             privacy_consent_at, privacy_notice_version, requested_role,
-            request_status, business_name, business_type, business_address,
-            business_code, business_id, business_entity_id, branch_code,
+            request_status, business_name, business_type, business_type_other,
+            business_address, business_code, business_id, business_entity_id, branch_code,
             possible_duplicate, duplicate_business_id, duplicate_reason
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
     if (!$insert) {
         throw new RuntimeException('Unable to prepare the registration request.');
     }
 
     $insert->bind_param(
-        str_repeat('s', 17) . 'iisii' . 's',
+        str_repeat('s', 18) . 'iisii' . 's',
         $requestCode,
         $employeeNoForDb,
         $fullName,
@@ -529,6 +545,7 @@ try {
         $requestedRole,
         $businessName,
         $businessType,
+        $businessTypeOtherForDb,
         $businessAddress,
         $businessCodeForDb,
         $businessIdForDb,
