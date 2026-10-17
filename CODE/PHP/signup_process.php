@@ -436,9 +436,11 @@ $stagedBusinessPermit = null;
 $validIdPath = null;
 $businessPermitPath = null;
 $storedReferences = [];
+$uploadSlot = 'valid_id';
 try {
     $stagedValidId = nxStageSensitiveDocument($_FILES['valid_id'], 'valid_id', ['role' => 'signup']);
     if ($requestedRole === 'owner') {
+        $uploadSlot = 'business_permit';
         $stagedBusinessPermit = nxStageSensitiveDocument(
             $_FILES['business_permit'],
             'business_permit',
@@ -446,11 +448,13 @@ try {
         );
     }
 
+    $uploadSlot = 'valid_id';
     $validIdPath = nxPersistSensitiveDocument($stagedValidId, 'valid_id');
     $storedReferences[] = [$validIdPath, 'valid_id'];
     $stagedValidId = null;
 
     if ($stagedBusinessPermit !== null) {
+        $uploadSlot = 'business_permit';
         $businessPermitPath = nxPersistSensitiveDocument($stagedBusinessPermit, 'business_permit');
         $storedReferences[] = [$businessPermitPath, 'business_permit'];
         $stagedBusinessPermit = null;
@@ -464,7 +468,10 @@ try {
     }
     signupRedirect('Secure document processing is temporarily unavailable. Please try again later.');
 } catch (NxDocumentUploadRejected $uploadError) {
-    nxDocumentUploadLog('upload.rejected', ['slot' => 'signup']);
+    nxDocumentUploadLog('upload.rejected', [
+        'slot' => $uploadSlot,
+        'reason' => $uploadError->getMessage(),
+    ]);
     nxDiscardStagedSensitiveDocument($stagedValidId);
     nxDiscardStagedSensitiveDocument($stagedBusinessPermit);
     foreach ($storedReferences as [$reference, $slot]) {

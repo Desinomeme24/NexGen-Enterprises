@@ -281,7 +281,8 @@ def main():
         else:
             return 2
         return 0
-    except Exception:
+    except Exception as error:
+        print(type(error).__name__, file=sys.stderr)
         return 1
 
 

@@ -94,6 +94,7 @@ function nxDocumentUploadLog(string $event, array $context = []): void
         'role' => isset($context['role']) ? (string)$context['role'] : null,
         'request_id' => isset($context['request_id']) ? (int)$context['request_id'] : null,
         'slot' => isset($context['slot']) ? (string)$context['slot'] : null,
+        'reason' => isset($context['reason']) ? substr((string)$context['reason'], 0, 300) : null,
         'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
     ];
     error_log('NexGen document upload: ' . json_encode($record, JSON_UNESCAPED_SLASHES));
@@ -409,6 +410,9 @@ function nxDocumentUploadRunSanitizer(string $mode, string $inputPath, string $o
         $exitCode = $closedCode;
     }
     if ($exitCode !== 0 || !is_file($outputPath) || filesize($outputPath) <= 0) {
+        if (preg_match('/^\s*([A-Za-z_][A-Za-z0-9_]*)/m', (string)$errorOutput, $match)) {
+            error_log('NexGen document sanitizer failed (' . $match[1] . ').');
+        }
         throw new NxDocumentUploadRejected('Document sanitization failed.');
     }
 }
