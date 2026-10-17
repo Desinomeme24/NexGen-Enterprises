@@ -1278,7 +1278,7 @@ if ($currentStatusForTab === '') {
         <div class="product-modal">
             <div class="modal-header">
                 <h2>Add New Product</h2>
-                <button type="button" class="close-modal-btn" id="closeProductModal" onclick="document.getElementById('productModal').classList.remove('show'); document.body.style.overflow='';">&times;</button>
+                <button type="button" class="close-modal-btn" id="closeProductModal" aria-label="Close Add Product" onclick="document.getElementById('productModal').classList.remove('show'); document.body.style.overflow='';">&times;</button>
             </div>
 
             <div class="wizard-stepper" id="productWizardStepper">
@@ -1809,8 +1809,9 @@ if ($currentStatusForTab === '') {
                                 data-id="<?php echo (int)$category['id']; ?>"
                                 data-name="<?php echo htmlspecialchars($category['category_name']); ?>"
                                 data-product-count="<?php echo (int)$category['product_count']; ?>"
-                                aria-label="Delete <?php echo htmlspecialchars($category['category_name']); ?>"
-                            >Delete</button>
+                                aria-label="Delete"
+                                title="Delete"
+                            ><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                         </li>
                     <?php endforeach; ?>
                 </ul>

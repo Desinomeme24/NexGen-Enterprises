@@ -546,8 +546,8 @@ body {
 }
 
 .summary-badge.blue {
-  background: linear-gradient(180deg, var(--blush), var(--violet));
-  color: #ffffff;
+  background: linear-gradient(180deg, #93c5fd, #60a5fa);
+  color: var(--midnight);
 }
 
 .summary-card-body.with-image {
@@ -906,7 +906,7 @@ body {
 .stock-low,
 .status-badge.warning {
   background: #efb443;
-  color: #ffffff;
+  color: #2b1a00;
 }
 
 .stock-out,
@@ -3939,5 +3939,185 @@ html[data-theme="light"] .category-list::-webkit-scrollbar-thumb {
     max-height: min(75vh, 560px);
     transform: translate(-50%, -50%);
     z-index: 1000;
+  }
+}
+
+/* Keep inventory dialogs above the shared workspace controls and sidebar. */
+.modal-overlay {
+  z-index: 5000;
+}
+
+.product-modal .modal-header {
+  gap: 12px;
+}
+
+.product-modal .modal-header h2 {
+  min-width: 0;
+}
+
+.product-modal .close-modal-btn {
+  position: relative;
+  z-index: 1002;
+  flex: 0 0 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.category-modal {
+  width: min(500px, calc(100vw - 32px));
+  max-height: min(86vh, 700px);
+  padding: 20px;
+}
+
+.category-modal .modal-header {
+  margin-bottom: 12px;
+}
+
+.category-modal .modal-header h2 {
+  font-size: 24px;
+}
+
+.category-modal .category-form {
+  gap: 10px;
+}
+
+.category-modal .category-form input {
+  padding: 10px 12px;
+}
+
+.category-modal .save-btn {
+  padding: 10px 14px;
+}
+
+.category-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 15px;
+}
+
+#inventoryConfirmModal .stock-modal {
+  max-width: 420px;
+  max-height: calc(100dvh - 32px);
+  padding: 20px;
+  border-radius: 20px;
+}
+
+#inventoryConfirmModal .modal-header {
+  margin-bottom: 10px;
+}
+
+#inventoryConfirmModal .modal-header h2 {
+  font-size: 24px;
+}
+
+#inventoryConfirmModal p {
+  margin-bottom: 14px;
+  font-size: 15px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+#inventoryConfirmModal .form-actions {
+  gap: 10px;
+}
+
+#inventoryConfirmModal .form-actions > button {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+}
+
+#inventoryConflictModal .stock-modal {
+  max-width: 420px;
+  padding: 20px;
+}
+
+#inventoryConflictModal .modal-header {
+  margin-bottom: 10px;
+}
+
+#inventoryConflictModal .modal-header h2 {
+  font-size: 23px;
+}
+
+#inventoryConflictModal p {
+  margin-bottom: 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+html[data-theme="light"] .inventory-table tbody td,
+html[data-theme="light"] .modal-header h2,
+html[data-theme="light"] .form-group label,
+html[data-theme="light"] .category-list-wrap h3,
+html[data-theme="light"] .checkbox-row,
+html[data-theme="light"] .stock-modal p,
+html[data-theme="light"] .wizard-stepper .step-node:not(.is-active):not(.is-complete) .step-label {
+  color: var(--ink) !important;
+}
+
+html[data-theme="light"] .product-modal,
+html[data-theme="light"] .stock-modal,
+html[data-theme="light"] .category-modal,
+html[data-theme="light"] .batches-modal {
+  color: var(--ink) !important;
+}
+
+html[data-theme="light"] .form-group input,
+html[data-theme="light"] .form-group select,
+html[data-theme="light"] .form-group textarea {
+  background: var(--input-bg) !important;
+  color: var(--ink) !important;
+}
+
+html[data-theme="light"] .category-list li {
+  color: var(--ink) !important;
+}
+
+html[data-theme="light"] .view-all-link,
+html[data-theme="light"] .inventory-tab:not(.active) span {
+  color: var(--ink);
+}
+
+html[data-theme="light"] .clear-filters-link {
+  color: #a3212c;
+}
+
+html[data-theme="light"] .inventory-tab.active,
+html[data-theme="light"] .inventory-tab.active span {
+  color: #594000;
+}
+
+html[data-theme="light"] .summary-badge.blue {
+  background: linear-gradient(180deg, #93c5fd, #60a5fa);
+  color: var(--midnight);
+}
+
+html[data-theme="light"] .filter-chip.active {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+@media (max-width: 600px) {
+  .category-modal {
+    max-height: calc(100dvh - 32px);
+    padding: 16px;
+  }
+
+  #inventoryConfirmModal .stock-modal,
+  #inventoryConflictModal .stock-modal {
+    width: min(420px, calc(100vw - 32px));
+    padding: 18px;
+  }
+
+  #inventoryConfirmModal .modal-header h2,
+  #inventoryConflictModal .modal-header h2 {
+    font-size: 21px;
   }
 }

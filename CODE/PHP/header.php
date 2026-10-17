@@ -62,7 +62,6 @@ window.NEXGEN_PATHS = <?php echo json_encode([
                 <label for="new_profile_image" class="edit-profile-btn">✎</label>
                 <input type="file" name="new_profile_image" id="new_profile_image" accept="image/*" hidden>
             </div>
-            <button type="submit" class="profile-remove-btn" name="remove_profile_image" value="1">Remove photo</button>
             <button type="submit" class="hidden-upload-btn" id="submitProfileBtn">Upload</button>
         </form>
 

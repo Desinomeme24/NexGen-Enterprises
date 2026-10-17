@@ -8094,3 +8094,62 @@ html[data-theme="light"] #saleModal .credit-requirement-callout span {
 html[data-theme="light"] #saleModal .customer-required-note {
   color: #496d5a;
 }
+
+@media (max-width: 600px) {
+  #saleModal .review-order-total-card .sale-footer {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  #saleModal .review-order-total-card .sale-footer > .sale-total-card,
+  #saleModal .review-order-total-card .review-payment-card,
+  #saleModal .review-order-total-card .review-receipt-card {
+    width: 100%;
+    min-width: 0;
+  }
+
+  #saleModal .review-order-total-card .review-payment-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  #saleModal .review-order-total-card .review-payment-card > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  #saleModal .review-order-total-card .review-payment-card > div + div {
+    padding-left: 8px;
+  }
+
+  #saleModal .review-order-total-card .review-payment-card small {
+    display: block;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+
+  #saleModal .review-order-total-card .sale-total-card strong,
+  #saleModal .review-order-total-card .review-payment-card strong {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    font-size: clamp(13px, 4.2vw, 18px);
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (max-width: 360px) {
+  #saleModal .review-order-total-card .review-payment-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #saleModal .review-order-total-card .review-payment-card > div + div {
+    padding-top: 8px;
+    padding-left: 0;
+    border-top: 1px solid rgba(143, 201, 255, 0.28);
+    border-left: 0;
+  }
+}

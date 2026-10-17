@@ -150,13 +150,12 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
                         <label for="new_profile_image" class="profile-edit-btn"><i class="bi bi-camera-fill"></i></label>
                         <input type="file" name="new_profile_image" id="new_profile_image" accept="image/*" hidden>
                     </div>
-                    <button type="submit" class="profile-remove-btn" name="remove_profile_image" value="1">Remove photo</button>
+                    <div class="sidebar-profile-info">
+                        <h2><?php echo htmlspecialchars($user['username'] ?? 'No Username'); ?></h2>
+                        <p class="profile-fullname"><?php echo htmlspecialchars($user['full_name'] ?? 'No Name'); ?></p>
+                        <button type="submit" class="profile-remove-btn" name="remove_profile_image" value="1">Remove photo</button>
+                    </div>
                 </form>
-
-                <div class="sidebar-profile-info">
-                    <h2><?php echo htmlspecialchars($user['username'] ?? 'No Username'); ?></h2>
-                    <p class="profile-fullname"><?php echo htmlspecialchars($user['full_name'] ?? 'No Name'); ?></p>
-                </div>
             </div>
         </div>
 

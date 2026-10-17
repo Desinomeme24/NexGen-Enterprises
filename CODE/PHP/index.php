@@ -773,7 +773,20 @@ if (session_status() === PHP_SESSION_ACTIVE) {
     transition: transform 0.3s ease, border-color 0.3s ease;
   }
   .avatar-placeholder:first-child { margin-left: 0; }
-  .avatar-placeholder img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-placeholder img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .team-join .avatar-placeholder {
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
   .avatar-placeholder:hover { transform: translateY(-4px); border-color: var(--accent); }
   .avatar-add {
     width: 46px; height: 46px;
@@ -1917,7 +1930,8 @@ if (session_status() === PHP_SESSION_ACTIVE) {
       height: 100dvh;
       width: min(300px, 82vw);
       margin: 0;
-      background: rgba(10, 17, 40, 0.98);
+      background: var(--bg-deep);
+      color: var(--text-muted);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border-left: 1px solid var(--line-bright);
@@ -1941,6 +1955,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
       width: 100%;
       padding: 16px 4px;
       font-size: 17px;
+      color: var(--text-muted);
       border-bottom: 1px solid var(--line);
     }
     .nav-links a::after { display: none; }
@@ -4660,19 +4675,19 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
         <span class="team-join-label">Join Our Team Now!</span>
         <div class="avatar-row">
           <span class="avatar-placeholder">
-            <img src="../../IMAGES/matt.jpg" alt="Team member photo">
+            <img src="../../IMAGES/matt.jpg" alt="Team member photo" draggable="false" oncontextmenu="return false">
           </span>
           <span class="avatar-placeholder">
-            <img src="../../IMAGES/viona.jpg" alt="Team member photo">
+            <img src="../../IMAGES/viona.jpg" alt="Team member photo" draggable="false" oncontextmenu="return false">
           </span>
           <span class="avatar-placeholder">
-            <img src="../../IMAGES/isla.jpg" alt="Team member photo">
+            <img src="../../IMAGES/isla.jpg" alt="Team member photo" draggable="false" oncontextmenu="return false">
           </span>
           <span class="avatar-placeholder">
-            <img src="../../IMAGES/sed.jpg" alt="Team member photo">
+            <img src="../../IMAGES/sed.jpg" alt="Team member photo" draggable="false" oncontextmenu="return false">
           </span>
           <span class="avatar-placeholder">
-            <img src="../../IMAGES/wina.jpg" alt="Team member photo">
+            <img src="../../IMAGES/wina.jpg" alt="Team member photo" draggable="false" oncontextmenu="return false">
           </span>
           <span class="avatar-add" title="Upload a photo">+</span>
         </div>

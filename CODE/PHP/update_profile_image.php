@@ -45,7 +45,7 @@ if (isset($_POST['remove_profile_image'])) {
         $_SESSION['error'] = 'Failed to remove profile picture.';
     }
     $removeStmt->close();
-    header('Location: ' . nxAppUrl('dashboard.php'));
+    header('Location: ' . nxAppUrl('settings.php'));
     exit();
 }
 
