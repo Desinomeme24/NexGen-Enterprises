@@ -67,14 +67,17 @@ NexGen/
 │ ├── JS/ # JavaScript functionality
 │ └── STYLE/ # CSS stylesheets
 ├── IMAGES/
-│ └── captcha/ # Image-based CAPTCHA assets
+│ ├── captcha/ # Image-based CAPTCHA assets
+│ └── nexgen-intro.mp4 # Public landing-page intro video
 ├── Dockerfile # Production-equivalent PHP/Apache image
 ├── package.json
 ├── package-lock.json
 └── CLAUDE.md
 
-CODE/BACKEND and VIDEOS were intentionally removed and must not be
-recreated, required by the Docker build, committed, published, or referenced.
+CODE/BACKEND and VIDEOS source directories remain absent and must not be
+recreated or required by the Docker build. The approved landing-page intro video
+is stored in IMAGES/nexgen-intro.mp4 and is published with the existing IMAGES
+directory.
 The database schema is managed separately from the public source repository.
 Do not invent a replacement SQL path or add database exports to Git.
 

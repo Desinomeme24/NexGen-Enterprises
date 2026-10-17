@@ -17,8 +17,7 @@ and administrative controls.
 - `CODE/PHP/` - PHP pages, handlers, and shared backend helpers
 - `CODE/JS/` - browser-side JavaScript
 - `CODE/STYLE/` - stylesheets
-- `IMAGES/` - application images and CAPTCHA assets
-- `VIDEOS/` - browser-accessible landing-page video assets
+- `IMAGES/` - application images, CAPTCHA assets, and the landing-page intro video
 - `Dockerfile` - production-equivalent Apache/PHP image
 
 ## Local development

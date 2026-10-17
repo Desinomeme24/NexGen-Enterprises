@@ -142,20 +142,47 @@ try {
 }
 date_default_timezone_set('Asia/Manila');
 
-/* APPLICATION PATHS: keep one codebase working when XAMPP serves NexGen from
-   /NexGen and Railway serves the published application from the domain root. */
+/* APPLICATION PATHS: derive development mounts from the current PHP script so
+   XAMPP worktrees and root-based Docker installs use the right URL prefixes. */
 $nxIsProduction = $nxEnvironment === 'production';
 
+$nxRequestScriptPath = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+$nxPhpAppMarker = '/CODE/PHP';
+$nxPhpAppPosition = strrpos($nxRequestScriptPath, $nxPhpAppMarker);
+$nxPathAfterPhpAppMarker = $nxPhpAppPosition === false
+    ? ''
+    : substr($nxRequestScriptPath, $nxPhpAppPosition + strlen($nxPhpAppMarker));
+$nxHasPhpAppMarker = $nxPhpAppPosition !== false
+    && ($nxPathAfterPhpAppMarker === '' || str_starts_with($nxPathAfterPhpAppMarker, '/'));
+
+if ($nxIsProduction) {
+    $nxAppBasePath = '';
+    $nxProjectBasePath = '';
+    $nxCodeBasePath = '';
+} elseif ($nxRequestScriptPath === '') {
+    $nxAppBasePath = '/NexGen/CODE/PHP';
+    $nxProjectBasePath = '/NexGen';
+    $nxCodeBasePath = '/NexGen/CODE';
+} elseif ($nxHasPhpAppMarker) {
+    $nxAppBasePath = substr($nxRequestScriptPath, 0, $nxPhpAppPosition + strlen($nxPhpAppMarker));
+    $nxProjectBasePath = substr($nxRequestScriptPath, 0, $nxPhpAppPosition);
+    $nxCodeBasePath = $nxProjectBasePath . '/CODE';
+} else {
+    $nxAppBasePath = rtrim(str_replace('\\', '/', dirname($nxRequestScriptPath)), '/');
+    $nxProjectBasePath = $nxAppBasePath;
+    $nxCodeBasePath = $nxAppBasePath;
+}
+
 if (!defined('NEXGEN_APP_BASE_PATH')) {
-    define('NEXGEN_APP_BASE_PATH', $nxIsProduction ? '' : '/NexGen/CODE/PHP');
+    define('NEXGEN_APP_BASE_PATH', $nxAppBasePath);
 }
 
 if (!defined('NEXGEN_PROJECT_BASE_PATH')) {
-    define('NEXGEN_PROJECT_BASE_PATH', $nxIsProduction ? '' : '/NexGen');
+    define('NEXGEN_PROJECT_BASE_PATH', $nxProjectBasePath);
 }
 
 if (!defined('NEXGEN_CODE_BASE_PATH')) {
-    define('NEXGEN_CODE_BASE_PATH', $nxIsProduction ? '' : '/NexGen/CODE');
+    define('NEXGEN_CODE_BASE_PATH', $nxCodeBasePath);
 }
 
 if (!function_exists('nxPathJoin')) {

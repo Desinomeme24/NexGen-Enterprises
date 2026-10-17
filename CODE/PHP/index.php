@@ -4826,7 +4826,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
       </svg>
     </button>
     <video class="video-dialog-player" id="landingPageVideo" controls playsinline preload="metadata">
-      <source src="../../VIDEOS/nexgen-intro.mp4" type="video/mp4">
+      <source src="<?php echo e(nxProjectUrl('IMAGES/nexgen-intro.mp4')); ?>" type="video/mp4">
       Your browser does not support HTML video.
     </video>
   </div>
