@@ -59,6 +59,64 @@ const addBranchForm = document.getElementById("addBranchForm");
 
 const profileInput = document.getElementById("new_profile_image");
 const profileForm = document.getElementById("profileImageForm");
+const profileRemoveButton = profileForm
+  ? profileForm.querySelector('[name="remove_profile_image"]')
+  : null;
+const profilePhotoConfirm = document.getElementById("profilePhotoConfirm");
+const cancelProfilePhotoRemoval = document.getElementById(
+  "cancelProfilePhotoRemoval",
+);
+const confirmProfilePhotoRemoval = document.getElementById(
+  "confirmProfilePhotoRemoval",
+);
+let confirmedProfilePhotoRemoval = false;
+
+function closeProfilePhotoConfirmation() {
+  if (!profilePhotoConfirm) {return;}
+  profilePhotoConfirm.hidden = true;
+  profileRemoveButton?.focus();
+}
+
+if (
+  profileForm &&
+  profileRemoveButton &&
+  profilePhotoConfirm &&
+  cancelProfilePhotoRemoval &&
+  confirmProfilePhotoRemoval
+) {
+  profileForm.addEventListener("submit", function (event) {
+    if (event.submitter !== profileRemoveButton) {return;}
+    if (confirmedProfilePhotoRemoval) {
+      confirmedProfilePhotoRemoval = false;
+      return;
+    }
+    event.preventDefault();
+    profilePhotoConfirm.hidden = false;
+    cancelProfilePhotoRemoval.focus();
+  });
+
+  cancelProfilePhotoRemoval.addEventListener(
+    "click",
+    closeProfilePhotoConfirmation,
+  );
+
+  confirmProfilePhotoRemoval.addEventListener("click", function () {
+    confirmedProfilePhotoRemoval = true;
+    profileRemoveButton.click();
+  });
+
+  profilePhotoConfirm.addEventListener("click", function (event) {
+    if (event.target === profilePhotoConfirm) {
+      closeProfilePhotoConfirmation();
+    }
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && !profilePhotoConfirm.hidden) {
+      closeProfilePhotoConfirmation();
+    }
+  });
+}
 
 function openPanel(panelId) {
   navItems.forEach((item) => {

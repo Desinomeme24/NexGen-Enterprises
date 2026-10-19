@@ -138,6 +138,17 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
     </div>
 <?php endif; ?>
 
+<div class="profile-photo-confirm-overlay" id="profilePhotoConfirm" hidden>
+    <section class="profile-photo-confirm" role="alertdialog" aria-modal="true" aria-labelledby="profilePhotoConfirmTitle" aria-describedby="profilePhotoConfirmMessage">
+        <h2 id="profilePhotoConfirmTitle">Remove profile photo?</h2>
+        <p id="profilePhotoConfirmMessage">Are you sure you want to delete this photo? Your default profile picture will be used instead.</p>
+        <div class="profile-photo-confirm-actions">
+            <button type="button" class="profile-photo-cancel" id="cancelProfilePhotoRemoval">Cancel</button>
+            <button type="button" class="profile-photo-remove" id="confirmProfilePhotoRemoval">Remove photo</button>
+        </div>
+    </section>
+</div>
+
 <div class="settings-page">
 
     <aside class="settings-sidebar">

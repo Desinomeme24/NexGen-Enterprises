@@ -4002,11 +4002,11 @@ html[data-theme="light"] .category-list::-webkit-scrollbar-thumb {
 #inventoryConfirmModal .stock-modal,
 #inventoryWarningModal .stock-modal,
 #inventoryConflictModal .stock-modal {
-  width: min(360px, calc(100vw - 32px));
-  max-width: 360px;
+  width: min(320px, calc(100vw - 28px));
+  max-width: 320px;
   max-height: calc(100dvh - 32px);
-  padding: 16px;
-  border-radius: 18px;
+  padding: 14px;
+  border-radius: 16px;
 }
 
 #inventoryConfirmModal .modal-header,
@@ -4018,14 +4018,14 @@ html[data-theme="light"] .category-list::-webkit-scrollbar-thumb {
 #inventoryConfirmModal .modal-header h2,
 #inventoryWarningModal .modal-header h2,
 #inventoryConflictModal .modal-header h2 {
-  font-size: 20px;
+  font-size: 18px;
 }
 
 #inventoryConfirmModal p,
 #inventoryWarningModal p,
 #inventoryConflictModal p {
-  margin-bottom: 12px;
-  font-size: 14px;
+  margin-bottom: 10px;
+  font-size: 13px;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -4037,8 +4037,8 @@ html[data-theme="light"] .category-list::-webkit-scrollbar-thumb {
 #inventoryConfirmModal .form-actions > button {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 44px;
-  padding: 10px 12px;
+  min-height: 40px;
+  padding: 8px 10px;
 }
 
 html[data-theme="light"] .inventory-table tbody td,
@@ -4102,14 +4102,21 @@ html[data-theme="light"] .filter-chip.active {
   #inventoryConfirmModal .stock-modal,
   #inventoryWarningModal .stock-modal,
   #inventoryConflictModal .stock-modal {
-    width: min(360px, calc(100vw - 32px));
-    padding: 15px;
+    width: min(320px, calc(100vw - 28px));
+    padding: 13px;
   }
 
   #inventoryConfirmModal .modal-header h2,
   #inventoryWarningModal .modal-header h2,
   #inventoryConflictModal .modal-header h2 {
-    font-size: 19px;
+    font-size: 18px;
+  }
+
+  #inventoryConfirmModal .form-actions > button,
+  #inventoryWarningModal .form-actions > button,
+  #inventoryConflictModal .form-actions > button {
+    min-height: 40px;
+    padding: 8px 10px;
   }
 }
 

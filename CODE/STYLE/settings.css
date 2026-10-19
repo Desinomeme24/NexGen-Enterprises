@@ -824,6 +824,81 @@ body {
   line-height: 1.5;
 }
 
+.profile-photo-confirm-overlay[hidden] {
+  display: none;
+}
+
+.profile-photo-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(2, 7, 27, 0.62);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.profile-photo-confirm {
+  width: min(360px, 100%);
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #10245f 0%, #09163f 100%);
+  color: #ffffff;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+}
+
+.profile-photo-confirm h2 {
+  margin: 0 0 8px;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.profile-photo-confirm p {
+  margin: 0 0 14px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.profile-photo-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.profile-photo-confirm-actions button {
+  min-width: 92px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-photo-cancel {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.profile-photo-remove {
+  background: #c83f53;
+  color: #ffffff;
+}
+
+.profile-photo-confirm-actions button:focus-visible {
+  outline: 3px solid #f6d84a;
+  outline-offset: 2px;
+}
+
 /* =========================
    LIGHT MODE
    Applied when html[data-theme="light"] is set (settings.js / header.js).
@@ -2385,6 +2460,23 @@ html[data-theme="light"] .back-link.back-to-dashboard {
   background: rgba(255, 255, 255, 0.38);
 }
 
+html[data-theme="light"] .profile-photo-confirm {
+  border-color: rgba(68, 127, 196, 0.24);
+  background: linear-gradient(180deg, #ffffff 0%, #eaf3ff 100%);
+  color: #142452;
+  box-shadow: 0 18px 42px rgba(20, 50, 92, 0.2);
+}
+
+html[data-theme="light"] .profile-photo-confirm p {
+  color: #435a80;
+}
+
+html[data-theme="light"] .profile-photo-cancel {
+  border-color: rgba(20, 36, 82, 0.2) !important;
+  background: rgba(20, 36, 82, 0.06);
+  color: #142452;
+}
+
 html[data-theme="light"] .settings-page .profile-remove-btn {
   color: #142452;
 }
@@ -2396,4 +2488,16 @@ html[data-theme="light"] .settings-page .profile-remove-btn:hover {
 html[data-theme="light"] .settings-page .form-group label,
 html[data-theme="light"] .settings-page .step-label {
   color: #435a80;
+}
+
+@media (max-width: 480px) {
+  .profile-photo-confirm {
+    width: min(340px, 100%);
+    padding: 16px;
+  }
+
+  .profile-photo-confirm-actions button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
 }
