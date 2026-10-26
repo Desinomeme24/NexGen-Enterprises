@@ -306,7 +306,7 @@ $pageSubtitle = $isOwner
 
     <div class="why-section-toggle-wrap">
         <button type="button" class="why-section-toggle-btn" id="whySectionToggleBtn" aria-expanded="false" aria-controls="why-section">
-            <span>Why NextGen?</span>
+            <span>Why NexGen?</span>
             <i class="bi bi-chevron-down" id="whySectionToggleIcon"></i>
         </button>
     </div>
@@ -330,7 +330,7 @@ $pageSubtitle = $isOwner
                 <div class="why-right why-reveal why-reveal-right">
                     <div class="why-icon-text">
                         <div class="why-description">
-                            <p><strong>Next Gen</strong> is designed to provide Small and Medium Enterprises (SMEs) with a secure, efficient, and intelligent platform for managing inventory, sales transactions, and business operations.</p>
+                            <p><strong>NexGen</strong> is designed to provide Small and Medium Enterprises (SMEs) with a secure, efficient, and intelligent platform for managing inventory, sales transactions, and business operations.</p>
                             <p>We prioritize accuracy, usability, reliability, and real-time access to business information to help enterprises operate more effectively.</p>
                             <p class="why-closing">Choose NexGen — where smarter business management meets intelligent technology.</p>
                         </div>

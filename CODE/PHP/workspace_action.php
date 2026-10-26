@@ -64,7 +64,6 @@ try {
 
         $workspace = nxSetActiveWorkspace($conn, $businessId);
         $label = trim((string)$workspace['business_name'] . ' — ' . (string)$workspace['branch_name']);
-        $_SESSION['success'] = 'Workspace switched to ' . $label . '.';
 
         logActivity(
             $conn,
