@@ -6,16 +6,14 @@ $returnTo = $_GET['return_to'] ?? '';
 $acknowledgedParam = isset($_GET['acknowledged']) && is_string($_GET['acknowledged'])
     ? $_GET['acknowledged']
     : '';
-$ackToken = isset($_GET['ack_token']) && is_string($_GET['ack_token'])
-    ? $_GET['ack_token']
-    : '';
+$ackToken = '';
 $ackError = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $returnTo = isset($_POST['return_to']) && is_string($_POST['return_to'])
         ? $_POST['return_to']
         : '';
-    $ackToken = isset($_POST['ack_token']) && is_string($_POST['ack_token'])
+    $postedAckToken = isset($_POST['ack_token']) && is_string($_POST['ack_token'])
         ? $_POST['ack_token']
         : '';
     $expectedAckToken = isset($_SESSION['signup_privacy_ack_token']) && is_string($_SESSION['signup_privacy_ack_token'])
@@ -28,16 +26,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         || $_POST['action'] !== 'acknowledge_signup_policy'
         || isset($_SESSION['user_id'])
         || $returnTo !== 'signup'
-        || !preg_match('/^[a-f0-9]{64}$/D', $ackToken)
+        || !preg_match('/^[a-f0-9]{64}$/D', $postedAckToken)
         || $expectedAckToken === ''
-        || !hash_equals($expectedAckToken, $ackToken)
+        || !hash_equals($expectedAckToken, $postedAckToken)
     ) {
         http_response_code(400);
         $ackError = 'This acknowledgement link is invalid or expired. Please reopen the Privacy Policy from the signup form.';
     } else {
-        $_SESSION['signup_privacy_acknowledged_token'] = $ackToken;
+        $_SESSION['signup_privacy_acknowledged_token'] = $postedAckToken;
         header(
-            'Location: privacy_policy.php?return_to=signup&acknowledged=1&ack_token=' . rawurlencode($ackToken),
+            'Location: privacy_policy.php?return_to=signup&acknowledged=1',
             true,
             303
         );
@@ -48,11 +46,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $expectedAckToken = isset($_SESSION['signup_privacy_ack_token']) && is_string($_SESSION['signup_privacy_ack_token'])
     ? $_SESSION['signup_privacy_ack_token']
     : '';
+$ackToken = preg_match('/^[a-f0-9]{64}$/D', $expectedAckToken)
+    ? $expectedAckToken
+    : '';
 $isSignupReturn = !isset($_SESSION['user_id'])
     && $returnTo === 'signup'
-    && preg_match('/^[a-f0-9]{64}$/D', $ackToken)
-    && $expectedAckToken !== ''
-    && hash_equals($expectedAckToken, $ackToken);
+    && $ackToken !== '';
 $isSignupAcknowledged = $isSignupReturn
     && $acknowledgedParam === '1'
     && isset($_SESSION['signup_privacy_acknowledged_token'])

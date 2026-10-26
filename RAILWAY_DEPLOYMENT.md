@@ -42,8 +42,9 @@ NEXGEN_RESEND_FROM_ADDRESS=<verified Resend sender>
 NEXGEN_RESEND_FROM_NAME=NexGen
 ```
 
-Railway supplies `PORT`; do not hardcode it. The Docker entrypoint listens on
-that value.
+Railway supplies `PORT`; do not hardcode or override it. It must be an integer
+from 1 through 65535. The Docker entrypoint validates the value and configures
+Apache to listen on that port.
 
 Railway's `/health.php` startup check verifies both PHP and database
 availability. The service should not pass its startup health check until the
