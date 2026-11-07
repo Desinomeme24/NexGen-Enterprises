@@ -115,6 +115,30 @@ if (!function_exists('nxWorkspaceRequestSchemaReady')) {
     }
 }
 
+if (!function_exists('nxWorkspacePermitSchemaReady')) {
+    function nxWorkspacePermitSchemaReady(mysqli $conn): bool
+    {
+        static $ready = null;
+
+        if ($ready !== null) {
+            return $ready;
+        }
+
+        $result = $conn->query(
+            "SELECT COUNT(*) AS matched_columns
+             FROM information_schema.columns
+             WHERE table_schema = DATABASE()
+               AND table_name = 'workspace_requests'
+               AND column_name = 'business_permit_path'"
+        );
+
+        $row = $result instanceof mysqli_result ? $result->fetch_assoc() : null;
+        $ready = $row && (int)$row['matched_columns'] === 1;
+
+        return $ready;
+    }
+}
+
 if (!function_exists('nxGetPendingWorkspaceRequest')) {
     function nxGetPendingWorkspaceRequest(mysqli $conn, int $userId): ?array
     {

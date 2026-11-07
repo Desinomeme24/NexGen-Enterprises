@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/tenant_helper.php';
+require_once __DIR__ . '/document_upload_security.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_SESSION['user_id'])) {
     header('Location: /NexGen/CODE/PHP/index.php');
@@ -43,10 +44,34 @@ function nxWorkspaceTextLength(string $value): int
     return function_exists('mb_strlen') ? mb_strlen($value, 'UTF-8') : strlen($value);
 }
 
+function nxWorkspaceCleanupPermitReference(?string $reference): void
+{
+    if ($reference === null || $reference === '') {
+        return;
+    }
+
+    try {
+        if (!nxDeleteSensitiveDocument($reference, 'business_permit')) {
+            nxDocumentUploadLog('storage.cleanup_failed', [
+                'role' => 'owner',
+                'slot' => 'business_permit',
+            ]);
+        }
+    } catch (Throwable $cleanupError) {
+        nxDocumentUploadLog('storage.cleanup_failed', [
+            'role' => 'owner',
+            'slot' => 'business_permit',
+            'reason' => $cleanupError->getMessage(),
+        ]);
+    }
+}
+
 $returnTo = nxWorkspaceRedirectTarget($_POST['return_to'] ?? 'dashboard.php');
 $action = trim((string)($_POST['action'] ?? ''));
 $userId = (int)$_SESSION['user_id'];
 $role = (string)($_SESSION['role'] ?? '');
+$stagedPermit = null;
+$permitReference = null;
 
 if (!nxWorkspaceSchemaReady($conn)) {
     nxWorkspaceFail(
@@ -87,6 +112,11 @@ try {
     if (!nxWorkspaceRequestSchemaReady($conn)) {
         throw new RuntimeException(
             'The Multi-Tenancy v3 approval migration must be run before submitting business or branch requests.'
+        );
+    }
+    if (!nxWorkspacePermitSchemaReady($conn)) {
+        throw new RuntimeException(
+            'The workspace-request business permit database migration must be installed before submitting a request.'
         );
     }
 
@@ -250,6 +280,64 @@ try {
         throw new RuntimeException('Invalid workspace action.');
     }
 
+    try {
+        nxDocumentUploadValidateBag($_FILES, ['business_permit']);
+        if (
+            nxDocumentUploadIsMissing($_FILES['business_permit'])
+            || (int)$_FILES['business_permit']['error'] !== UPLOAD_ERR_OK
+        ) {
+            throw new NxDocumentUploadRejected('A business permit is required.');
+        }
+
+        $uploadContext = [
+            'user_id' => $userId,
+            'role' => 'owner',
+        ];
+        $stagedPermit = nxStageSensitiveDocument(
+            $_FILES['business_permit'],
+            'business_permit',
+            $uploadContext
+        );
+        $permitReference = nxPersistSensitiveDocument($stagedPermit, 'business_permit');
+        $stagedPermit = null;
+    } catch (NxDocumentUploadRejected $uploadError) {
+        nxDocumentUploadLog('upload.rejected', [
+            'user_id' => $userId,
+            'role' => 'owner',
+            'slot' => 'business_permit',
+            'reason' => $uploadError->getMessage(),
+        ]);
+        nxDiscardStagedSensitiveDocument($stagedPermit);
+        nxWorkspaceCleanupPermitReference($permitReference);
+        $stagedPermit = null;
+        $permitReference = null;
+        throw new RuntimeException('Please upload a valid business permit in an accepted format.');
+    } catch (NxDocumentUploadUnavailable $uploadError) {
+        nxDocumentUploadLog('upload.unavailable', [
+            'user_id' => $userId,
+            'role' => 'owner',
+            'slot' => 'business_permit',
+            'reason' => $uploadError->getMessage(),
+        ]);
+        nxDiscardStagedSensitiveDocument($stagedPermit);
+        nxWorkspaceCleanupPermitReference($permitReference);
+        $stagedPermit = null;
+        $permitReference = null;
+        throw new RuntimeException('Secure permit processing is temporarily unavailable. Please try again later.');
+    } catch (Throwable $uploadError) {
+        nxDocumentUploadLog('upload.processing_failed', [
+            'user_id' => $userId,
+            'role' => 'owner',
+            'slot' => 'business_permit',
+            'reason' => $uploadError->getMessage(),
+        ]);
+        nxDiscardStagedSensitiveDocument($stagedPermit);
+        nxWorkspaceCleanupPermitReference($permitReference);
+        $stagedPermit = null;
+        $permitReference = null;
+        throw new RuntimeException('The business permit could not be securely processed. Please try again.');
+    }
+
     $requestCode = nxGenerateWorkspaceRequestCode($conn);
 
     $conn->begin_transaction();
@@ -258,14 +346,14 @@ try {
             "INSERT INTO workspace_requests
                 (request_code, requested_by, request_type, business_entity_id,
                  business_name, business_type, business_address, branch_name,
-                 separate_operations, request_status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')"
+                 business_permit_path, separate_operations, request_status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')"
         );
         if (!$insert) {
             throw new RuntimeException('Unable to prepare the workspace request.');
         }
         $insert->bind_param(
-            'sisissssi',
+            'sisisssssi',
             $requestCode,
             $userId,
             $requestType,
@@ -274,6 +362,7 @@ try {
             $businessType,
             $businessAddress,
             $branchName,
+            $permitReference,
             $separateOperations
         );
         if (!$insert->execute()) {
@@ -303,16 +392,26 @@ try {
         );
 
         $conn->commit();
+        $permitReference = null;
     } catch (Throwable $e) {
         $conn->rollback();
         throw $e;
     }
+
+    nxDocumentUploadLog('upload.stored', [
+        'user_id' => $userId,
+        'role' => 'owner',
+        'request_id' => $requestId,
+        'slot' => 'business_permit',
+    ]);
 
     $_SESSION['success'] =
         "Request {$requestCode} submitted for administrator review. You cannot submit another business or branch request while this request is pending.";
     header('Location: /NexGen/CODE/PHP/settings.php?panel=workspace-panel');
     exit();
 } catch (Throwable $e) {
+    nxDiscardStagedSensitiveDocument($stagedPermit);
+    nxWorkspaceCleanupPermitReference($permitReference);
     $message = $e->getMessage();
     if ((int)$e->getCode() === 1062 && stripos($message, 'uq_workspace_one_pending_per_account') !== false) {
         $message = 'You already have a pending request. Please wait for the administrator\'s review before submitting another request.';

@@ -29,9 +29,10 @@ private quarantine and removed after processing.
 ## Required database change
 
 The application schema is maintained outside this repository. Apply these
-additive changes to the already-existing `users` and `registration_requests`
-tables using the approved database change process, after taking the normal
-database backup. Do not run these statements automatically from the app:
+additive changes to the already-existing `users`,
+`registration_requests`, and `workspace_requests` tables using the approved
+database change process, after taking the normal database backup. Do not run
+these statements automatically from the app:
 
 ```sql
 ALTER TABLE users
@@ -41,12 +42,17 @@ ALTER TABLE registration_requests
     ADD COLUMN business_permit_path VARCHAR(255) NULL AFTER valid_id_path,
     ADD COLUMN privacy_consent_at DATETIME NULL AFTER business_permit_path,
     ADD COLUMN privacy_notice_version VARCHAR(32) NULL AFTER privacy_consent_at;
+
+ALTER TABLE workspace_requests
+    ADD COLUMN business_permit_path VARCHAR(255) NULL AFTER branch_name;
 ```
 
 The request columns record the distinct permit reference and the signup
 privacy-notice version and consent timestamp. The approved user's permit
-reference is copied to `users`. Deploying the PHP changes before applying the
-schema change will cause upload/review queries to fail; do not deploy until the
+reference is copied to `users`. The workspace request column stores the
+encrypted permit reference for owner-submitted additional business and branch
+requests. Deploying the related PHP changes before applying the schema changes
+will prevent those uploads from being submitted; do not deploy until the
 migration has been applied and verified.
 
 ## Docker Compose setup

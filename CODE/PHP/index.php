@@ -5181,8 +5181,8 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
         <ul>
           <li><a href="#home">Home</a></li>
           <li><a href="#about">About Us</a></li>
-          <li><a href="#">Services</a></li>
-          <li><a href="#">Pages</a></li>
+          <li><a href="#services">Services</a></li>
+          <li><a href="#pages">Pages</a></li>
         </ul>
       </div>
       <div class="footer-col footer-modules">

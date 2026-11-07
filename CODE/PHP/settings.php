@@ -289,6 +289,11 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
                             <h3>Approval migration required</h3>
                             <p>Run the Multi-Tenancy v3 SQL migration before submitting a new business or branch request.</p>
                         </div>
+                    <?php elseif (!nxWorkspacePermitSchemaReady($conn)): ?>
+                        <div class="workspace-summary">
+                            <h3>Business permit migration required</h3>
+                            <p>The workspace request database needs a private business-permit reference field before owners can submit new requests.</p>
+                        </div>
                     <?php elseif ($pendingWorkspaceRequest): ?>
                         <div class="workspace-summary workspace-request-pending">
                             <h3><i class="bi bi-hourglass-split"></i> Request awaiting administrator review</h3>
@@ -303,7 +308,7 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
                             <span class="workspace-request-status"><i class="bi bi-clock-history"></i> Pending</span>
                         </div>
                     <?php else: ?>
-                    <form action="/NexGen/CODE/PHP/workspace_action.php" method="POST" class="account-form workspace-form-card" id="addBusinessForm">
+                    <form action="/NexGen/CODE/PHP/workspace_action.php" method="POST" enctype="multipart/form-data" class="account-form workspace-form-card" id="addBusinessForm">
                         <input type="hidden" name="csrf_token" value="<?php echo e($workspaceCsrfToken); ?>">
                         <input type="hidden" name="action" value="add_business">
                         <input type="hidden" name="return_to" value="settings.php">
@@ -332,6 +337,11 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
                             <label for="newBusinessAddress">Business/branch address</label>
                             <textarea name="business_address" id="newBusinessAddress" required></textarea>
                         </div>
+                        <div class="form-group full">
+                            <label for="newBusinessPermit">Business permit</label>
+                            <input type="file" name="business_permit" id="newBusinessPermit" accept=".jpg,.jpeg,.png,.heic,.heif,.pdf" required>
+                            <small>Required. JPG/PNG: up to 5 MB; HEIC/HEIF/PDF: up to 10 MB.</small>
+                        </div>
                         <label class="workspace-check">
                             <input type="checkbox" name="separate_operations" value="1">
                             <span>This workspace must use separate operations and accounting, even if its name and SME type match one of my existing businesses.</span>
@@ -339,7 +349,7 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
                         <div class="form-actions-left"><button type="submit" class="btn btn-save">Submit Business Request</button></div>
                     </form>
 
-                    <form action="/NexGen/CODE/PHP/workspace_action.php" method="POST" class="account-form workspace-form-card" id="addBranchForm">
+                    <form action="/NexGen/CODE/PHP/workspace_action.php" method="POST" enctype="multipart/form-data" class="account-form workspace-form-card" id="addBranchForm">
                         <input type="hidden" name="csrf_token" value="<?php echo e($workspaceCsrfToken); ?>">
                         <input type="hidden" name="action" value="add_branch">
                         <input type="hidden" name="return_to" value="settings.php">
@@ -363,6 +373,11 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
                         <div class="form-group full">
                             <label for="newBranchAddress">Branch address</label>
                             <textarea name="branch_address" id="newBranchAddress" required></textarea>
+                        </div>
+                        <div class="form-group full">
+                            <label for="newBranchPermit">Business permit</label>
+                            <input type="file" name="business_permit" id="newBranchPermit" accept=".jpg,.jpeg,.png,.heic,.heif,.pdf" required>
+                            <small>Required. JPG/PNG: up to 5 MB; HEIC/HEIF/PDF: up to 10 MB.</small>
                         </div>
                         <div class="form-actions-left"><button type="submit" class="btn btn-save">Submit Branch Request</button></div>
                     </form>

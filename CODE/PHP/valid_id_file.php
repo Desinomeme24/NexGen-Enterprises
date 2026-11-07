@@ -30,7 +30,13 @@ $requestId = filter_var($_GET['request_id'] ?? null, FILTER_VALIDATE_INT, [
     'options' => ['min_range' => 1],
 ]);
 $slot = (string)($_GET['slot'] ?? 'valid_id');
-if (!is_int($requestId) || !in_array($slot, ['valid_id', 'business_permit'], true)) {
+$source = (string)($_GET['source'] ?? 'registration');
+if (
+    !is_int($requestId)
+    || !in_array($slot, ['valid_id', 'business_permit'], true)
+    || !in_array($source, ['registration', 'workspace'], true)
+    || ($source === 'workspace' && $slot !== 'business_permit')
+) {
     nxDocumentDeliveryFail(404, $adminId, is_int($requestId) ? $requestId : 0, $slot);
 }
 
@@ -53,9 +59,10 @@ try {
     }
 
     $documentColumn = $slot === 'valid_id' ? 'valid_id_path' : 'business_permit_path';
+    $requestTable = $source === 'workspace' ? 'workspace_requests' : 'registration_requests';
     $stmt = $conn->prepare(
         "SELECT {$documentColumn} AS document_reference, request_status
-         FROM registration_requests
+         FROM {$requestTable}
          WHERE id = ?
          LIMIT 1"
     );
@@ -73,7 +80,7 @@ try {
 
 if (
     !$request
-    || (string)$request['request_status'] === 'rejected'
+    || ($source === 'registration' && (string)$request['request_status'] === 'rejected')
     || empty($request['document_reference'])
 ) {
     nxDocumentDeliveryFail(404, $adminId, $requestId, $slot);
@@ -93,7 +100,8 @@ try {
         'slot' => $slot,
     ]);
 
-    $downloadName = 'registration_' . $requestId . '_' . $slot . '.' . $temporaryDocument['extension'];
+    $downloadName = ($source === 'workspace' ? 'workspace_request_' : 'registration_')
+        . $requestId . '_' . $slot . '.' . $temporaryDocument['extension'];
     session_write_close();
     header('Content-Type: ' . $temporaryDocument['mime']);
     header('Content-Length: ' . (string)filesize($temporaryDocument['path']));
