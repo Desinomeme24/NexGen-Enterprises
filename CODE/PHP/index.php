@@ -5135,7 +5135,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
     <div class="cta-box reveal from-scale">
       <span class="eyebrow">Ready To Start?</span>
       <h2>Transform Your Business<br>With NexGen Today</h2>
-      <p>Join hundreds of companies already using NexGen to streamline operations and accelerate growth.</p>
+    
       <div class="cta-buttons">
         <button type="button" id="openLoginFromBot" class="btn btn-primary btn-glow magnetic-btn">Let's Get Started</button>
         <button type="button" class="btn btn-ghost magnetic-btn" disabled aria-disabled="true">Come In!</button>
