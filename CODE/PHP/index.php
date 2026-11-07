@@ -10,14 +10,11 @@ if (isset($_SESSION['user_id'])) {
     $_SESSION['fp_portal'] = 'client';
 }
 
-/* CAPTCHA: client authentication has its own challenge namespace so a token
-   created on this portal cannot be replayed through the administrator portal. */
-$loginCaptcha = generateImageCaptcha('client_login_form');
-$signupCaptcha = generateImageCaptcha('signup_form');
-
 /* SECURITY: Generate portal-specific CSRF tokens for login and signup forms. */
 $loginCsrfToken = generateCsrfToken('client_login_form');
 $signupCsrfToken = generateCsrfToken('signup_form');
+$loginCaptchaRefreshToken = generateCsrfToken('captcha_refresh_client_login');
+$signupCaptchaRefreshToken = generateCsrfToken('captcha_refresh_signup');
 
 $signupPrivacyAcknowledged = !isset($_SESSION['user_id'])
     && isset($_GET['open'])
@@ -165,21 +162,21 @@ if (session_status() === PHP_SESSION_ACTIVE) {
     --font-body: 'Inter', sans-serif;
 
     /* ---- CAPTCHA (dark / default) ---- */
-    --captcha-overlay-bg: rgba(0, 0, 0, 0.52);
-    --captcha-box-grad-1: #1f3c88;
-    --captcha-box-grad-2: #1a3578;
-    --captcha-box-border: rgba(255, 255, 255, 0.12);
+    --captcha-overlay-bg: rgba(1, 5, 16, 0.76);
+    --captcha-box-grad-1: #0b1b42;
+    --captcha-box-grad-2: #0b1b42;
+    --captcha-box-border: rgba(110, 142, 198, 0.48);
     --captcha-text: #ffffff;
     --captcha-text-soft: rgba(255, 255, 255, 0.78);
-    --captcha-close-bg: rgba(255, 255, 255, 0.12);
-    --captcha-close-bg-hover: rgba(255, 255, 255, 0.22);
-    --captcha-item-bg: rgba(255, 255, 255, 0.08);
-    --captcha-check-ring: rgba(255, 255, 255, 0.65);
-    --captcha-check-bg: rgba(0, 0, 0, 0.55);
+    --captcha-close-bg: rgba(255, 255, 255, 0.05);
+    --captcha-close-bg-hover: rgba(255, 255, 255, 0.12);
+    --captcha-item-bg: #06102b;
+    --captcha-check-ring: rgba(255, 255, 255, 0.92);
+    --captcha-check-bg: rgba(2, 8, 23, 0.56);
     --captcha-error-bg: rgba(255, 95, 95, 0.12);
     --captcha-error-text: #ffd9d9;
-    --captcha-cancel-bg: rgba(255, 255, 255, 0.14);
-    --captcha-cancel-bg-hover: rgba(255, 255, 255, 0.22);
+    --captcha-cancel-bg: rgba(255, 255, 255, 0.06);
+    --captcha-cancel-bg-hover: rgba(255, 255, 255, 0.12);
     --captcha-cancel-text: #ffffff;
     --captcha-verify-bg: #f7d98b;
     --captcha-verify-text: #17306b;
@@ -2316,13 +2313,13 @@ if (session_status() === PHP_SESSION_ACTIVE) {
 
         .captcha-popup-box {
             width: 100%;
-            max-width: min(560px, 100%);
+            max-width: min(620px, 100%);
             max-height: calc(100dvh - 40px);
             overflow-y: auto;
             background: linear-gradient(180deg, var(--captcha-box-grad-1) 0%, var(--captcha-box-grad-2) 100%);
             border-radius: 22px;
-            padding: 22px 20px 18px;
-            box-shadow: 0 24px 50px rgba(0, 0, 0, 0.20);
+            padding: 0;
+            box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
             border: 1px solid var(--captcha-box-border);
             color: var(--captcha-text);
             transform: translateY(14px) scale(0.97);
@@ -2337,25 +2334,33 @@ if (session_status() === PHP_SESSION_ACTIVE) {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 14px;
+            gap: 16px;
+            padding: 22px 22px 12px;
         }
 
         .captcha-popup-header h3 {
             margin: 0;
-            font-size: 22px;
+            font-size: 1.2rem;
             font-weight: 800;
             color: var(--captcha-text);
         }
 
+        .captcha-popup-header p {
+            margin: 6px 0 0;
+            color: var(--captcha-text-soft);
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+
         .captcha-popup-close {
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            flex: 0 0 36px;
+            border: 1px solid var(--captcha-box-border);
+            border-radius: 10px;
             background: var(--captcha-close-bg);
             color: var(--captcha-text);
-            font-size: 24px;
+            font-size: 22px;
             cursor: pointer;
             transition: background 0.2s ease;
         }
@@ -2364,39 +2369,43 @@ if (session_status() === PHP_SESSION_ACTIVE) {
             background: var(--captcha-close-bg-hover);
         }
 
-        .captcha-popup-title {
-            margin-bottom: 12px;
-            font-size: 15px;
-            font-weight: 700;
-            color: var(--captcha-text);
-        }
-
         .captcha-popup-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
+            gap: 8px;
+            padding: 10px 22px 18px;
+        }
+
+        .captcha-popup-grid > [role="status"] {
+            grid-column: 1 / -1;
         }
 
         .captcha-popup-item {
             position: relative;
-            border-radius: 12px;
+            display: block;
+            aspect-ratio: 1;
             overflow: hidden;
             border: 2px solid transparent;
-            cursor: pointer;
             background: var(--captcha-item-bg);
+            border-radius: 12px;
+            cursor: pointer;
         }
 
         .captcha-popup-item input {
-            display: none;
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
         }
 
         .captcha-popup-item img {
             display: block;
             width: 100%;
-            max-width: 100%;
-            height: auto;
-            aspect-ratio: 1;
-            object-fit: contain;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .captcha-popup-item:has(input:checked) {
+            border-color: var(--captcha-verify-bg);
         }
 
         @media (max-width: 480px) {
@@ -2405,42 +2414,54 @@ if (session_status() === PHP_SESSION_ACTIVE) {
             }
 
             .captcha-popup-box {
-                padding: 18px 14px 14px;
                 border-radius: 16px;
             }
 
             .captcha-popup-grid {
                 gap: 7px;
+                padding: 10px 14px 16px;
+            }
+
+            .captcha-popup-header {
+                padding: 18px 14px 12px;
             }
         }
 
         .captcha-popup-item span {
             position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
+            top: 7px;
+            right: 7px;
+            display: grid;
+            place-items: center;
+            width: 23px;
+            height: 23px;
+            border-radius: 7px;
             background: var(--captcha-check-bg);
             border: 2px solid var(--captcha-check-ring);
             box-sizing: border-box;
             transition: background 0.2s ease, border-color 0.2s ease;
+            color: transparent;
+            font-size: 0.75rem;
+            font-weight: 900;
         }
 
-        .captcha-popup-item input:checked + img + span {
+        .captcha-popup-item:has(input:checked) span {
             background: var(--captcha-verify-bg);
             border-color: var(--captcha-verify-bg);
+            color: var(--captcha-verify-text);
         }
 
         .captcha-help {
-            margin-top: 10px;
+            grid-column: 1 / -1;
+            margin: 0;
             font-size: 13px;
             color: var(--captcha-text-soft);
         }
 
         .captcha-error-box {
-            margin-top: 12px;
-            padding: 10px 12px;
+            margin: 0 22px 12px;
+            padding: 11px 13px;
+            border: 1px solid var(--captcha-box-border);
             border-radius: 12px;
             background: var(--captcha-error-bg);
             color: var(--captcha-error-text);
@@ -2452,19 +2473,20 @@ if (session_status() === PHP_SESSION_ACTIVE) {
             display: flex;
             justify-content: flex-end;
             gap: 10px;
-            margin-top: 16px;
             flex-wrap: wrap;
+            padding: 16px 22px 22px;
+            border-top: 1px solid var(--captcha-box-border);
         }
 
         .captcha-btn-cancel,
         .captcha-btn-verify {
-            border: none;
-            border-radius: 12px;
-            padding: 11px 18px;
+            border: 1px solid var(--captcha-box-border);
+            border-radius: 11px;
+            padding: 0 17px;
+            min-height: 42px;
             font-size: 14px;
             font-weight: 700;
             cursor: pointer;
-            min-width: 120px;
             transition: 0.2s ease;
         }
 
@@ -2482,9 +2504,25 @@ if (session_status() === PHP_SESSION_ACTIVE) {
             color: var(--captcha-verify-text);
         }
 
+        .captcha-btn-verify:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
         .captcha-btn-verify:hover {
             transform: translateY(-1px);
             box-shadow: 0 10px 20px rgba(247, 217, 139, 0.25);
+        }
+
+        @media (max-width: 480px) {
+            .captcha-error-box {
+                margin-right: 14px;
+                margin-left: 14px;
+            }
+
+            .captcha-popup-actions {
+                padding: 14px 14px 18px;
+            }
         }
 
         .captcha-verified-text {
@@ -3365,15 +3403,15 @@ if (session_status() === PHP_SESSION_ACTIVE) {
     --line-bright: rgba(11, 31, 115, 0.2);
 
     /* ---- CAPTCHA (light / sky blue) ---- */
-    --captcha-overlay-bg: rgba(9, 40, 74, 0.35);
+    --captcha-overlay-bg: rgba(9, 40, 74, 0.48);
     --captcha-box-grad-1: #eaf6ff;
     --captcha-box-grad-2: #bfe3fb;
-    --captcha-box-border: rgba(11, 61, 107, 0.18);
+    --captcha-box-border: rgba(11, 61, 107, 0.32);
     --captcha-text: #0b3d6b;
     --captcha-text-soft: rgba(11, 61, 107, 0.78);
     --captcha-close-bg: rgba(11, 61, 107, 0.08);
     --captcha-close-bg-hover: rgba(11, 61, 107, 0.16);
-    --captcha-item-bg: rgba(11, 61, 107, 0.06);
+    --captcha-item-bg: #d4e9f8;
     --captcha-check-ring: rgba(11, 61, 107, 0.4);
     --captcha-check-bg: rgba(255, 255, 255, 0.75);
     --captcha-error-bg: rgba(217, 48, 60, 0.10);
@@ -4477,70 +4515,56 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
 </div>
 
 <div class="captcha-popup-overlay" id="loginCaptchaPopup">
-    <div class="captcha-popup-box">
+    <div class="captcha-popup-box" role="dialog" aria-modal="true" aria-labelledby="loginCaptchaTitle">
         <div class="captcha-popup-header">
-            <h3>Verify Login</h3>
-            <button type="button" class="captcha-popup-close" id="closeLoginCaptchaPopup">&times;</button>
+            <div>
+                <h3 id="loginCaptchaTitle">Security verification</h3>
+                <p>Select every image containing <strong data-captcha-target></strong>.</p>
+            </div>
+            <button type="button" class="captcha-popup-close" id="closeLoginCaptchaPopup" aria-label="Close security verification">&times;</button>
         </div>
-
-        <?php if ($loginCaptcha['success']): ?>
-            <div class="captcha-popup-title">
-                Select all images with <strong><?php echo htmlspecialchars($loginCaptcha['target_label']); ?></strong>
-            </div>
-
-            <div class="captcha-popup-grid" id="loginCaptchaGrid">
-                <?php foreach ($loginCaptcha['items'] as $item): ?>
-                    <label class="captcha-popup-item">
-                        <input type="checkbox" name="captcha_selection[]" value="<?php echo htmlspecialchars($item['id']); ?>" form="loginForm">
-                        <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" data-captcha-src="<?php echo htmlspecialchars($item['relative_path']); ?>" alt="Captcha image">
-                        <span></span>
-                    </label>
-                <?php endforeach; ?>
-            </div>
-
-            <p class="captcha-help">Choose only the matching images, then click Verify.</p>
-
-            <div class="captcha-popup-actions">
-                <button type="button" class="captcha-btn-cancel" id="cancelLoginCaptcha">Cancel</button>
-                <button type="button" class="captcha-btn-verify" id="verifyLoginCaptcha">Verify</button>
-            </div>
-        <?php else: ?>
-            <div class="captcha-error-box"><?php echo htmlspecialchars($loginCaptcha['message']); ?></div>
-        <?php endif; ?>
+        <div
+            class="captcha-popup-grid"
+            id="loginCaptchaGrid"
+            data-captcha-form="client_login_form"
+            data-captcha-endpoint="<?php echo e(nxAppUrl('captcha_challenge.php')); ?>"
+            data-captcha-csrf="<?php echo e($loginCaptchaRefreshToken); ?>"
+        >
+            <p class="captcha-help" data-captcha-status role="status">A new challenge will load when you open this window.</p>
+        </div>
+        <p class="captcha-error-box" data-captcha-error role="alert" hidden></p>
+        <div class="captcha-popup-actions">
+            <button type="button" class="captcha-btn-cancel" data-captcha-retry hidden>Try again</button>
+            <button type="button" class="captcha-btn-cancel" id="cancelLoginCaptcha">Cancel</button>
+            <button type="button" class="captcha-btn-verify" id="verifyLoginCaptcha" disabled>Verify selection</button>
+        </div>
     </div>
 </div>
 
 <div class="captcha-popup-overlay" id="signupCaptchaPopup">
-    <div class="captcha-popup-box">
+    <div class="captcha-popup-box" role="dialog" aria-modal="true" aria-labelledby="signupCaptchaTitle">
         <div class="captcha-popup-header">
-            <h3>Verify Signup</h3>
-            <button type="button" class="captcha-popup-close" id="closeSignupCaptchaPopup">&times;</button>
+            <div>
+                <h3 id="signupCaptchaTitle">Security verification</h3>
+                <p>Select every image containing <strong data-captcha-target></strong>.</p>
+            </div>
+            <button type="button" class="captcha-popup-close" id="closeSignupCaptchaPopup" aria-label="Close security verification">&times;</button>
         </div>
-
-        <?php if ($signupCaptcha['success']): ?>
-            <div class="captcha-popup-title">
-                Select all images with <strong><?php echo htmlspecialchars($signupCaptcha['target_label']); ?></strong>
-            </div>
-
-            <div class="captcha-popup-grid" id="signupCaptchaGrid">
-                <?php foreach ($signupCaptcha['items'] as $item): ?>
-                    <label class="captcha-popup-item">
-                        <input type="checkbox" name="captcha_selection[]" value="<?php echo htmlspecialchars($item['id']); ?>" form="signupForm">
-                        <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" data-captcha-src="<?php echo htmlspecialchars($item['relative_path']); ?>" alt="Captcha image">
-                        <span></span>
-                    </label>
-                <?php endforeach; ?>
-            </div>
-
-            <p class="captcha-help">Choose only the matching images, then click Verify.</p>
-
-            <div class="captcha-popup-actions">
-                <button type="button" class="captcha-btn-cancel" id="cancelSignupCaptcha">Cancel</button>
-                <button type="button" class="captcha-btn-verify" id="verifySignupCaptcha">Verify</button>
-            </div>
-        <?php else: ?>
-            <div class="captcha-error-box"><?php echo htmlspecialchars($signupCaptcha['message']); ?></div>
-        <?php endif; ?>
+        <div
+            class="captcha-popup-grid"
+            id="signupCaptchaGrid"
+            data-captcha-form="signup_form"
+            data-captcha-endpoint="<?php echo e(nxAppUrl('captcha_challenge.php')); ?>"
+            data-captcha-csrf="<?php echo e($signupCaptchaRefreshToken); ?>"
+        >
+            <p class="captcha-help" data-captcha-status role="status">A new challenge will load when you open this window.</p>
+        </div>
+        <p class="captcha-error-box" data-captcha-error role="alert" hidden></p>
+        <div class="captcha-popup-actions">
+            <button type="button" class="captcha-btn-cancel" data-captcha-retry hidden>Try again</button>
+            <button type="button" class="captcha-btn-cancel" id="cancelSignupCaptcha">Cancel</button>
+            <button type="button" class="captcha-btn-verify" id="verifySignupCaptcha" disabled>Verify selection</button>
+        </div>
     </div>
 </div>
 
@@ -6508,22 +6532,124 @@ document.addEventListener('DOMContentLoaded', function() {
     const verifyLoginCaptcha = document.getElementById('verifyLoginCaptcha');
     const loginVerifiedText = document.getElementById('loginVerifiedText');
 
-    function loadCaptchaImages(popup) {
+    async function loadCaptchaImages(popup) {
         if (!popup) return;
 
-        popup.querySelectorAll('img[data-captcha-src]').forEach(function(image) {
-            if (image.dataset.captchaLoaded === '1') return;
+        const grid = popup.querySelector('[data-captcha-form]');
+        const target = popup.querySelector('[data-captcha-target]');
+        const error = popup.querySelector('[data-captcha-error]');
+        const retry = popup.querySelector('[data-captcha-retry]');
+        const verify = popup.querySelector('button[id^="verify"]');
+        if (!grid || !target || !error || !retry || !verify || grid.dataset.loading === '1') return;
 
-            image.src = image.dataset.captchaSrc;
-            image.dataset.captchaLoaded = '1';
-        });
+        grid.dataset.loading = '1';
+        grid.setAttribute('aria-busy', 'true');
+        verify.disabled = true;
+        error.hidden = true;
+        error.textContent = '';
+        retry.hidden = true;
+        target.textContent = '';
+        grid.replaceChildren();
+
+        const status = document.createElement('p');
+        status.className = 'captcha-help';
+        status.setAttribute('role', 'status');
+        status.textContent = 'Loading a new challenge...';
+        grid.appendChild(status);
+
+        try {
+            const body = new URLSearchParams({
+                form_key: grid.dataset.captchaForm,
+                csrf_token: grid.dataset.captchaCsrf || ''
+            });
+            const response = await fetch(grid.dataset.captchaEndpoint, {
+                method: 'POST',
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+                },
+                body: body.toString()
+            });
+            const challenge = await response.json();
+
+            if (typeof challenge.csrf_token === 'string') {
+                grid.dataset.captchaCsrf = challenge.csrf_token;
+            }
+            if (
+                !response.ok ||
+                !challenge.success ||
+                typeof challenge.target_label !== 'string' ||
+                !Array.isArray(challenge.items) ||
+                challenge.items.length !== 9
+            ) {
+                throw new Error(challenge.message || 'A new CAPTCHA challenge could not be loaded.');
+            }
+
+            target.textContent = challenge.target_label;
+            const imageLoads = [];
+            challenge.items.forEach(function(item) {
+                if (
+                    !item ||
+                    typeof item.id !== 'string' ||
+                    !/^[a-f0-9]{32}$/.test(item.id) ||
+                    typeof item.relative_path !== 'string'
+                ) {
+                    throw new Error('The CAPTCHA response was invalid. Please try again.');
+                }
+
+                const imageUrl = new URL(item.relative_path, window.location.href);
+                if (imageUrl.origin !== window.location.origin) {
+                    throw new Error('The CAPTCHA response was invalid. Please try again.');
+                }
+
+                const label = document.createElement('label');
+                label.className = 'captcha-popup-item';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.name = 'captcha_selection[]';
+                checkbox.value = item.id;
+                checkbox.setAttribute('form', grid.dataset.captchaForm === 'signup_form' ? 'signupForm' : 'loginForm');
+
+                const image = document.createElement('img');
+                image.alt = 'Captcha image';
+                imageLoads.push(new Promise(function(resolve, reject) {
+                    image.addEventListener('load', resolve, { once: true });
+                    image.addEventListener('error', function() {
+                        reject(new Error('The CAPTCHA images could not be loaded.'));
+                    }, { once: true });
+                }));
+                image.src = imageUrl.href;
+
+                const checkmark = document.createElement('span');
+                checkmark.setAttribute('aria-hidden', 'true');
+                checkmark.textContent = '✓';
+                label.append(checkbox, image, checkmark);
+                grid.appendChild(label);
+            });
+
+            await Promise.all(imageLoads);
+            verify.disabled = false;
+        } catch (loadError) {
+            grid.replaceChildren();
+
+            error.textContent = loadError.message || 'A new CAPTCHA challenge could not be loaded.';
+            error.hidden = false;
+            retry.hidden = !grid.dataset.captchaCsrf || error.textContent.indexOf('session expired') !== -1;
+        } finally {
+            grid.dataset.loading = '0';
+            grid.removeAttribute('aria-busy');
+        }
     }
 
     function openLoginCaptchaModal() {
         if (loginCaptchaPopup) {
-            loadCaptchaImages(loginCaptchaPopup);
+            if (loginVerifiedText) loginVerifiedText.classList.remove('show');
             loginCaptchaPopup.classList.add('show');
             document.body.style.overflow = 'hidden';
+            loadCaptchaImages(loginCaptchaPopup);
         }
     }
 
@@ -6608,12 +6734,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const cancelSignupCaptcha = document.getElementById('cancelSignupCaptcha');
     const verifySignupCaptcha = document.getElementById('verifySignupCaptcha');
     const signupVerifiedText = document.getElementById('signupVerifiedText');
+    const loginCaptchaRetry = loginCaptchaPopup ? loginCaptchaPopup.querySelector('[data-captcha-retry]') : null;
+    const signupCaptchaRetry = signupCaptchaPopup ? signupCaptchaPopup.querySelector('[data-captcha-retry]') : null;
 
     function openSignupCaptchaModal() {
         if (signupCaptchaPopup) {
-            loadCaptchaImages(signupCaptchaPopup);
+            if (signupVerifiedText) signupVerifiedText.classList.remove('show');
             signupCaptchaPopup.classList.add('show');
             document.body.style.overflow = 'hidden';
+            loadCaptchaImages(signupCaptchaPopup);
         }
     }
 
@@ -6671,6 +6800,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    [loginCaptchaRetry, signupCaptchaRetry].forEach(function(retryButton) {
+        if (!retryButton) return;
+        retryButton.addEventListener('click', function() {
+            loadCaptchaImages(retryButton.closest('.captcha-popup-overlay'));
+        });
+    });
 
     document.addEventListener('click', function(e) {
         if (e.target === loginCaptchaPopup) {
