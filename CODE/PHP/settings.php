@@ -294,6 +294,11 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
                             <h3>Business permit migration required</h3>
                             <p>The workspace request database needs a private business-permit reference field before owners can submit new requests.</p>
                         </div>
+                    <?php elseif (!nxWorkspaceBusinessTypeSchemaReady($conn)): ?>
+                        <div class="workspace-summary">
+                            <h3>Custom business type migration required</h3>
+                            <p>The workspace request database needs a custom business-type field before owners can submit new business requests.</p>
+                        </div>
                     <?php elseif ($pendingWorkspaceRequest): ?>
                         <div class="workspace-summary workspace-request-pending">
                             <h3><i class="bi bi-hourglass-split"></i> Request awaiting administrator review</h3>
@@ -326,12 +331,17 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
                                     <option value="Mini Grocery / Sari-Sari Store">Mini Grocery / Sari-Sari Store</option>
                                     <option value="Pharmacy / Drugstore">Pharmacy / Drugstore</option>
                                     <option value="School / Office Supplies">School / Office Supplies</option>
+                                    <option value="Others">Other</option>
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label for="newMainBranchName">First branch name</label>
                                 <input type="text" name="branch_name" id="newMainBranchName" value="Main Branch" maxlength="150" required>
                             </div>
+                        </div>
+                        <div class="form-group full" id="newBusinessTypeOtherGroup" hidden>
+                            <label for="newBusinessTypeOther">Specify business type</label>
+                            <input type="text" name="business_type_other" id="newBusinessTypeOther" maxlength="100" placeholder="Enter your business type">
                         </div>
                         <div class="form-group full">
                             <label for="newBusinessAddress">Business/branch address</label>

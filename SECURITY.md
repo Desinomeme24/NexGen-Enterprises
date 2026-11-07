@@ -45,15 +45,23 @@ ALTER TABLE registration_requests
 
 ALTER TABLE workspace_requests
     ADD COLUMN business_permit_path VARCHAR(255) NULL AFTER branch_name;
+
+ALTER TABLE workspace_requests
+    ADD COLUMN business_type_other VARCHAR(100) NULL AFTER business_type;
 ```
 
 The request columns record the distinct permit reference and the signup
 privacy-notice version and consent timestamp. The approved user's permit
-reference is copied to `users`. The workspace request column stores the
-encrypted permit reference for owner-submitted additional business and branch
-requests. Deploying the related PHP changes before applying the schema changes
-will prevent those uploads from being submitted; do not deploy until the
-migration has been applied and verified.
+reference is copied to `users`. The workspace request columns store the
+encrypted permit reference and optional custom business type for
+owner-submitted additional business and branch requests. Deploying the related
+PHP changes before applying the schema changes will prevent those uploads and
+custom business types from being submitted; do not deploy until the migration
+has been applied and verified.
+
+If `workspace_requests.business_permit_path` was already added for the permit
+upload feature, do not repeat that `ALTER TABLE` statement; apply only the
+`business_type_other` addition.
 
 ## Docker Compose setup
 

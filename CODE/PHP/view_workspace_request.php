@@ -106,6 +106,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
         })();
     </script>
     <link rel="stylesheet" href="/NexGen/CODE/STYLE/admin_module.css">
+    <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/document_preview_modal.css')); ?>">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         .request-summary-grid {
@@ -297,14 +298,14 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                     <div class="request-summary-item"><label>Request Type</label><div class="value"><?php echo $isBranchRequest ? 'New Branch' : 'New Business'; ?></div></div>
                     <div class="request-summary-item"><label>Status</label><div class="value"><span class="badge badge-<?php echo e($currentStatus); ?>"><?php echo e(ucfirst($currentStatus)); ?></span></div></div>
                     <div class="request-summary-item"><label>Business Name</label><div class="value"><?php echo e($request['business_name']); ?></div></div>
-                    <div class="request-summary-item"><label>SME Type</label><div class="value"><?php echo e(nxBusinessTypeLabel($request['business_type'] ?? '', $request['parent_business_type_other'] ?? '')); ?></div></div>
+                    <div class="request-summary-item"><label>SME Type</label><div class="value"><?php echo e(nxBusinessTypeLabel($request['business_type'] ?? '', ($request['business_type_other'] ?? '') ?: ($request['parent_business_type_other'] ?? ''))); ?></div></div>
                     <div class="request-summary-item"><label>Branch Name</label><div class="value"><?php echo e($request['branch_name']); ?></div></div>
                     <div class="request-summary-item"><label><?php echo $isBranchRequest ? 'Branch Address' : 'Business/Branch Address'; ?></label><div class="value"><?php echo e($request['business_address']); ?></div></div>
                     <div class="request-summary-item full">
                         <label>Business Permit</label>
                         <div class="value">
                             <?php if (!empty($request['business_permit_path'])): ?>
-                                <a class="btn btn-silver" href="<?php echo e(nxAppUrl('valid_id_file.php')); ?>?request_id=<?php echo (int)$request['id']; ?>&amp;slot=business_permit&amp;source=workspace" target="_blank" rel="noopener noreferrer">
+                                <a class="btn btn-silver" href="<?php echo e(nxAppUrl('valid_id_file.php')); ?>?request_id=<?php echo (int)$request['id']; ?>&amp;slot=business_permit&amp;source=workspace" data-document-preview data-preview-title="Business permit">
                                     <i class="bi bi-file-earmark-check"></i> View private permit
                                 </a>
                             <?php else: ?>
@@ -450,5 +451,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+<?php include __DIR__ . '/document_preview_modal.php'; ?>
 </body>
 </html>

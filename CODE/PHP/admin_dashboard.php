@@ -213,9 +213,13 @@ try {
 
 if ($workspaceRequestsReady) {
     try {
+        $businessTypeOtherColumn = nxWorkspaceBusinessTypeSchemaReady($conn)
+            ? 'wr.business_type_other'
+            : "''";
         $workspaceResult = $conn->query(
             "SELECT wr.id, wr.request_code, wr.request_type, wr.business_name,
-                    wr.business_type, wr.business_address, wr.branch_name,
+                    wr.business_type, {$businessTypeOtherColumn} AS business_type_other,
+                    wr.business_address, wr.branch_name,
                     wr.created_at, u.full_name, u.username
              FROM workspace_requests wr
              INNER JOIN users u ON u.id = wr.requested_by
@@ -237,7 +241,10 @@ if ($workspaceRequestsReady) {
                     'workspace_name' => (string)($request['business_name'] ?? ''),
                     'workspace_detail' => $isBranch
                         ? (string)($request['branch_name'] ?? 'Branch name pending')
-                        : (string)($request['business_type'] ?? 'Business type pending'),
+                        : nxBusinessTypeLabel(
+                            (string)($request['business_type'] ?? 'Business type pending'),
+                            (string)($request['business_type_other'] ?? '')
+                        ),
                     'integrity_label' => 'Recheck on approval',
                     'integrity_tone' => 'info',
                     'created_at' => (string)$request['created_at'],

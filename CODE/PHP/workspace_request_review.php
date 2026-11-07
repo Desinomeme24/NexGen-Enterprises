@@ -137,6 +137,9 @@ try {
     $ownerId = (int)$request['requested_by'];
     $businessName = trim((string)$request['business_name']);
     $businessType = trim((string)$request['business_type']);
+    $businessTypeOther = $businessType === 'Others'
+        ? trim((string)($request['business_type_other'] ?? ''))
+        : '';
     $businessAddress = trim((string)$request['business_address']);
     $branchName = trim((string)$request['branch_name']);
     $businessEntityId = 0;
@@ -145,8 +148,26 @@ try {
     $branchCode = '';
 
     if ($request['request_type'] === 'business') {
+        $allowedBusinessTypes = [
+            'Hardware / Construction Supplies',
+            'Mini Grocery / Sari-Sari Store',
+            'Pharmacy / Drugstore',
+            'School / Office Supplies',
+            'Others',
+        ];
+        if (
+            !in_array($businessType, $allowedBusinessTypes, true)
+            || ($businessType === 'Others' && $businessTypeOther === '')
+            || (function_exists('mb_strlen')
+                ? mb_strlen($businessTypeOther, 'UTF-8') > 100
+                : strlen($businessTypeOther) > 100)
+        ) {
+            throw new RuntimeException('The requested business type is invalid or incomplete.');
+        }
+
         $globalStmt = $conn->prepare(
-            "SELECT be.business_name, be.business_type, b.business_address
+            "SELECT be.business_name, be.business_type, be.business_type_other,
+                    b.business_address
              FROM business_entities be
              INNER JOIN businesses b ON b.business_entity_id = be.id
              WHERE be.status = 'active' AND b.branch_status = 'active'
@@ -161,6 +182,11 @@ try {
             if (
                 nxNormalizeBusinessIdentity($existing['business_name']) === nxNormalizeBusinessIdentity($businessName)
                 && nxNormalizeBusinessIdentity($existing['business_type']) === nxNormalizeBusinessIdentity($businessType)
+                && (
+                    $businessType !== 'Others'
+                    || nxNormalizeBusinessIdentity($existing['business_type_other'] ?? '')
+                        === nxNormalizeBusinessIdentity($businessTypeOther)
+                )
                 && nxNormalizeBusinessIdentity($existing['business_address']) === nxNormalizeBusinessIdentity($businessAddress)
             ) {
                 $globalStmt->close();
@@ -171,7 +197,7 @@ try {
 
         if ((int)$request['separate_operations'] !== 1) {
             $ownedStmt = $conn->prepare(
-                "SELECT be.business_name, be.business_type
+                "SELECT be.business_name, be.business_type, be.business_type_other
                  FROM user_business_assignments uba
                  INNER JOIN business_entities be ON be.id = uba.business_entity_id
                  WHERE uba.user_id = ? AND uba.assignment_role = 'owner'
@@ -188,6 +214,11 @@ try {
                 if (
                     nxNormalizeBusinessIdentity($owned['business_name']) === nxNormalizeBusinessIdentity($businessName)
                     && nxNormalizeBusinessIdentity($owned['business_type']) === nxNormalizeBusinessIdentity($businessType)
+                    && (
+                        $businessType !== 'Others'
+                        || nxNormalizeBusinessIdentity($owned['business_type_other'] ?? '')
+                            === nxNormalizeBusinessIdentity($businessTypeOther)
+                    )
                 ) {
                     $ownedStmt->close();
                     throw new RuntimeException('Approval blocked: this should be submitted as a branch unless separate operations are confirmed.');
@@ -201,13 +232,20 @@ try {
 
         $stmt = $conn->prepare(
             "INSERT INTO business_entities
-                (business_code, business_name, business_type, created_by, status)
-             VALUES (?, ?, ?, ?, 'active')"
+                (business_code, business_name, business_type, business_type_other, created_by, status)
+             VALUES (?, ?, ?, ?, ?, 'active')"
         );
         if (!$stmt) {
             throw new RuntimeException('Unable to prepare the approved business.');
         }
-        $stmt->bind_param('sssi', $businessCode, $businessName, $businessType, $ownerId);
+        $stmt->bind_param(
+            'ssssi',
+            $businessCode,
+            $businessName,
+            $businessType,
+            $businessTypeOther,
+            $ownerId
+        );
         if (!$stmt->execute()) {
             throw new RuntimeException('Unable to create the approved business: ' . $stmt->error);
         }
@@ -256,7 +294,8 @@ try {
     } elseif ($request['request_type'] === 'branch') {
         $businessEntityId = (int)$request['business_entity_id'];
         $stmt = $conn->prepare(
-            "SELECT be.business_code, be.business_name, be.business_type
+            "SELECT be.business_code, be.business_name, be.business_type,
+                    be.business_type_other
              FROM business_entities be
              INNER JOIN user_business_assignments uba ON uba.business_entity_id = be.id
              WHERE be.id = ? AND uba.user_id = ?
@@ -280,6 +319,7 @@ try {
         $businessCode = (string)$entity['business_code'];
         $businessName = (string)$entity['business_name'];
         $businessType = (string)$entity['business_type'];
+        $businessTypeOther = (string)($entity['business_type_other'] ?? '');
 
         $stmt = $conn->prepare(
             "SELECT branch_name, business_address

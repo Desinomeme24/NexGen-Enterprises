@@ -123,6 +123,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
         })();
     </script>
     <link rel="stylesheet" href="/NexGen/CODE/STYLE/admin_module.css">
+    <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/document_preview_modal.css')); ?>">
         
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
@@ -792,7 +793,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                         <label>Valid ID</label>
                         <div class="value">
                             <?php if (!empty($filePath)): ?>
-                                <a class="attachment-chip" href="/NexGen/CODE/PHP/valid_id_file.php?request_id=<?php echo (int)$request['id']; ?>" target="_blank" rel="noopener" title="Open uploaded valid ID">
+                                <a class="attachment-chip" href="<?php echo e(nxAppUrl('valid_id_file.php')); ?>?request_id=<?php echo (int)$request['id']; ?>" data-document-preview data-preview-title="Valid ID" title="Preview uploaded valid ID">
                                     <span class="attachment-icon"><?php echo $isImage ? '🖼️' : ($isPdf ? '📄' : '📎'); ?></span>
                                     <span class="attachment-meta">
                                         <span class="attachment-name">Valid_ID.<?php echo e($ext ?: 'file'); ?></span>
@@ -810,7 +811,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                             <label>Business Permit</label>
                             <div class="value">
                                 <?php if ($businessPermitPath !== ''): ?>
-                                    <a class="attachment-chip" href="/NexGen/CODE/PHP/valid_id_file.php?request_id=<?php echo (int)$request['id']; ?>&amp;slot=business_permit" target="_blank" rel="noopener" title="Open uploaded business permit">
+                                    <a class="attachment-chip" href="<?php echo e(nxAppUrl('valid_id_file.php')); ?>?request_id=<?php echo (int)$request['id']; ?>&amp;slot=business_permit" data-document-preview data-preview-title="Business permit" title="Preview uploaded business permit">
                                         <span class="attachment-icon"><?php echo $businessPermitIsImage ? '🖼️' : ($businessPermitIsPdf ? '📄' : '📎'); ?></span>
                                         <span class="attachment-meta">
                                             <span class="attachment-name">Business_Permit.<?php echo e($businessPermitExt ?: 'file'); ?></span>
@@ -1375,5 +1376,6 @@ document.addEventListener('DOMContentLoaded', function() {
     syncOtherBusinessType();
 });
 </script>
+<?php include __DIR__ . '/document_preview_modal.php'; ?>
 </body>
 </html>

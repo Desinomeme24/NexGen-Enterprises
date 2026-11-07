@@ -56,6 +56,27 @@ const otpVerifyForm = document.getElementById("otpVerifyForm");
 const workspaceSwitchForm = document.getElementById("workspaceSwitchForm");
 const addBusinessForm = document.getElementById("addBusinessForm");
 const addBranchForm = document.getElementById("addBranchForm");
+const newBusinessTypeSelect = document.getElementById("newBusinessType");
+const newBusinessTypeOtherGroup = document.getElementById(
+  "newBusinessTypeOtherGroup",
+);
+const newBusinessTypeOtherInput = document.getElementById("newBusinessTypeOther");
+
+if (
+  newBusinessTypeSelect &&
+  newBusinessTypeOtherGroup &&
+  newBusinessTypeOtherInput
+) {
+  function syncNewBusinessTypeOther() {
+    const isOther = newBusinessTypeSelect.value === "Others";
+    newBusinessTypeOtherGroup.hidden = !isOther;
+    newBusinessTypeOtherInput.required = isOther;
+    if (!isOther) {newBusinessTypeOtherInput.value = "";}
+  }
+
+  newBusinessTypeSelect.addEventListener("change", syncNewBusinessTypeOther);
+  syncNewBusinessTypeOther();
+}
 
 const profileInput = document.getElementById("new_profile_image");
 const profileForm = document.getElementById("profileImageForm");

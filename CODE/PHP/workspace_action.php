@@ -119,6 +119,11 @@ try {
             'The workspace-request business permit database migration must be installed before submitting a request.'
         );
     }
+    if (!nxWorkspaceBusinessTypeSchemaReady($conn)) {
+        throw new RuntimeException(
+            'The workspace-request custom business type database migration must be installed before submitting a request.'
+        );
+    }
 
     $pendingRequest = nxGetPendingWorkspaceRequest($conn, $userId);
     if ($pendingRequest) {
@@ -133,12 +138,14 @@ try {
         'Mini Grocery / Sari-Sari Store',
         'Pharmacy / Drugstore',
         'School / Office Supplies',
+        'Others',
     ];
 
     $requestType = '';
     $entityId = null;
     $businessName = '';
     $businessType = '';
+    $businessTypeOther = '';
     $businessAddress = '';
     $branchName = '';
     $separateOperations = 0;
@@ -147,6 +154,7 @@ try {
         $requestType = 'business';
         $businessName = trim((string)($_POST['business_name'] ?? ''));
         $businessType = trim((string)($_POST['business_type'] ?? ''));
+        $businessTypeOther = trim((string)($_POST['business_type_other'] ?? ''));
         $businessAddress = trim((string)($_POST['business_address'] ?? ''));
         $branchName = trim((string)($_POST['branch_name'] ?? 'Main Branch'));
         $separateOperations = isset($_POST['separate_operations']) ? 1 : 0;
@@ -157,6 +165,15 @@ try {
         if (!in_array($businessType, $allowedBusinessTypes, true)) {
             throw new RuntimeException('Please select a valid SME type.');
         }
+        if (
+            ($businessType === 'Others' && $businessTypeOther === '')
+            || nxWorkspaceTextLength($businessTypeOther) > 100
+        ) {
+            throw new RuntimeException('Please specify a business type of 100 characters or fewer.');
+        }
+        if ($businessType !== 'Others') {
+            $businessTypeOther = '';
+        }
         if ($branchName === '') {
             $branchName = 'Main Branch';
         }
@@ -165,7 +182,8 @@ try {
         }
 
         $globalStmt = $conn->prepare(
-            "SELECT be.business_name, be.business_type, b.business_address, b.branch_name
+            "SELECT be.business_name, be.business_type, be.business_type_other,
+                    b.business_address, b.branch_name
              FROM business_entities be
              INNER JOIN businesses b ON b.business_entity_id = be.id
              WHERE be.status = 'active' AND b.branch_status = 'active'"
@@ -178,9 +196,12 @@ try {
         while ($existing = $globalResult->fetch_assoc()) {
             $sameName = nxNormalizeBusinessIdentity($existing['business_name']) === nxNormalizeBusinessIdentity($businessName);
             $sameType = nxNormalizeBusinessIdentity($existing['business_type']) === nxNormalizeBusinessIdentity($businessType);
+            $sameOtherType = $businessType !== 'Others'
+                || nxNormalizeBusinessIdentity($existing['business_type_other'] ?? '')
+                    === nxNormalizeBusinessIdentity($businessTypeOther);
             $sameAddress = nxNormalizeBusinessIdentity($existing['business_address']) === nxNormalizeBusinessIdentity($businessAddress);
 
-            if ($sameName && $sameType && $sameAddress) {
+            if ($sameName && $sameType && $sameOtherType && $sameAddress) {
                 $globalStmt->close();
                 throw new RuntimeException(
                     'Possible duplicate: that exact business name, SME type, and address already exist. Review the existing workspace instead.'
@@ -190,7 +211,7 @@ try {
         $globalStmt->close();
 
         $ownedStmt = $conn->prepare(
-            "SELECT be.business_name, be.business_type
+            "SELECT be.business_name, be.business_type, be.business_type_other
              FROM user_business_assignments uba
              INNER JOIN business_entities be ON be.id = uba.business_entity_id
              WHERE uba.user_id = ? AND uba.assignment_role = 'owner'
@@ -207,6 +228,11 @@ try {
             if (
                 nxNormalizeBusinessIdentity($owned['business_name']) === nxNormalizeBusinessIdentity($businessName)
                 && nxNormalizeBusinessIdentity($owned['business_type']) === nxNormalizeBusinessIdentity($businessType)
+                && (
+                    $businessType !== 'Others'
+                    || nxNormalizeBusinessIdentity($owned['business_type_other'] ?? '')
+                        === nxNormalizeBusinessIdentity($businessTypeOther)
+                )
             ) {
                 $sameIdentityFound = true;
                 break;
@@ -233,7 +259,8 @@ try {
         }
 
         $entityStmt = $conn->prepare(
-            "SELECT be.id, be.business_name, be.business_type
+            "SELECT be.id, be.business_name, be.business_type,
+                    be.business_type_other
              FROM business_entities be
              INNER JOIN user_business_assignments uba ON uba.business_entity_id = be.id
              WHERE be.id = ? AND uba.user_id = ?
@@ -255,6 +282,7 @@ try {
 
         $businessName = (string)$entity['business_name'];
         $businessType = (string)$entity['business_type'];
+        $businessTypeOther = (string)($entity['business_type_other'] ?? '');
 
         $branchesStmt = $conn->prepare(
             "SELECT branch_name, business_address
@@ -345,21 +373,22 @@ try {
         $insert = $conn->prepare(
             "INSERT INTO workspace_requests
                 (request_code, requested_by, request_type, business_entity_id,
-                 business_name, business_type, business_address, branch_name,
-                 business_permit_path, separate_operations, request_status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')"
+                 business_name, business_type, business_type_other, business_address,
+                 branch_name, business_permit_path, separate_operations, request_status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')"
         );
         if (!$insert) {
             throw new RuntimeException('Unable to prepare the workspace request.');
         }
         $insert->bind_param(
-            'sisisssssi',
+            'sisissssssi',
             $requestCode,
             $userId,
             $requestType,
             $entityId,
             $businessName,
             $businessType,
+            $businessTypeOther,
             $businessAddress,
             $branchName,
             $permitReference,

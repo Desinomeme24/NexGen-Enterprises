@@ -103,7 +103,8 @@ The schema is managed outside this repository. Import the approved schema into
 the Railway MySQL database using its connection details before testing the app.
 Do not recreate `CODE/BACKEND/nexgen_db.sql`; that path is intentionally absent.
 Before deploying upload changes, apply the additive column changes documented
-in `SECURITY.md`, including the permit reference column on `workspace_requests`.
+in `SECURITY.md`, including the permit reference and custom business type
+columns on `workspace_requests`.
 Do not enable signup or owner workspace-request uploads before the required
 columns are present.
 
