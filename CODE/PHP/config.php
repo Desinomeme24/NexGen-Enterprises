@@ -828,7 +828,7 @@ if (!function_exists('generateImageCaptcha')) {
 
         $_SESSION['image_captcha'][$formKey] = [
             'target' => $targetCategory,
-            'expires_at' => time() + 300,
+            'expires_at' => time() + 600,
             'image_paths' => $imagePaths,
             'correct_ids' => array_values(array_map(
                 fn($item) => $item['id'],

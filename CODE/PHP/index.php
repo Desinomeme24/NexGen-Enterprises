@@ -2376,10 +2376,6 @@ if (session_status() === PHP_SESSION_ACTIVE) {
             padding: 10px 22px 18px;
         }
 
-        .captcha-popup-grid > [role="status"] {
-            grid-column: 1 / -1;
-        }
-
         .captcha-popup-item {
             position: relative;
             display: block;
@@ -4529,9 +4525,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
             data-captcha-form="client_login_form"
             data-captcha-endpoint="<?php echo e(nxAppUrl('captcha_challenge.php')); ?>"
             data-captcha-csrf="<?php echo e($loginCaptchaRefreshToken); ?>"
-        >
-            <p class="captcha-help" data-captcha-status role="status">A new challenge will load when you open this window.</p>
-        </div>
+        ></div>
         <p class="captcha-error-box" data-captcha-error role="alert" hidden></p>
         <div class="captcha-popup-actions">
             <button type="button" class="captcha-btn-cancel" data-captcha-retry hidden>Try again</button>
@@ -4556,9 +4550,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
             data-captcha-form="signup_form"
             data-captcha-endpoint="<?php echo e(nxAppUrl('captcha_challenge.php')); ?>"
             data-captcha-csrf="<?php echo e($signupCaptchaRefreshToken); ?>"
-        >
-            <p class="captcha-help" data-captcha-status role="status">A new challenge will load when you open this window.</p>
-        </div>
+        ></div>
         <p class="captcha-error-box" data-captcha-error role="alert" hidden></p>
         <div class="captcha-popup-actions">
             <button type="button" class="captcha-btn-cancel" data-captcha-retry hidden>Try again</button>
@@ -6551,12 +6543,6 @@ document.addEventListener('DOMContentLoaded', function() {
         target.textContent = '';
         grid.replaceChildren();
 
-        const status = document.createElement('p');
-        status.className = 'captcha-help';
-        status.setAttribute('role', 'status');
-        status.textContent = 'Loading a new challenge...';
-        grid.appendChild(status);
-
         try {
             const body = new URLSearchParams({
                 form_key: grid.dataset.captchaForm,
@@ -6632,24 +6618,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
             await Promise.all(imageLoads);
             verify.disabled = false;
+            return true;
         } catch (loadError) {
             grid.replaceChildren();
+            target.textContent = '';
 
             error.textContent = loadError.message || 'A new CAPTCHA challenge could not be loaded.';
             error.hidden = false;
             retry.hidden = !grid.dataset.captchaCsrf || error.textContent.indexOf('session expired') !== -1;
+            return false;
         } finally {
             grid.dataset.loading = '0';
             grid.removeAttribute('aria-busy');
         }
     }
 
-    function openLoginCaptchaModal() {
+    async function openLoginCaptchaModal() {
         if (loginCaptchaPopup) {
             if (loginVerifiedText) loginVerifiedText.classList.remove('show');
+            await loadCaptchaImages(loginCaptchaPopup);
             loginCaptchaPopup.classList.add('show');
             document.body.style.overflow = 'hidden';
-            loadCaptchaImages(loginCaptchaPopup);
         }
     }
 
@@ -6737,12 +6726,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginCaptchaRetry = loginCaptchaPopup ? loginCaptchaPopup.querySelector('[data-captcha-retry]') : null;
     const signupCaptchaRetry = signupCaptchaPopup ? signupCaptchaPopup.querySelector('[data-captcha-retry]') : null;
 
-    function openSignupCaptchaModal() {
+    async function openSignupCaptchaModal() {
         if (signupCaptchaPopup) {
             if (signupVerifiedText) signupVerifiedText.classList.remove('show');
+            await loadCaptchaImages(signupCaptchaPopup);
             signupCaptchaPopup.classList.add('show');
             document.body.style.overflow = 'hidden';
-            loadCaptchaImages(signupCaptchaPopup);
         }
     }
 
