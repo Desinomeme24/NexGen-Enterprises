@@ -19,6 +19,7 @@ COPY . .
 
 # Stop the build if NexGen's required application folders are missing.
 RUN test -f /app/CODE/PHP/index.php \
+    && test -f /app/CODE/PHP/BrgySanAndres.php \
     && test -f /app/CODE/PHP/health.php \
     && test -d /app/CODE/JS \
     && test -d /app/CODE/STYLE \
@@ -117,5 +118,6 @@ RUN rm -f /etc/apache2/mods-enabled/mpm_*.load \
 EXPOSE 80
 
 COPY docker/apache-entrypoint.sh /usr/local/bin/nexgen-apache-entrypoint
+RUN sed -i 's/\r$//' /usr/local/bin/nexgen-apache-entrypoint
 
 CMD ["sh", "/usr/local/bin/nexgen-apache-entrypoint"]

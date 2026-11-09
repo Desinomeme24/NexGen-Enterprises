@@ -74,9 +74,11 @@ unset(
 | Gmail, so this can legitimately match more than one row.
 */
 
-$portalRoleFilter = $fpPortal === 'admin'
-    ? "u.role IN ('system_admin', 'super_admin', 'admin')"
-    : "u.role IN ('owner', 'employee')";
+$portalRoleFilter = match ($fpPortal) {
+    'admin' => "u.role IN ('system_admin', 'super_admin')",
+    'san_andres' => "u.role = 'admin'",
+    default => "u.role IN ('owner', 'employee')",
+};
 
 $stmt = $conn->prepare(
     "SELECT u.id, u.username, b.business_name

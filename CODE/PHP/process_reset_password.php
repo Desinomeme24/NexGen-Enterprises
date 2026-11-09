@@ -11,7 +11,7 @@ $fpPortal = nxNormalizeLoginPortal(
 );
 $_SESSION['fp_portal'] = $fpPortal;
 $forgotStartPage = 'forgot_password.php?portal=' . rawurlencode($fpPortal);
-$successLoginPage = $fpPortal === 'admin' ? 'admin_login.php' : 'index.php';
+$successLoginPage = nxLoginPathForPortal($fpPortal);
 
 date_default_timezone_set('Asia/Manila');
 
@@ -30,7 +30,8 @@ function prpRespond(bool $success, string $message, string $type, string $page, 
     }
 
     $_SESSION[$type] = $message;
-    header('Location: ' . nxAppUrl($page));
+    $redirectUrl = str_starts_with($page, '/') ? $page : nxAppUrl($page);
+    header('Location: ' . $redirectUrl);
     exit();
 }
 

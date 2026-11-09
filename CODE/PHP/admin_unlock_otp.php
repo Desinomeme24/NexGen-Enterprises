@@ -5,14 +5,16 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/resend_config.php';
 require_once __DIR__ . '/otp_security.php';
 
-$_SESSION['login_portal'] = 'admin';
+$lockoutRole = (string)($_SESSION['lockout_role'] ?? '');
+$adminLoginPath = nxLoginPathForRole($lockoutRole);
+$_SESSION['login_portal'] = nxIsSuperAdminRole($lockoutRole) ? 'admin' : 'san_andres';
 
 if (
     !isset($_SESSION['lockout_user_id'], $_SESSION['lockout_username'], $_SESSION['lockout_role']) ||
-    !nxIsAdminRole((string)$_SESSION['lockout_role'])
+    !nxIsAdminRole($lockoutRole)
 ) {
     $_SESSION['error'] = "No locked admin account found for OTP unlock.";
-    header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
+    header('Location: ' . nxLoginPathForPortal('admin'));
     exit();
 }
 
@@ -22,7 +24,7 @@ $adminUsername = (string)$_SESSION['lockout_username'];
 $stmt = $conn->prepare("SELECT id, username, full_name, email, role, locked_until, otp_code, otp_expires_at FROM users WHERE id = ? AND role IN ('system_admin', 'super_admin', 'admin') LIMIT 1");
 if (!$stmt) {
     $_SESSION['error'] = "Database error while checking locked admin account.";
-    header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
+    header('Location: ' . $adminLoginPath);
     exit();
 }
 
@@ -34,7 +36,20 @@ $stmt->close();
 
 if (!$admin) {
     $_SESSION['error'] = "Admin account not found.";
-    header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
+    header('Location: ' . $adminLoginPath);
+    exit();
+}
+
+if (!nxRoleMatchesLoginPortal((string)$admin['role'], (string)$_SESSION['login_portal'])) {
+    unset(
+        $_SESSION['lockout_until_ts'],
+        $_SESSION['lockout_username'],
+        $_SESSION['lockout_user_id'],
+        $_SESSION['lockout_role'],
+        $_SESSION['admin_unlock_otp_sent']
+    );
+    $_SESSION['error'] = 'The locked account does not belong to this login portal.';
+    header('Location: ' . $adminLoginPath);
     exit();
 }
 
@@ -46,7 +61,7 @@ if (empty($admin['locked_until']) || strtotime((string)$admin['locked_until']) <
         $_SESSION['lockout_user_id'],
         $_SESSION['lockout_role']
     );
-    header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
+    header('Location: ' . $adminLoginPath);
     exit();
 }
 
@@ -74,14 +89,14 @@ if (!isset($_SESSION['admin_unlock_otp_sent']) || $_SESSION['admin_unlock_otp_se
     } catch (Throwable $e) {
         error_log('NexGen administrator unlock OTP hashing failed: ' . $e->getMessage());
         $_SESSION['error'] = "Unable to secure the administrator unlock code right now.";
-        header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
+        header('Location: ' . $adminLoginPath);
         exit();
     }
 
     $otpStmt = $conn->prepare("UPDATE users SET otp_code = ?, otp_expires_at = ? WHERE id = ? AND role IN ('system_admin', 'super_admin', 'admin')");
     if (!$otpStmt) {
         $_SESSION['error'] = "Unable to prepare the administrator unlock code right now.";
-        header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
+        header('Location: ' . $adminLoginPath);
         exit();
     }
 
@@ -91,7 +106,7 @@ if (!isset($_SESSION['admin_unlock_otp_sent']) || $_SESSION['admin_unlock_otp_se
 
     if (!$otpStored) {
         $_SESSION['error'] = "Unable to prepare the administrator unlock code right now.";
-        header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
+        header('Location: ' . $adminLoginPath);
         exit();
     }
 
@@ -110,7 +125,7 @@ if (!isset($_SESSION['admin_unlock_otp_sent']) || $_SESSION['admin_unlock_otp_se
     } catch (Throwable $e) {
         error_log('NexGen administrator unlock email failed: ' . $e->getMessage());
         $_SESSION['error'] = "Failed to send admin unlock OTP email.";
-        header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
+        header('Location: ' . $adminLoginPath);
         exit();
     }
 }
@@ -209,7 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
 
         $_SESSION['success'] = "Admin account unlocked successfully. You may now log in again.";
-        header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
+        header('Location: ' . $adminLoginPath);
         exit();
     }
 
@@ -264,7 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'cancel_unlock') {
         unset($_SESSION['admin_unlock_otp_sent']);
-        header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
+        header('Location: ' . $adminLoginPath);
         exit();
     }
 }

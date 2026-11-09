@@ -1,25 +1,39 @@
 <?php
 require_once __DIR__ . '/config.php';
 
+$adminLoginPortal = nxNormalizeLoginPortal($nxAdminLoginPortal ?? 'admin');
+if (!in_array($adminLoginPortal, ['admin', 'san_andres'], true)) {
+    $adminLoginPortal = 'admin';
+}
+$adminLoginFormKey = $adminLoginPortal === 'san_andres'
+    ? 'san_andres_login_form'
+    : 'admin_login_form';
+$adminPortalTitle = $adminLoginPortal === 'san_andres'
+    ? 'BrgySanAndres Administrator Portal'
+    : 'BPLO Super Admin Portal';
+$adminPortalDashboardLabel = $adminLoginPortal === 'san_andres'
+    ? 'San Andres Admin Dashboard'
+    : 'BPLO Super Admin Dashboard';
+
 /* An authenticated account should never be shown another login form. */
 if (!empty($_SESSION['user_id'])) {
     enforceSessionTimeout();
 
     $authenticatedRole = (string)($_SESSION['role'] ?? '');
-    $authenticatedTarget = nxIsAdminRole($authenticatedRole)
+    $authenticatedTarget = nxRoleMatchesLoginPortal($authenticatedRole, $adminLoginPortal)
         ? nxAppUrl('admin_dashboard.php')
-        : nxAppUrl('dashboard.php');
+        : nxLoginPathForRole($authenticatedRole);
 
     header('Location: ' . $authenticatedTarget);
     exit();
 }
 
 /* Preserve the originating portal for password/unlock recovery pages. */
-$_SESSION['login_portal'] = 'admin';
+$_SESSION['login_portal'] = $adminLoginPortal;
 
 /* The administrator portal has independent CSRF and CAPTCHA state. */
-$adminCaptcha = generateImageCaptcha('admin_login_form');
-$adminCsrfToken = generateCsrfToken('admin_login_form');
+$adminCaptcha = generateImageCaptcha($adminLoginFormKey);
+$adminCsrfToken = generateCsrfToken($adminLoginFormKey);
 
 $flashMessage = '';
 $flashType = '';
@@ -32,21 +46,23 @@ $lockoutUsername = '';
 $hasAdminUnlockContext = nxIsAdminRole((string)($_SESSION['lockout_role'] ?? ''))
     && (int)($_SESSION['lockout_user_id'] ?? 0) > 0
     && trim((string)($_SESSION['lockout_username'] ?? '')) !== '';
+$lockoutContextMatchesPortal = $hasAdminUnlockContext
+    && nxRoleMatchesLoginPortal((string)$_SESSION['lockout_role'], $adminLoginPortal);
 
 if (
     isset($_SESSION['lockout_until_ts'])
     && (int)$_SESSION['lockout_until_ts'] > time()
-    && nxIsAdminRole((string)($_SESSION['lockout_role'] ?? ''))
+    && $lockoutContextMatchesPortal
 ) {
     $showLockCountdown = true;
     $lockoutUntilTs = (int)$_SESSION['lockout_until_ts'];
     $lockoutUsername = (string)($_SESSION['lockout_username'] ?? '');
-} elseif ($hasAdminUnlockContext) {
+} elseif ($lockoutContextMatchesPortal) {
     /* A permanently locked administrator has no short cooldown timestamp but
        must retain this minimal identity so OTP unlock can load the account. */
     $lockoutUsername = (string)$_SESSION['lockout_username'];
     unset($_SESSION['lockout_until_ts']);
-} else {
+} elseif (!$hasAdminUnlockContext) {
     unset(
         $_SESSION['lockout_until_ts'],
         $_SESSION['lockout_username'],
@@ -88,7 +104,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
     <?php include __DIR__ . '/nexgen_favicon/favicon.php'; ?>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow, noarchive">
-    <title>NexGen Administrator Login</title>
+    <title><?php echo e($adminPortalTitle); ?> | NexGen</title>
     <style>
         :root {
             color-scheme: dark;
@@ -508,10 +524,10 @@ if (session_status() === PHP_SESSION_ACTIVE) {
 </head>
 <body>
 <main class="admin-page">
-    <section class="admin-shell" aria-label="NexGen administrator authentication">
+    <section class="admin-shell" aria-label="<?php echo e($adminPortalTitle); ?>">
         <div class="login-panel">
             <div class="login-content">
-                <h1 class="login-kicker">Administrator portal</h1>
+                <h1 class="login-kicker"><?php echo e($adminPortalTitle); ?></h1>
             
                 <?php if ($flashMessage !== ''): ?>
                     <div class="flash <?php echo e($flashType); ?>" role="alert">
@@ -521,7 +537,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
                 <?php endif; ?>
 
                 <form action="<?php echo e(nxAppUrl('login_process.php')); ?>" method="POST" id="adminLoginForm" novalidate>
-                    <input type="hidden" name="login_portal" value="admin">
+                    <input type="hidden" name="login_portal" value="<?php echo e($adminLoginPortal); ?>">
                     <input type="hidden" name="csrf_token" value="<?php echo e($adminCsrfToken); ?>">
 
                     <div class="field">
@@ -530,7 +546,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
                             <span class="field-icon" aria-hidden="true">
                                 <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"></circle><path d="M4.5 20c1.2-3.8 4.1-5.8 7.5-5.8s6.3 2 7.5 5.8"></path></svg>
                             </span>
-                            <input type="text" name="username" id="adminUsername" required maxlength="50" autocomplete="username" placeholder="Enter administrator username" value="<?php echo e($lockoutUsername); ?>">
+                            <input type="text" name="username" id="adminUsername" required maxlength="50" autocomplete="username" placeholder="Enter administrator username" value="<?php echo e($lockoutContextMatchesPortal ? $lockoutUsername : ''); ?>">
                         </div>
                     </div>
 
@@ -561,9 +577,15 @@ if (session_status() === PHP_SESSION_ACTIVE) {
                         <a class="text-link" href="<?php echo e(nxAppUrl('admin_unlock_otp.php')); ?>">Unlock administrator account</a>
                     </div>
 
-                    <button class="submit-btn" type="submit" id="adminSubmit">Continue to Admin Dashboard</button>
+                    <button class="submit-btn" type="submit" id="adminSubmit">Continue to <?php echo e($adminPortalDashboardLabel); ?></button>
                 </form>
-                                <p class="portal-note">Not an administrator? <a href="<?php echo e(NEXGEN_CLIENT_LOGIN_PATH); ?>">Return to the client portal</a>.</p>
+                <p class="portal-note">
+                    <?php if ($adminLoginPortal === 'san_andres'): ?>
+                        BrgySanAndres administrators only. <a href="<?php echo e(NEXGEN_CLIENT_LOGIN_PATH); ?>">Return to the business portal</a>.
+                    <?php else: ?>
+                        BPLO Super Admins only. <a href="<?php echo e(NEXGEN_CLIENT_LOGIN_PATH); ?>">Return to the business portal</a>.
+                    <?php endif; ?>
+                </p>
             </div>
         </div>
     </section>
@@ -574,7 +596,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
         <div class="dialog-header">
             <div>
                 <h3 id="adminForgotTitle">Administrator password recovery</h3>
-                <p>Reset access for a NexGen system administrator account.</p>
+                <p>Reset access for an account authorized for this administrator portal.</p>
             </div>
             <button class="dialog-close" type="button" id="adminForgotClose" aria-label="Close password recovery">×</button>
         </div>
@@ -592,7 +614,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
                     <button class="forgot-submit" type="submit" id="adminForgotEmailSubmit">Continue</button>
                 </form>
                 <div class="forgot-footer">
-                    <span>Restricted to system administrators.</span>
+                    <span>Restricted to authorized <?php echo e($adminLoginPortal === 'san_andres' ? 'San Andres' : 'BPLO Super Admin'); ?> accounts.</span>
                     <button class="forgot-link-btn" type="button" id="adminForgotBackToLogin">Back to login</button>
                 </div>
             </section>
@@ -765,7 +787,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
         sendOtp: <?php echo json_encode(nxAppUrl('send_forgot_otp.php'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>,
         reset: <?php echo json_encode(nxAppUrl('process_reset_password.php'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
     });
-    const adminForgotPortal = 'admin';
+    const adminForgotPortal = <?php echo json_encode($adminLoginPortal, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
     let captchaVerified = false;
     let lastFocusedElement = null;

@@ -17,19 +17,19 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
    rejected instead of silently falling back to another authentication path. */
 $loginPortal = strtolower(trim((string)($_POST['login_portal'] ?? '')));
 
-if (!in_array($loginPortal, ['admin', 'client'], true)) {
+if (!in_array($loginPortal, ['admin', 'san_andres', 'client'], true)) {
     $_SESSION['error'] = 'Invalid login portal request. Please open the login page again.';
     $_SESSION['form_type'] = 'login';
     header('Location: ' . NEXGEN_CLIENT_LOGIN_PATH);
     exit();
 }
 
-$loginPage = $loginPortal === 'admin'
-    ? NEXGEN_ADMIN_LOGIN_PATH
-    : NEXGEN_CLIENT_LOGIN_PATH;
-$loginFormKey = $loginPortal === 'admin'
-    ? 'admin_login_form'
-    : 'client_login_form';
+$loginPage = nxLoginPathForPortal($loginPortal);
+$loginFormKey = match ($loginPortal) {
+    'admin' => 'admin_login_form',
+    'san_andres' => 'san_andres_login_form',
+    default => 'client_login_form',
+};
 
 /* SECURITY: CSRF validation */
 if (!validateCsrfToken($loginFormKey, $_POST['csrf_token'] ?? '')) {
@@ -146,9 +146,7 @@ $stmt->close();
 /* SERVER-SIDE ROLE BOUNDARY: UI separation alone is not a security control.
    Reject an account whose stored role does not belong to the submitted portal
    before lockout or session state can cross between the two login routes. */
-$portalRoleAllowed = $loginPortal === 'admin'
-    ? nxIsAdminRole((string)$user['role'])
-    : in_array((string)$user['role'], ['owner', 'employee'], true);
+$portalRoleAllowed = nxRoleMatchesLoginPortal((string)$user['role'], $loginPortal);
 
 if (!$portalRoleAllowed) {
     $_SESSION['error'] = 'Invalid username or password.';

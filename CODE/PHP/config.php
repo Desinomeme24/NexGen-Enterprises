@@ -290,10 +290,9 @@ if (!defined('SESSION_TIMEOUT_SECONDS')) {
     define('SESSION_TIMEOUT_SECONDS', 600); // 10 minutes
 }
 
-/* AUTH PORTALS: keep administrator authentication on a dedicated route while
-   preserving the public/client portal for owners and employees. These paths
-   are centralized so timeouts, role guards, login processing, and logout all
-   return a user to the correct portal. */
+/* AUTH PORTALS: keep BPLO Super Admin, San Andres Admin, and business-user
+   sign-in routes distinct. Centralize paths so authentication, recovery,
+   session timeouts, role guards, and logout return to the correct portal. */
 if (!defined('NEXGEN_CLIENT_LOGIN_PATH')) {
     define('NEXGEN_CLIENT_LOGIN_PATH', nxAppUrl('index.php'));
 }
@@ -303,6 +302,12 @@ if (!defined('NEXGEN_ADMIN_LOGIN_PATH')) {
     define(
         'NEXGEN_ADMIN_LOGIN_PATH',
         nxProjectUrl('nx-control-1407')
+    );
+}
+if (!defined('NEXGEN_SAN_ANDRES_LOGIN_PATH')) {
+    define(
+        'NEXGEN_SAN_ANDRES_LOGIN_PATH',
+        nxAppUrl('BrgySanAndres.php')
     );
 }
 
@@ -958,7 +963,13 @@ if (!function_exists('validateCsrfToken')) {
 if (!function_exists('nxNormalizeLoginPortal')) {
     function nxNormalizeLoginPortal(?string $portal): string
     {
-        return strtolower(trim((string)$portal)) === 'admin' ? 'admin' : 'client';
+        $normalizedPortal = strtolower(trim((string)$portal));
+
+        if ($normalizedPortal === 'san_andres') {
+            return 'san_andres';
+        }
+
+        return $normalizedPortal === 'admin' ? 'admin' : 'client';
     }
 }
 
@@ -979,7 +990,13 @@ if (!function_exists('nxIsSuperAdminRole')) {
 if (!function_exists('nxLoginPathForPortal')) {
     function nxLoginPathForPortal(?string $portal): string
     {
-        return nxNormalizeLoginPortal($portal) === 'admin'
+        $normalizedPortal = nxNormalizeLoginPortal($portal);
+
+        if ($normalizedPortal === 'san_andres') {
+            return NEXGEN_SAN_ANDRES_LOGIN_PATH;
+        }
+
+        return $normalizedPortal === 'admin'
             ? NEXGEN_ADMIN_LOGIN_PATH
             : NEXGEN_CLIENT_LOGIN_PATH;
     }
@@ -991,8 +1008,12 @@ if (!function_exists('nxRoleMatchesLoginPortal')) {
         $normalizedPortal = nxNormalizeLoginPortal($portal);
         $normalizedRole = strtolower(trim((string)$role));
 
+        if ($normalizedPortal === 'san_andres') {
+            return $normalizedRole === 'admin';
+        }
+
         return $normalizedPortal === 'admin'
-            ? nxIsAdminRole($normalizedRole)
+            ? nxIsSuperAdminRole($normalizedRole)
             : in_array($normalizedRole, ['owner', 'employee'], true);
     }
 }
@@ -1000,7 +1021,13 @@ if (!function_exists('nxRoleMatchesLoginPortal')) {
 if (!function_exists('nxLoginPathForRole')) {
     function nxLoginPathForRole(?string $role = null): string
     {
-        return nxLoginPathForPortal(nxIsAdminRole($role) ? 'admin' : 'client');
+        if (nxIsSuperAdminRole($role)) {
+            return nxLoginPathForPortal('admin');
+        }
+
+        return strtolower(trim((string)$role)) === 'admin'
+            ? nxLoginPathForPortal('san_andres')
+            : nxLoginPathForPortal('client');
     }
 }
 
