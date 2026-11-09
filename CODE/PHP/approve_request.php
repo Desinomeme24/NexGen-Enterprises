@@ -17,7 +17,7 @@ function nxApproveRequestRespond(
     string $message,
     int $requestId = 0,
     int $httpStatus = 200,
-    string $redirect = '/NexGen/CODE/PHP/pending_requests.php'
+    string $redirect = ''
 ): void {
     if (nxApproveRequestWantsJson()) {
         http_response_code($httpStatus);
@@ -37,25 +37,25 @@ function nxApproveRequestRespond(
         'type' => $success ? 'notice-success' : 'notice-error',
         'message' => $message,
     ];
-    header('Location: ' . $redirect);
+    header('Location: ' . ($redirect !== '' ? $redirect : nxAppUrl('pending_requests.php')));
     exit;
 }
 
 /*
  * NexGen registration approval handler.
- * Revalidates the administrator against the database so an older session
- * still using admin ID 0 can recover after the database admin ID was moved to 1.
+ * Revalidates the San Andres administrator against the database before any
+ * registration is finalized.
  */
 
 if (!isset($_SESSION['user_id'], $_SESSION['username'], $_SESSION['role']) ||
-    $_SESSION['role'] !== 'system_admin') {
+    $_SESSION['role'] !== 'admin') {
     $_SESSION['form_type'] = 'login';
     nxApproveRequestRespond(
         false,
         'Your administrator session is no longer valid. Please log in again.',
         0,
         401,
-        '/NexGen/CODE/PHP/index.php?open=login'
+        nxAppUrl('index.php?open=login')
     );
 }
 
@@ -69,7 +69,7 @@ $adminStmt = $conn->prepare(
     "SELECT id, username, role, account_status
      FROM users
      WHERE (id = ? OR username = ?)
-       AND role = 'system_admin'
+       AND role = 'admin'
      LIMIT 1"
 );
 
@@ -91,7 +91,7 @@ if (!$adminAccount || $adminAccount['account_status'] !== 'active') {
         'Your administrator account could not be verified. Please log in again.',
         0,
         401,
-        '/NexGen/CODE/PHP/index.php?open=login'
+        nxAppUrl('index.php?open=login')
     );
 }
 
@@ -149,8 +149,8 @@ try {
         throw new RuntimeException('Registration request not found.');
     }
 
-    if (!in_array($request['request_status'], ['pending', 'resubmit'], true)) {
-        throw new RuntimeException('Only pending or resubmitted requests can be approved.');
+    if (!in_array($request['request_status'], ['validated', 'resubmit'], true)) {
+        throw new RuntimeException('Only BPLO-validated or resubmitted requests can be approved.');
     }
 
     $stmt = $conn->prepare(
@@ -458,7 +458,7 @@ try {
              business_id = ?,
              business_entity_id = ?,
              branch_code = ?
-         WHERE id = ? AND request_status IN ('pending', 'resubmit')"
+         WHERE id = ? AND request_status IN ('validated', 'resubmit')"
     );
 
     if (!$stmt) {
@@ -551,6 +551,6 @@ try {
         'Approval failed: ' . $e->getMessage(),
         $requestId,
         422,
-        '/NexGen/CODE/PHP/view_request.php?id=' . $requestId
+        nxAppUrl('view_request.php') . '?id=' . $requestId
     );
 }

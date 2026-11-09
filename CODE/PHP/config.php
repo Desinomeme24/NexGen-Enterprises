@@ -962,6 +962,20 @@ if (!function_exists('nxNormalizeLoginPortal')) {
     }
 }
 
+if (!function_exists('nxIsAdminRole')) {
+    function nxIsAdminRole(?string $role): bool
+    {
+        return in_array(strtolower(trim((string)$role)), ['system_admin', 'super_admin', 'admin'], true);
+    }
+}
+
+if (!function_exists('nxIsSuperAdminRole')) {
+    function nxIsSuperAdminRole(?string $role): bool
+    {
+        return in_array(strtolower(trim((string)$role)), ['system_admin', 'super_admin'], true);
+    }
+}
+
 if (!function_exists('nxLoginPathForPortal')) {
     function nxLoginPathForPortal(?string $portal): string
     {
@@ -978,7 +992,7 @@ if (!function_exists('nxRoleMatchesLoginPortal')) {
         $normalizedRole = strtolower(trim((string)$role));
 
         return $normalizedPortal === 'admin'
-            ? $normalizedRole === 'system_admin'
+            ? nxIsAdminRole($normalizedRole)
             : in_array($normalizedRole, ['owner', 'employee'], true);
     }
 }
@@ -986,7 +1000,7 @@ if (!function_exists('nxRoleMatchesLoginPortal')) {
 if (!function_exists('nxLoginPathForRole')) {
     function nxLoginPathForRole(?string $role = null): string
     {
-        return nxLoginPathForPortal($role === 'system_admin' ? 'admin' : 'client');
+        return nxLoginPathForPortal(nxIsAdminRole($role) ? 'admin' : 'client');
     }
 }
 
@@ -1044,7 +1058,9 @@ if (!function_exists('requireRole')) {
     function requireRole(array $roles): void
     {
         if (!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
-            $adminOnly = in_array('system_admin', $roles, true)
+            $adminOnly = (in_array('system_admin', $roles, true)
+                    || in_array('super_admin', $roles, true)
+                    || in_array('admin', $roles, true))
                 && !in_array('owner', $roles, true)
                 && !in_array('employee', $roles, true);
             header('Location: ' . ($adminOnly ? NEXGEN_ADMIN_LOGIN_PATH : NEXGEN_CLIENT_LOGIN_PATH));
@@ -1055,7 +1071,7 @@ if (!function_exists('requireRole')) {
 
         if (!in_array($_SESSION['role'], $roles, true)) {
             $_SESSION['error'] = 'Unauthorized access.';
-            $safeDashboard = $_SESSION['role'] === 'system_admin'
+            $safeDashboard = nxIsAdminRole((string)$_SESSION['role'])
                 ? nxAppUrl('admin_dashboard.php')
                 : nxAppUrl('dashboard.php');
             header('Location: ' . $safeDashboard);

@@ -46,6 +46,31 @@ if ($businessId <= 0) {
     exit();
 }
 
+try {
+    $permitAccess = nxGetBusinessPermitAccess($conn, $businessId);
+} catch (Throwable $permitError) {
+    error_log('NexGen sales permit access check failed: ' . $permitError->getMessage());
+    http_response_code(503);
+    echo json_encode(['success' => false, 'message' => 'Business access could not be verified. Please try again later.']);
+    exit();
+}
+
+if (empty($permitAccess['found'])) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'The active business permit record could not be verified.']);
+    exit();
+}
+
+if (!empty($permitAccess['grace_expired'])) {
+    $_SESSION['business_permit_access_blocked'] = true;
+    $_SESSION['business_permit_notice'] = 'Business access is temporarily suspended because the permit has remained unpaid beyond the 30-day grace period. Contact the business administrator after payment.';
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => $_SESSION['business_permit_notice']]);
+    exit();
+}
+
+unset($_SESSION['business_permit_access_blocked'], $_SESSION['business_permit_notice']);
+
 $businessTypeStmt = $conn->prepare("SELECT business_type FROM businesses WHERE id = ? LIMIT 1");
 $businessTypeStmt->bind_param("i", $businessId);
 $businessTypeStmt->execute();

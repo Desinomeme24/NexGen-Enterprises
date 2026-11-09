@@ -6,7 +6,7 @@ if (!empty($_SESSION['user_id'])) {
     enforceSessionTimeout();
 
     $authenticatedRole = (string)($_SESSION['role'] ?? '');
-    $authenticatedTarget = $authenticatedRole === 'system_admin'
+    $authenticatedTarget = nxIsAdminRole($authenticatedRole)
         ? nxAppUrl('admin_dashboard.php')
         : nxAppUrl('dashboard.php');
 
@@ -29,14 +29,14 @@ $attemptPopupText = '';
 $showLockCountdown = false;
 $lockoutUntilTs = 0;
 $lockoutUsername = '';
-$hasAdminUnlockContext = (string)($_SESSION['lockout_role'] ?? '') === 'system_admin'
+$hasAdminUnlockContext = nxIsAdminRole((string)($_SESSION['lockout_role'] ?? ''))
     && (int)($_SESSION['lockout_user_id'] ?? 0) > 0
     && trim((string)($_SESSION['lockout_username'] ?? '')) !== '';
 
 if (
     isset($_SESSION['lockout_until_ts'])
     && (int)$_SESSION['lockout_until_ts'] > time()
-    && (string)($_SESSION['lockout_role'] ?? '') === 'system_admin'
+    && nxIsAdminRole((string)($_SESSION['lockout_role'] ?? ''))
 ) {
     $showLockCountdown = true;
     $lockoutUntilTs = (int)$_SESSION['lockout_until_ts'];

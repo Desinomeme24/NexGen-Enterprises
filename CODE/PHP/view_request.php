@@ -2,12 +2,12 @@
 require_once __DIR__ . '/config.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: /NexGen/CODE/PHP/index.php");
+    header('Location: ' . nxAppUrl('index.php'));
     exit();
 }
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'system_admin') {
-    header("Location: /NexGen/CODE/PHP/dashboard.php");
+if (!nxIsAdminRole((string)($_SESSION['role'] ?? ''))) {
+    header('Location: ' . nxAppUrl('dashboard.php'));
     exit();
 }
 
@@ -57,6 +57,16 @@ if (!$request) {
     exit();
 }
 
+$isSuperAdmin = nxIsSuperAdminRole((string)$_SESSION['role']);
+$currentStatus = strtolower((string)($request['request_status'] ?? 'pending'));
+if (
+    ($isSuperAdmin && $currentStatus !== 'pending')
+    || (!$isSuperAdmin && $currentStatus === 'pending')
+) {
+    header('Location: ' . nxAppUrl('pending_requests.php'));
+    exit();
+}
+
 $flash = $_SESSION['flash'] ?? null;
 unset($_SESSION['flash']);
 
@@ -74,8 +84,9 @@ $businessPermitIsPdf = ($businessPermitExt === 'pdf');
 // pending  -> approve / reject / resubmit
 // resubmit -> approve / reject / update corrected information
 // approved/rejected are final and cannot be changed.
-$currentStatus = strtolower((string)($request['request_status'] ?? 'pending'));
 $isFinalized = in_array($currentStatus, ['approved', 'rejected'], true);
+$canValidate = $isSuperAdmin && $currentStatus === 'pending';
+$canFinalReview = !$isSuperAdmin && in_array($currentStatus, ['validated', 'resubmit'], true);
 $isEmployeeRequest = ($request['requested_role'] ?? '') === 'employee';
 $allowedBusinessTypes = [
     'Hardware / Construction Supplies',
@@ -122,7 +133,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
             } catch (e) {}
         })();
     </script>
-    <link rel="stylesheet" href="/NexGen/CODE/STYLE/admin_module.css">
+    <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/admin_module.css')); ?>">
     <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/document_preview_modal.css')); ?>">
         
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -787,7 +798,10 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                     <div class="kv-item"><label>Phone</label><div class="value"><?php echo e($request['phone']); ?></div></div>
                     <div class="kv-item"><label>Address</label><div class="value"><?php echo e($request['address']); ?></div></div>
                     <div class="kv-item"><label>Requested Role</label><div class="value"><?php echo e(ucwords(str_replace('_', ' ', $request['requested_role']))); ?></div></div>
-                    <div class="kv-item"><label>Status</label><div class="value"><span class="badge badge-<?php echo e($request['request_status']); ?>"><?php echo e(ucfirst($request['request_status'])); ?></span></div></div>
+                    <div class="kv-item"><label>Status</label><div class="value"><span class="badge badge-<?php echo e($request['request_status']); ?>"><?php echo e($request['request_status'] === 'pending' ? 'Awaiting BPLO validation' : ($request['request_status'] === 'validated' ? 'Awaiting San Andres review' : ucfirst($request['request_status']))); ?></span></div></div>
+                    <?php if (!empty($request['validation_remarks'])): ?>
+                        <div class="kv-item" style="grid-column: 1 / -1;"><label>BPLO Validation Notes</label><div class="value"><?php echo nl2br(e($request['validation_remarks'])); ?></div></div>
+                    <?php endif; ?>
                     <div class="kv-item"><label>Submitted At</label><div class="value"><?php echo e(date('M d, Y h:i A', strtotime($request['created_at']))); ?></div></div>
                     <div class="kv-item" style="grid-column: 1 / -1;">
                         <label>Valid ID</label>
@@ -877,14 +891,33 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
 
         <section class="panel admin-actions-panel">
             <div class="panel-header">
-                <h2>Admin Actions</h2>
+                <h2><?php echo $isSuperAdmin ? 'BPLO Validation' : 'San Andres Admin Actions'; ?></h2>
             </div>
             <div class="panel-body">
                 <?php if ($isFinalized): ?>
                     <div class="notice <?php echo $currentStatus === 'approved' ? 'notice-success' : 'notice-error'; ?>">
                         This request has already been <strong><?php echo e($currentStatus); ?></strong> and is final. No further status changes are allowed.
                     </div>
-                <?php else: ?>
+                <?php elseif ($canValidate): ?>
+                    <p class="notice">
+                        Check the applicant and business permit against BPLO municipal records. Successful validation moves this registration to the San Andres admin review queue; it does not create or approve the account.
+                    </p>
+                    <form method="POST" action="<?php echo e(nxAppUrl('validate_request.php')); ?>" class="request-action-form modern-action-form">
+                        <input type="hidden" name="csrf_token" value="<?php echo e(generateCsrfToken('bplo_validate_request')); ?>">
+                        <input type="hidden" name="request_id" value="<?php echo (int)$request['id']; ?>">
+                        <div class="modern-field">
+                            <label for="validationRemarks">BPLO verification notes</label>
+                            <textarea id="validationRemarks" name="remarks" minlength="3" maxlength="2000" required placeholder="Record the permit/municipal record reference checked"></textarea>
+                        </div>
+                        <div class="modern-field">
+                            <label>
+                                <input type="checkbox" name="small_enterprise_confirmed" value="1" required>
+                                I confirmed from BPLO records that this business qualifies as a small enterprise.
+                            </label>
+                        </div>
+                        <button class="btn btn-gold" type="submit">Validate and Send to San Andres</button>
+                    </form>
+                <?php elseif ($canFinalReview): ?>
                     <div class="notice request-action-feedback" id="requestActionFeedback" role="status"></div>
 
                     <div class="request-action-processing" id="requestActionProcessing" role="status" aria-live="polite">
@@ -917,7 +950,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                                         <?php echo !$branchIntegrityOk && $isEmployeeRequest ? 'Approve Request (branch unresolved)' : 'Approve Request'; ?>
                                     </option>
                                     <option value="reject">Reject Request</option>
-                                    <?php if ($currentStatus === 'pending'): ?>
+                                    <?php if ($currentStatus === 'validated'): ?>
                                         <option value="resubmit">Send for Resubmission</option>
                                     <?php elseif ($currentStatus === 'resubmit'): ?>
                                         <option value="update_resubmit">Update Resubmission Details</option>
@@ -1026,6 +1059,8 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                             <button class="modern-submit-btn" id="submitActionBtn" type="submit" disabled>Submit</button>
                         </div>
                     </form>
+                <?php else: ?>
+                    <div class="notice notice-error">This request is not available for your review stage.</div>
                 <?php endif; ?>
             </div>
         </section>
@@ -1045,7 +1080,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
     </div>
 </div>
 
-<script src="/NexGen/CODE/JS/admin_module.js"></script>
+<script src="<?php echo e(nxCodeUrl('JS/admin_module.js')); ?>"></script>
 <script>
 <?php if ($isEmbeddedView): ?>
 (function() {

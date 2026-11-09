@@ -9,7 +9,7 @@ $_SESSION['login_portal'] = 'admin';
 
 if (
     !isset($_SESSION['lockout_user_id'], $_SESSION['lockout_username'], $_SESSION['lockout_role']) ||
-    $_SESSION['lockout_role'] !== 'system_admin'
+    !nxIsAdminRole((string)$_SESSION['lockout_role'])
 ) {
     $_SESSION['error'] = "No locked admin account found for OTP unlock.";
     header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
@@ -19,7 +19,7 @@ if (
 $adminId = (int)$_SESSION['lockout_user_id'];
 $adminUsername = (string)$_SESSION['lockout_username'];
 
-$stmt = $conn->prepare("SELECT id, username, full_name, email, role, locked_until, otp_code, otp_expires_at FROM users WHERE id = ? AND role = 'system_admin' LIMIT 1");
+$stmt = $conn->prepare("SELECT id, username, full_name, email, role, locked_until, otp_code, otp_expires_at FROM users WHERE id = ? AND role IN ('system_admin', 'super_admin', 'admin') LIMIT 1");
 if (!$stmt) {
     $_SESSION['error'] = "Database error while checking locked admin account.";
     header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
@@ -78,7 +78,7 @@ if (!isset($_SESSION['admin_unlock_otp_sent']) || $_SESSION['admin_unlock_otp_se
         exit();
     }
 
-    $otpStmt = $conn->prepare("UPDATE users SET otp_code = ?, otp_expires_at = ? WHERE id = ? AND role = 'system_admin'");
+    $otpStmt = $conn->prepare("UPDATE users SET otp_code = ?, otp_expires_at = ? WHERE id = ? AND role IN ('system_admin', 'super_admin', 'admin')");
     if (!$otpStmt) {
         $_SESSION['error'] = "Unable to prepare the administrator unlock code right now.";
         header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
@@ -105,7 +105,7 @@ if (!isset($_SESSION['admin_unlock_otp_sent']) || $_SESSION['admin_unlock_otp_se
 
         $_SESSION['admin_unlock_otp_sent'] = $adminId;
         $_SESSION['success'] = "A 6-digit OTP has been sent to the admin email.";
-        header("Location: /NexGen/CODE/PHP/admin_unlock_otp.php");
+        header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
         exit();
     } catch (Throwable $e) {
         error_log('NexGen administrator unlock email failed: ' . $e->getMessage());
@@ -118,7 +118,7 @@ if (!isset($_SESSION['admin_unlock_otp_sent']) || $_SESSION['admin_unlock_otp_se
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!validateCsrfToken('admin_unlock_otp', $_POST['csrf_token'] ?? null)) {
         $_SESSION['error'] = "Your session expired. Please try again.";
-        header("Location: /NexGen/CODE/PHP/admin_unlock_otp.php");
+        header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
         exit();
     }
 
@@ -129,14 +129,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!preg_match('/^[0-9]{6}$/D', $otpInput)) {
             $_SESSION['error'] = "Please enter the complete 6-digit OTP.";
-            header("Location: /NexGen/CODE/PHP/admin_unlock_otp.php");
+            header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
             exit();
         }
 
-        $checkStmt = $conn->prepare("SELECT otp_code, otp_expires_at FROM users WHERE id = ? AND role = 'system_admin' LIMIT 1");
+        $checkStmt = $conn->prepare("SELECT otp_code, otp_expires_at FROM users WHERE id = ? AND role IN ('system_admin', 'super_admin', 'admin') LIMIT 1");
         if (!$checkStmt) {
             $_SESSION['error'] = "Database error while verifying OTP.";
-            header("Location: /NexGen/CODE/PHP/admin_unlock_otp.php");
+            header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
             exit();
         }
 
@@ -148,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$otpData) {
             $_SESSION['error'] = "Admin OTP data not found.";
-            header("Location: /NexGen/CODE/PHP/admin_unlock_otp.php");
+            header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
             exit();
         }
 
@@ -157,19 +157,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($storedOtp === '' || $expiresAt === '') {
             $_SESSION['error'] = "No valid OTP found. Please resend OTP.";
-            header("Location: /NexGen/CODE/PHP/admin_unlock_otp.php");
+            header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
             exit();
         }
 
         if (strtotime($expiresAt) < time()) {
             $_SESSION['error'] = "The OTP has expired. Please resend OTP.";
-            header("Location: /NexGen/CODE/PHP/admin_unlock_otp.php");
+            header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
             exit();
         }
 
         if (!nxVerifyOtp($otpInput, $storedOtp)) {
             $_SESSION['error'] = "Invalid OTP code.";
-            header("Location: /NexGen/CODE/PHP/admin_unlock_otp.php");
+            header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
             exit();
         }
 
@@ -181,11 +181,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 otp_code = NULL,
                 otp_expires_at = NULL
             WHERE id = ?
-              AND role = 'system_admin'
+              AND role IN ('system_admin', 'super_admin', 'admin')
         ");
         if (!$unlockStmt) {
             $_SESSION['error'] = "Unable to unlock the administrator account right now.";
-            header("Location: /NexGen/CODE/PHP/admin_unlock_otp.php");
+            header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
             exit();
         }
 
@@ -195,7 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$unlockSucceeded) {
             $_SESSION['error'] = "Unable to unlock the administrator account right now.";
-            header("Location: /NexGen/CODE/PHP/admin_unlock_otp.php");
+            header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
             exit();
         }
 
@@ -222,14 +222,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Throwable $e) {
             error_log('NexGen administrator unlock OTP rehash failed: ' . $e->getMessage());
             $_SESSION['error'] = "Unable to secure a new administrator unlock code right now.";
-            header("Location: /NexGen/CODE/PHP/admin_unlock_otp.php");
+            header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
             exit();
         }
 
-        $otpStmt = $conn->prepare("UPDATE users SET otp_code = ?, otp_expires_at = ? WHERE id = ? AND role = 'system_admin'");
+        $otpStmt = $conn->prepare("UPDATE users SET otp_code = ?, otp_expires_at = ? WHERE id = ? AND role IN ('system_admin', 'super_admin', 'admin')");
         if (!$otpStmt) {
             $_SESSION['error'] = "Unable to prepare a new administrator unlock code right now.";
-            header("Location: /NexGen/CODE/PHP/admin_unlock_otp.php");
+            header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
             exit();
         }
 
@@ -239,7 +239,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$otpStored) {
             $_SESSION['error'] = "Unable to prepare a new administrator unlock code right now.";
-            header("Location: /NexGen/CODE/PHP/admin_unlock_otp.php");
+            header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
             exit();
         }
 
@@ -252,12 +252,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
 
             $_SESSION['success'] = "A new OTP has been sent to the admin email.";
-            header("Location: /NexGen/CODE/PHP/admin_unlock_otp.php");
+            header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
             exit();
         } catch (Throwable $e) {
             error_log('NexGen administrator unlock resend failed: ' . $e->getMessage());
             $_SESSION['error'] = "Failed to resend OTP.";
-            header("Location: /NexGen/CODE/PHP/admin_unlock_otp.php");
+            header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
             exit();
         }
     }
@@ -451,7 +451,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php endif; ?>
 
 <div class="otp-card">
-    <img src="/NexGen/IMAGES/NGlogo.png" alt="Logo" class="otp-logo">
+    <img src="<?php echo e(nxProjectUrl('IMAGES/NGlogo.png')); ?>" alt="Logo" class="otp-logo">
 
     <h1>Admin Unlock OTP</h1>
     <p>

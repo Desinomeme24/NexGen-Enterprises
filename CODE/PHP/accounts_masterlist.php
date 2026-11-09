@@ -3,12 +3,12 @@ session_start();
 require_once("config.php");
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: /NexGen/CODE/PHP/index.php");
+    header('Location: ' . nxAppUrl('index.php'));
     exit();
 }
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'system_admin') {
-    header("Location: /NexGen/CODE/PHP/dashboard.php");
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    header('Location: ' . nxAppUrl('dashboard.php'));
     exit();
 }
 
@@ -273,7 +273,7 @@ if (
             } catch (e) {}
         })();
     </script>
-    <link rel="stylesheet" href="/NexGen/CODE/STYLE/admin_module.css">
+    <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/admin_module.css')); ?>">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         .accounts-table-wrap {

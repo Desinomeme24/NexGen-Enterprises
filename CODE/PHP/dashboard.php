@@ -97,7 +97,7 @@ $_SESSION['can_sales'] = (int)$account['can_sales'];
 $_SESSION['can_sales_analytics'] = (int)$account['can_sales_analytics'];
 $_SESSION['can_accounts_receivable'] = (int)$account['can_accounts_receivable'];
 
-if ($role === 'system_admin') {
+if (nxIsAdminRole($role)) {
     header('Location: ' . nxAppUrl('admin_dashboard.php'));
     exit();
 }
@@ -112,6 +112,24 @@ if (!in_array($role, ['owner', 'employee'], true)) {
 $activeWorkspace = nxInitializeUserWorkspace($conn);
 $businessId = (int)($activeWorkspace['business_id'] ?? 0);
 $hasActiveWorkspace = $businessId > 0;
+$businessPermitBlocked = false;
+if ($hasActiveWorkspace) {
+    try {
+        $permitAccess = nxGetBusinessPermitAccess($conn, $businessId);
+    } catch (Throwable $permitError) {
+        error_log('NexGen dashboard permit access check failed: ' . $permitError->getMessage());
+        http_response_code(503);
+        exit('Business access could not be verified. Please try again later.');
+    }
+
+    $businessPermitBlocked = empty($permitAccess['found']) || !empty($permitAccess['grace_expired']);
+    if ($businessPermitBlocked) {
+        $_SESSION['business_permit_access_blocked'] = true;
+        $_SESSION['business_permit_notice'] = 'Business access is temporarily suspended because the permit has remained unpaid beyond the 30-day grace period. Contact the business administrator after payment.';
+    } else {
+        unset($_SESSION['business_permit_access_blocked'], $_SESSION['business_permit_notice']);
+    }
+}
 
 if (!$hasActiveWorkspace) {
     unset(
@@ -129,10 +147,11 @@ if (!$hasActiveWorkspace) {
 }
 
 $isOwner = $role === 'owner';
-$canInventory = $hasActiveWorkspace && (int)$account['can_inventory'] === 1;
-$canSales = $hasActiveWorkspace && (int)$account['can_sales'] === 1;
-$canSalesAnalytics = $hasActiveWorkspace && (int)$account['can_sales_analytics'] === 1;
+$canInventory = $hasActiveWorkspace && !$businessPermitBlocked && (int)$account['can_inventory'] === 1;
+$canSales = $hasActiveWorkspace && !$businessPermitBlocked && (int)$account['can_sales'] === 1;
+$canSalesAnalytics = $hasActiveWorkspace && !$businessPermitBlocked && (int)$account['can_sales_analytics'] === 1;
 $canAccountsReceivable = $hasActiveWorkspace
+    && !$businessPermitBlocked
     && (int)$account['can_accounts_receivable'] === 1
     && nxArEnabled();
 $hasAnyBusinessModule = $canInventory || $canSales || $canSalesAnalytics || $canAccountsReceivable;
@@ -168,8 +187,8 @@ $pageSubtitle = $isOwner
     <?php include __DIR__ . '/theme_init.php'; ?>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo e($pageTitle); ?> - NexGen</title>
-    <link rel="stylesheet" href="/NexGen/CODE/STYLE/dashboard.css">
-    <link rel="stylesheet" href="/NexGen/CODE/STYLE/header.css">
+    <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/dashboard.css')); ?>">
+    <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/header.css')); ?>">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
@@ -219,7 +238,7 @@ $pageSubtitle = $isOwner
 
                     <div class="modern-hero-actions">
                         <a href="#module-section" class="hero-btn modern-hero-btn">Open Modules</a>
-                        <a href="/NexGen/CODE/PHP/about_us.php" class="hero-btn modern-hero-btn secondary-btn">Learn More</a>
+                        <a href="<?php echo e(nxAppUrl('about_us.php')); ?>" class="hero-btn modern-hero-btn secondary-btn">Learn More</a>
                     </div>
                 </div>
             </div>
@@ -233,6 +252,8 @@ $pageSubtitle = $isOwner
                     <?php
                     if (!$hasActiveWorkspace) {
                         echo 'This account is not connected to an active business branch yet.';
+                    } elseif ($businessPermitBlocked) {
+                        echo 'Business tools are unavailable until the business permit payment is updated.';
                     } elseif (!$hasAnyBusinessModule) {
                         echo 'No business modules are currently assigned to this account.';
                     } elseif ($isOwner) {
@@ -246,7 +267,7 @@ $pageSubtitle = $isOwner
 
             <div class="modern-module-grid">
                 <?php if ($canInventory): ?>
-                <a href="/NexGen/CODE/PHP/inventory_management.php" class="modern-module-card module-reveal">
+                <a href="<?php echo e(nxAppUrl('inventory_management.php')); ?>" class="modern-module-card module-reveal">
                     <div class="module-card-glow"></div>
                     <div class="module-card-icon">
                         <i class="bi bi-box-seam-fill"></i>
@@ -260,7 +281,7 @@ $pageSubtitle = $isOwner
                 <?php endif; ?>
 
                 <?php if ($canSales): ?>
-                    <a href="/NexGen/CODE/PHP/sales_recording.php" class="modern-module-card module-reveal">
+                    <a href="<?php echo e(nxAppUrl('sales_recording.php')); ?>" class="modern-module-card module-reveal">
                         <div class="module-card-glow"></div>
                         <div class="module-card-icon">
                             <i class="bi bi-receipt-cutoff"></i>
@@ -274,7 +295,7 @@ $pageSubtitle = $isOwner
                 <?php endif; ?>
 
                 <?php if ($canSalesAnalytics): ?>
-                    <a href="/NexGen/CODE/PHP/sales_analytics.php" class="modern-module-card module-reveal">
+                    <a href="<?php echo e(nxAppUrl('sales_analytics.php')); ?>" class="modern-module-card module-reveal">
                         <div class="module-card-glow"></div>
                         <div class="module-card-icon">
                             <i class="bi bi-bar-chart-line-fill"></i>
@@ -302,6 +323,12 @@ $pageSubtitle = $isOwner
                 <?php endif; ?>
             </div>
         </section>
+
+        <?php if ($businessPermitBlocked): ?>
+            <div class="notice notice-error" role="alert" style="max-width:1100px;margin:20px auto;">
+                <?php echo e($_SESSION['business_permit_notice'] ?? 'Business access is temporarily suspended because the permit is unpaid beyond its 30-day grace period.'); ?>
+            </div>
+        <?php endif; ?>
     </section>
 
     <div class="why-section-toggle-wrap">
@@ -324,7 +351,7 @@ $pageSubtitle = $isOwner
 
             <div class="why-content">
                 <div class="why-left why-reveal why-reveal-left">
-                    <img src="/NexGen/IMAGES/whyus.jpg" alt="Why Us Image">
+                    <img src="<?php echo e(nxProjectUrl('IMAGES/whyus.jpg')); ?>" alt="Why Us Image">
                 </div>
 
                 <div class="why-right why-reveal why-reveal-right">
@@ -346,7 +373,7 @@ $pageSubtitle = $isOwner
                         </div>
                     </div>
 
-                    <a href="/NexGen/CODE/PHP/about_us.php" class="learn-btn">Learn More</a>
+                    <a href="<?php echo e(nxAppUrl('about_us.php')); ?>" class="learn-btn">Learn More</a>
                 </div>
             </div>
         </div>
@@ -370,7 +397,7 @@ $pageSubtitle = $isOwner
         <div class="footer-top-line"></div>
 
         <div class="footer-logo">
-            <img src="/NexGen/IMAGES/NGlogo.png" alt="NexGen Logo">
+            <img src="<?php echo e(nxProjectUrl('IMAGES/NGlogo.png')); ?>" alt="NexGen Logo">
         </div>
 
         <div class="footer-social">
@@ -388,7 +415,7 @@ $pageSubtitle = $isOwner
 </div>
 
 <?php include __DIR__ . '/chatbot.php'; ?>
-<script src="/NexGen/CODE/JS/header.js"></script>
-<script src="/NexGen/CODE/JS/dashboard.js"></script>
+<script src="<?php echo e(nxCodeUrl('JS/header.js')); ?>"></script>
+<script src="<?php echo e(nxCodeUrl('JS/dashboard.js')); ?>"></script>
 </body>
 </html>

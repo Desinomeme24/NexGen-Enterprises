@@ -103,7 +103,13 @@ if ($result->num_rows !== 1) {
 
                 switch ($requestStatus) {
                     case 'pending':
-                        $_SESSION['error'] = "Your account request is still pending admin approval. Please wait for confirmation.";
+                        $_SESSION['error'] = "Your account request is still being validated by the BPLO. Please wait for confirmation.";
+                        $_SESSION['form_type'] = 'login';
+                        header('Location: ' . $loginPage);
+                        exit();
+
+                    case 'validated':
+                        $_SESSION['error'] = "Your account request has passed BPLO validation and is waiting for final San Andres admin review.";
                         $_SESSION['form_type'] = 'login';
                         header('Location: ' . $loginPage);
                         exit();
@@ -141,7 +147,7 @@ $stmt->close();
    Reject an account whose stored role does not belong to the submitted portal
    before lockout or session state can cross between the two login routes. */
 $portalRoleAllowed = $loginPortal === 'admin'
-    ? (string)$user['role'] === 'system_admin'
+    ? nxIsAdminRole((string)$user['role'])
     : in_array((string)$user['role'], ['owner', 'employee'], true);
 
 if (!$portalRoleAllowed) {
@@ -170,12 +176,12 @@ if (isUserLocked($user)) {
         $_SESSION['error'] = "This account was automatically locked after 5 consecutive failed login attempts. Please contact the system administrator to unlock it.";
         unset($_SESSION['lockout_until_ts'], $_SESSION['attempt_warning'], $_SESSION['attempts_left']);
 
-        if ((string)$user['role'] === 'system_admin') {
+        if (nxIsAdminRole((string)$user['role'])) {
             /* Preserve only the administrator identity needed by the separate
                OTP-unlock page. The password and OTP are never stored here. */
             $_SESSION['lockout_username'] = (string)$user['username'];
             $_SESSION['lockout_user_id'] = (int)$user['id'];
-            $_SESSION['lockout_role'] = 'system_admin';
+            $_SESSION['lockout_role'] = (string)$user['role'];
         } else {
             unset(
                 $_SESSION['lockout_username'],
@@ -235,10 +241,10 @@ function recordFailedAttempt(mysqli $conn, array $user, string $reason = 'Invali
         $_SESSION['error'] = "This account has been automatically locked after 5 consecutive failed login attempts. Please contact the system administrator to unlock it.";
         unset($_SESSION['lockout_until_ts'], $_SESSION['attempt_warning'], $_SESSION['attempts_left']);
 
-        if ((string)$user['role'] === 'system_admin') {
+        if (nxIsAdminRole((string)$user['role'])) {
             $_SESSION['lockout_username'] = (string)$user['username'];
             $_SESSION['lockout_user_id'] = (int)$user['id'];
-            $_SESSION['lockout_role'] = 'system_admin';
+            $_SESSION['lockout_role'] = (string)$user['role'];
         } else {
             unset(
                 $_SESSION['lockout_username'],
@@ -408,6 +414,53 @@ if (in_array($user['role'], ['owner', 'employee'], true)) {
         header('Location: ' . $loginPage);
         exit();
     }
+
+    try {
+        $permit = nxGetBusinessPermitAccess($conn, (int)($activeWorkspace['business_id'] ?? 0));
+    } catch (Throwable $permitError) {
+        error_log('NexGen login permit access check failed: ' . $permitError->getMessage());
+        $_SESSION = [];
+        session_regenerate_id(true);
+        $_SESSION['error'] = 'Business access could not be verified. Please try again later.';
+        $_SESSION['form_type'] = 'login';
+        header('Location: ' . $loginPage);
+        exit();
+    }
+
+    if (
+        empty($permit['found'])
+        || !empty($permit['grace_expired'])
+    ) {
+        $alternativeWorkspaceFound = false;
+        try {
+            foreach (nxGetAccessibleWorkspaces($conn, (int)$user['id'], (string)$user['role']) as $workspaceCandidate) {
+                $candidatePermit = nxGetBusinessPermitAccess($conn, (int)($workspaceCandidate['business_id'] ?? 0));
+                if (!empty($candidatePermit['found']) && empty($candidatePermit['grace_expired'])) {
+                    $activeWorkspace = $workspaceCandidate;
+                    nxApplyWorkspaceToSession($activeWorkspace);
+                    $alternativeWorkspaceFound = true;
+                    break;
+                }
+            }
+        } catch (Throwable $permitError) {
+            error_log('NexGen alternate workspace permit check failed: ' . $permitError->getMessage());
+            $_SESSION = [];
+            session_regenerate_id(true);
+            $_SESSION['error'] = 'Business access could not be verified. Please try again later.';
+            $_SESSION['form_type'] = 'login';
+            header('Location: ' . $loginPage);
+            exit();
+        }
+
+        if (!$alternativeWorkspaceFound) {
+            $_SESSION = [];
+            session_regenerate_id(true);
+            $_SESSION['error'] = 'Business access is temporarily suspended because all assigned business permits are unpaid beyond the 30-day grace period.';
+            $_SESSION['form_type'] = 'login';
+            header('Location: ' . $loginPage);
+            exit();
+        }
+    }
 }
 
 /* SESSION SECURITY: start inactivity timer after successful login */
@@ -449,7 +502,7 @@ if ($auditLogId === null) {
 /* Decide redirect target only after the portal/role boundary has passed. */
 $redirectUrl = $loginPage;
 
-if ($user['role'] === 'system_admin') {
+if (nxIsAdminRole((string)$user['role'])) {
     $redirectUrl = nxAppUrl('admin_dashboard.php');
 } elseif (in_array($user['role'], ['owner', 'employee'], true)) {
     $redirectUrl = nxAppUrl('dashboard.php');
@@ -493,7 +546,7 @@ $loginSuccessRedirectUrl = $redirectUrl;
         }
 
         $loginSuccessRole = (string)($_SESSION['role'] ?? '');
-        $loginSuccessRedirectUrl = $loginSuccessRole === 'system_admin'
+        $loginSuccessRedirectUrl = nxIsAdminRole($loginSuccessRole)
             ? nxAppUrl('admin_dashboard.php')
             : nxAppUrl('dashboard.php');
     ?>

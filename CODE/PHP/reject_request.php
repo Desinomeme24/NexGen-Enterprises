@@ -16,7 +16,7 @@ function nxRejectRequestRespond(
     string $message,
     int $requestId = 0,
     int $httpStatus = 200,
-    string $redirect = '/NexGen/CODE/PHP/pending_requests.php'
+    string $redirect = ''
 ): void {
     if (nxRejectRequestWantsJson()) {
         http_response_code($httpStatus);
@@ -36,17 +36,17 @@ function nxRejectRequestRespond(
         'type' => $success ? 'notice-success' : 'notice-error',
         'message' => $message,
     ];
-    header('Location: ' . $redirect);
+    header('Location: ' . ($redirect !== '' ? $redirect : nxAppUrl('pending_requests.php')));
     exit;
 }
 
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'system_admin') {
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
     nxRejectRequestRespond(
         false,
         'Your administrator session is no longer valid. Please log in again.',
         0,
         401,
-        '/NexGen/CODE/PHP/index.php?open=login'
+        nxAppUrl('index.php?open=login')
     );
 }
 
@@ -86,7 +86,7 @@ try {
     $adminStmt = $conn->prepare(
         "SELECT id
          FROM users
-         WHERE id = ? AND role = 'system_admin' AND account_status = 'active'
+         WHERE id = ? AND role = 'admin' AND account_status = 'active'
          LIMIT 1"
     );
     if (!$adminStmt) {
@@ -103,7 +103,7 @@ try {
             'Your administrator account is no longer active.',
             $requestId,
             403,
-            '/NexGen/CODE/PHP/index.php?open=login'
+            nxAppUrl('index.php?open=login')
         );
     }
 
@@ -129,7 +129,7 @@ try {
         throw new RuntimeException('Registration request not found.');
     }
 
-    if (!in_array((string)$requestData['request_status'], ['pending', 'resubmit'], true)) {
+    if (!in_array((string)$requestData['request_status'], ['validated', 'resubmit'], true)) {
         throw new RuntimeException('This request is already finalized and can no longer be rejected.');
     }
 
@@ -141,7 +141,7 @@ try {
              reviewed_by = ?,
              reviewed_at = ?
          WHERE id = ?
-           AND request_status IN ('pending', 'resubmit')"
+           AND request_status IN ('validated', 'resubmit')"
     );
     if (!$stmt) {
         throw new RuntimeException('Unable to prepare the rejection update.');
@@ -188,7 +188,7 @@ try {
         if (!$documentRemoved) {
             nxDocumentUploadLog('rejection.cleanup_failed', [
                 'user_id' => $adminId,
-                'role' => 'system_admin',
+                'role' => 'admin',
                 'request_id' => $requestId,
                 'slot' => $slot,
             ]);
@@ -212,7 +212,7 @@ try {
         } catch (Throwable $cleanupError) {
             nxDocumentUploadLog('rejection.reference_cleanup_failed', [
                 'user_id' => $adminId,
-                'role' => 'system_admin',
+                'role' => 'admin',
                 'request_id' => $requestId,
                 'slot' => $slot,
             ]);

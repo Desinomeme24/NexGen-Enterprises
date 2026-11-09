@@ -4,12 +4,12 @@ require_once("config.php");
 require_once __DIR__ . '/tenant_helper.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: /NexGen/CODE/PHP/index.php");
+    header('Location: ' . nxAppUrl('index.php'));
     exit();
 }
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'system_admin') {
-    header("Location: /NexGen/CODE/PHP/dashboard.php");
+if (!nxIsSuperAdminRole((string)($_SESSION['role'] ?? ''))) {
+    header('Location: ' . nxAppUrl('dashboard.php'));
     exit();
 }
 
@@ -144,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_
                 can_sales_analytics = ?,
                 can_accounts_receivable = ?
             WHERE id = ?
-              AND role <> 'system_admin'
+              AND role IN ('owner', 'employee')
         ");
         if (!$updateStmt) {
             throw new Exception('Failed to prepare selected user update: ' . $conn->error);
@@ -163,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_
                 continue;
             }
 
-            if ($user['role'] === 'system_admin') {
+            if (!in_array($user['role'], ['owner', 'employee'], true)) {
                 continue;
             }
 
@@ -243,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unloc
             throw new Exception('Invalid user ID.');
         }
 
-        $stmt = $conn->prepare("SELECT id, username, role FROM users WHERE id = ? AND role <> 'system_admin' LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, username, role FROM users WHERE id = ? AND role IN ('owner', 'employee') LIMIT 1");
         if (!$stmt) {
             throw new Exception('Failed to prepare user lookup: ' . $conn->error);
         }
@@ -264,7 +264,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unloc
                 locked_until = NULL,
                 last_failed_login_at = NULL
             WHERE id = ?
-              AND role <> 'system_admin'
+              AND role IN ('owner', 'employee')
         ");
         if (!$stmt) {
             throw new Exception('Failed to prepare unlock update: ' . $conn->error);
@@ -358,8 +358,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
             throw new Exception('User not found.');
         }
 
-        if ($currentUser['role'] === 'system_admin') {
-            throw new Exception('System Administrator accounts cannot be modified from Manage Users.');
+        if (!in_array($currentUser['role'], ['owner', 'employee'], true)) {
+            throw new Exception('Only owner and employee accounts can be modified from Manage Users.');
         }
 
         $stmt = $conn->prepare("SELECT id FROM users WHERE (username = ? OR email = ?) AND id <> ? LIMIT 1");
@@ -393,7 +393,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
                 can_sales_analytics = ?,
                 can_accounts_receivable = ?
             WHERE id = ?
-              AND role <> 'system_admin'
+              AND role IN ('owner', 'employee')
         ");
 
         if (!$stmt) {
@@ -493,7 +493,7 @@ $roles = [];
 $statusSet = ['inactive' => true];
 $statuses = [];
 
-$roleResult = $conn->query("SELECT DISTINCT role FROM users WHERE role IS NOT NULL AND role <> '' AND role <> 'system_admin' ORDER BY role ASC");
+$roleResult = $conn->query("SELECT DISTINCT role FROM users WHERE role IN ('owner', 'employee') ORDER BY role ASC");
 if ($roleResult) {
     while ($row = $roleResult->fetch_assoc()) {
         $roles[] = $row['role'];
@@ -521,7 +521,7 @@ foreach (array_keys($statusSet) as $status) {
     $statuses[] = $status;
 }
 
-$where = " WHERE u.role <> 'system_admin' ";
+$where = " WHERE u.role IN ('owner', 'employee') ";
 $params = [];
 $types = "";
 
@@ -589,12 +589,50 @@ $sql = "
         u.locked_until,
         u.business_id,
         be.business_name,
+        COALESCE(user_financials.gross_revenue, 0) AS gross_revenue,
+        COALESCE(user_financials.cost_of_goods_sold, 0) AS cost_of_goods_sold,
+        COALESCE(user_financials.gross_revenue, 0) - COALESCE(user_financials.cost_of_goods_sold, 0) AS net_profit,
         b.branch_name,
         be.business_code,
         b.branch_code
     FROM users u
     LEFT JOIN businesses b ON b.id = u.business_id
     LEFT JOIN business_entities be ON be.id = b.business_entity_id
+    LEFT JOIN (
+        SELECT account_businesses.user_id,
+               SUM(COALESCE(revenue.gross_revenue, 0)) AS gross_revenue,
+               SUM(COALESCE(costs.cost_of_goods_sold, 0)) AS cost_of_goods_sold
+        FROM (
+            SELECT uba.user_id, uba.business_entity_id
+            FROM user_business_assignments uba
+            WHERE uba.status = 'active'
+            UNION
+            SELECT u.id, b.business_entity_id
+            FROM users u
+            INNER JOIN businesses b ON b.id = u.business_id
+            WHERE u.role IN ('owner', 'employee')
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM user_business_assignments existing_uba
+                  WHERE existing_uba.user_id = u.id
+              )
+        ) account_businesses
+        LEFT JOIN (
+            SELECT b.business_entity_id, SUM(s.total_amount) AS gross_revenue
+            FROM businesses b
+            INNER JOIN sales s ON s.business_id = b.id
+            GROUP BY b.business_entity_id
+        ) revenue ON revenue.business_entity_id = account_businesses.business_entity_id
+        LEFT JOIN (
+            SELECT b.business_entity_id, SUM(p.cost_price * si.quantity) AS cost_of_goods_sold
+            FROM businesses b
+            INNER JOIN sales s ON s.business_id = b.id
+            INNER JOIN sale_items si ON si.sale_id = s.id
+            INNER JOIN products p ON p.id = si.product_id AND p.business_id = s.business_id
+            GROUP BY b.business_entity_id
+        ) costs ON costs.business_entity_id = account_businesses.business_entity_id
+        GROUP BY account_businesses.user_id
+    ) user_financials ON user_financials.user_id = u.id
     {$where}
     ORDER BY u.id DESC
 ";
@@ -610,6 +648,43 @@ if ($stmt) {
     }
     $stmt->close();
 }
+
+$businessEntitiesByUser = [];
+$businessEntitiesStmt = $conn->prepare(
+    "SELECT account_businesses.user_id,
+            be.id AS business_entity_id,
+            be.business_name,
+            be.permit_payment_status,
+            be.permit_unpaid_since
+     FROM (
+         SELECT uba.user_id, uba.business_entity_id
+         FROM user_business_assignments uba
+         WHERE uba.status = 'active'
+         UNION
+         SELECT u.id, b.business_entity_id
+         FROM users u
+         INNER JOIN businesses b ON b.id = u.business_id
+         WHERE u.role IN ('owner', 'employee')
+           AND NOT EXISTS (
+               SELECT 1
+               FROM user_business_assignments existing_uba
+               WHERE existing_uba.user_id = u.id
+           )
+     ) account_businesses
+     INNER JOIN business_entities be ON be.id = account_businesses.business_entity_id
+     ORDER BY be.business_name ASC, be.id ASC"
+);
+if (!$businessEntitiesStmt) {
+    error_log('NexGen Manage Users business permit query failed: ' . $conn->error);
+    http_response_code(503);
+    exit('Business permit records are temporarily unavailable.');
+}
+$businessEntitiesStmt->execute();
+$businessEntitiesResult = $businessEntitiesStmt->get_result();
+while ($businessEntity = $businessEntitiesResult->fetch_assoc()) {
+    $businessEntitiesByUser[(int)$businessEntity['user_id']][] = $businessEntity;
+}
+$businessEntitiesStmt->close();
 
 $editUser = null;
 if ($editId > 0) {
@@ -639,7 +714,7 @@ if ($editId > 0) {
         LEFT JOIN businesses b ON b.id = u.business_id
         LEFT JOIN business_entities be ON be.id = b.business_entity_id
         WHERE u.id = ?
-          AND u.role <> 'system_admin'
+          AND u.role IN ('owner', 'employee')
         LIMIT 1
     ");
     if ($stmt) {
@@ -657,7 +732,13 @@ if ($editId > 0) {
     }
 }
 
-function renderManageUsersTable(array $users, string $search, string $roleFilter, string $statusFilter): void
+function renderManageUsersTable(
+    array $users,
+    string $search,
+    string $roleFilter,
+    string $statusFilter,
+    array $businessEntitiesByUser
+): void
 {
     ?>
     <div id="manageUsersContainer">
@@ -667,10 +748,12 @@ function renderManageUsersTable(array $users, string $search, string $roleFilter
                         <col style="width: 200px;">
                         <col style="width: 110px;">
                         <col style="width: 240px;">
+                        <col style="width: 210px;">
                         <col style="width: 120px;">
                         <col style="width: 90px;">
                         <col style="width: 100px;">
                         <col style="width: 110px;">
+                        <col style="width: 180px;">
                         <col style="width: 220px;">
                         <col style="width: 100px;">
                     </colgroup>
@@ -679,10 +762,12 @@ function renderManageUsersTable(array $users, string $search, string $roleFilter
                             <th>USERNAME</th>
                             <th>ROLE</th>
                             <th>BUSINESS</th>
+                            <th>BUSINESS FINANCIALS</th>
                             <th>VERIFIED</th>
                             <th>FAILED</th>
                             <th>LOCK</th>
                             <th>STATUS</th>
+                            <th>BUSINESS PERMIT</th>
                             <th>MODULE ACCESS</th>
                             <th>ACTION</th>
                         </tr>
@@ -690,7 +775,7 @@ function renderManageUsersTable(array $users, string $search, string $roleFilter
                     <tbody>
                     <?php if (empty($users)): ?>
                         <tr>
-                            <td colspan="9">No user accounts found.</td>
+                            <td colspan="11">No user accounts found.</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($users as $user): ?>
@@ -698,6 +783,7 @@ function renderManageUsersTable(array $users, string $search, string $roleFilter
                             $isLocked = !empty($user['locked_until']) && strtotime((string)$user['locked_until']) > time();
                             $activityIndicator = getUserActivityIndicator($user);
                             $effectiveStatus = $activityIndicator['status'];
+                            $assignedBusinesses = $businessEntitiesByUser[(int)$user['id']] ?? [];
                             ?>
                             <tr>
                                 <td class="table-primary-username" data-label="Username"><?php echo e($user['username']); ?></td>
@@ -709,6 +795,10 @@ function renderManageUsersTable(array $users, string $search, string $roleFilter
                                     <?php else: ?>
                                         —
                                     <?php endif; ?>
+                                </td>
+                                <td class="table-financials" data-label="Business Finances">
+                                    <div><small>Gross revenue</small><strong>₱<?php echo number_format((float)$user['gross_revenue'], 2); ?></strong></div>
+                                    <div><small>Net profit</small><strong>₱<?php echo number_format((float)$user['net_profit'], 2); ?></strong></div>
                                 </td>
                                 <td class="table-verified" data-label="Verified">
                                     <span class="mini-badge <?php echo (int)$user['is_verified'] === 1 ? 'yes' : 'no'; ?>">
@@ -738,6 +828,43 @@ function renderManageUsersTable(array $users, string $search, string $roleFilter
                                         <?php endif; ?>
                                     </span>
                                 </td>
+                                <td class="table-permit" data-label="Business Permit">
+                                    <?php if ($assignedBusinesses): ?>
+                                        <?php foreach ($assignedBusinesses as $assignedBusiness): ?>
+                                            <?php
+                                            $businessEntityId = (int)$assignedBusiness['business_entity_id'];
+                                            $permitStatus = strtolower((string)($assignedBusiness['permit_payment_status'] ?? ''));
+                                            $permitUnpaidSince = trim((string)($assignedBusiness['permit_unpaid_since'] ?? ''));
+                                            $permitUnpaidTimestamp = $permitUnpaidSince !== '' ? strtotime($permitUnpaidSince) : false;
+                                            $permitDeadline = $permitUnpaidTimestamp === false
+                                                ? false
+                                                : $permitUnpaidTimestamp + (30 * 24 * 60 * 60);
+                                            $permitSuspended = $permitStatus !== 'paid'
+                                                && ($permitStatus !== 'unpaid' || $permitDeadline === false || $permitDeadline <= time());
+                                            ?>
+                                            <div class="permit-business-item">
+                                                <strong class="permit-business-name"><?php echo e($assignedBusiness['business_name']); ?></strong>
+                                                <span class="mini-badge <?php echo $permitSuspended ? 'no' : 'yes'; ?>">
+                                                    <?php echo $permitStatus === 'paid' ? 'Active · Paid' : ($permitSuspended ? 'Inactive · Suspended' : 'Active · Grace period'); ?>
+                                                </span>
+                                                <?php if ($permitStatus === 'unpaid' && $permitDeadline !== false && !$permitSuspended): ?>
+                                                    <small class="activity-status-note">Grace ends <?php echo e(date('M d, Y', $permitDeadline)); ?></small>
+                                                <?php endif; ?>
+                                                <form method="POST" action="<?php echo e(nxAppUrl('update_business_permit.php')); ?>" class="permit-status-form">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo e(generateCsrfToken('business_permit_' . $businessEntityId)); ?>">
+                                                    <input type="hidden" name="business_entity_id" value="<?php echo $businessEntityId; ?>">
+                                                    <select name="permit_payment_status" aria-label="Business permit payment status for <?php echo e($assignedBusiness['business_name']); ?>">
+                                                        <option value="paid" <?php echo $permitStatus === 'paid' ? 'selected' : ''; ?>>Paid</option>
+                                                        <option value="unpaid" <?php echo $permitStatus === 'unpaid' ? 'selected' : ''; ?>>Unpaid</option>
+                                                    </select>
+                                                    <button class="btn btn-silver" type="submit">Save</button>
+                                                </form>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        —
+                                    <?php endif; ?>
+                                </td>
                                 <td class="table-modules modules-cell" data-label="Module Access"><?php echo e(moduleAccessSummary($user)); ?></td>
                                 <td class="table-action action-cell" data-label="Action">
                                     <a class="btn btn-silver edit-user-btn" href="manage_users.php?<?php echo http_build_query([
@@ -761,7 +888,7 @@ if (
     !empty($_SERVER['HTTP_X_REQUESTED_WITH']) &&
     strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest'
 ) {
-    renderManageUsersTable($users, $search, $roleFilter, $statusFilter);
+    renderManageUsersTable($users, $search, $roleFilter, $statusFilter, $businessEntitiesByUser);
     exit();
 }
 
@@ -790,7 +917,7 @@ $csrfManageUsers = generateCsrfToken('manage_users_action');
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800;900&family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/NexGen/CODE/STYLE/admin_module.css?v=20260826-responsive">
+    <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/admin_module.css?v=20260826-responsive')); ?>">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         /* =========================
@@ -983,6 +1110,36 @@ $csrfManageUsers = generateCsrfToken('manage_users_action');
             font-weight: 700;
             line-height: 1.2;
             white-space: nowrap;
+        }
+
+        .permit-business-item {
+            display: grid;
+            justify-items: start;
+            gap: 5px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .permit-business-item:last-child {
+            border-bottom: 0;
+        }
+
+        .permit-business-name {
+            color: var(--text);
+            line-height: 1.3;
+            overflow-wrap: anywhere;
+        }
+
+        .permit-status-form {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 6px;
+            width: 100%;
+        }
+
+        .permit-status-form select {
+            width: 100%;
+            min-width: 0;
         }
 
         html[data-theme="light"] .mini-badge.yes {
@@ -1513,9 +1670,11 @@ $csrfManageUsers = generateCsrfToken('manage_users_action');
                 grid-template-areas:
                     "username"
                     "business"
+                    "financials"
                     "role"
                     "status"
                     "verified"
+                    "permit"
                     "edit";
                 column-gap: 12px;
                 row-gap: 6px;
@@ -1590,6 +1749,37 @@ $csrfManageUsers = generateCsrfToken('manage_users_action');
                 min-width: 0;
                 padding: 5px 10px;
                 font-size: 10.5px;
+            }
+
+            .manage-users-table-wrap[data-mobile-cards] td[data-label="Business Permit"] {
+                grid-area: permit;
+                justify-self: stretch;
+                padding-top: 8px;
+                border-top: 1px solid var(--line);
+            }
+
+            .manage-users-table-wrap[data-mobile-cards] td[data-label="Business Finances"] {
+                grid-area: financials;
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+                padding-top: 8px;
+                border-top: 1px solid var(--line);
+            }
+
+            .table-financials div {
+                display: grid;
+                gap: 2px;
+            }
+
+            .table-financials small {
+                color: var(--muted);
+                font-size: 11px;
+            }
+
+            .table-financials strong {
+                color: var(--text);
+                overflow-wrap: anywhere;
             }
 
             .manage-users-table-wrap[data-mobile-cards] td[data-label="Action"] {
@@ -1719,7 +1909,9 @@ $csrfManageUsers = generateCsrfToken('manage_users_action');
                 grid-template-areas:
                     "username status"
                     "business business"
+                    "financials financials"
                     "role verified"
+                    "permit permit"
                     "edit edit";
                 gap: 9px 12px;
                 align-items: center;
@@ -1794,6 +1986,36 @@ $csrfManageUsers = generateCsrfToken('manage_users_action');
                 display: block !important;
                 grid-area: verified;
                 justify-self: end;
+            }
+
+            .manage-users-table-wrap[data-mobile-cards] td[data-label="Business Permit"] {
+                display: block !important;
+                grid-area: permit;
+                min-width: 0;
+                padding-top: 9px;
+                border-top: 1px solid var(--line);
+                text-align: left;
+            }
+
+            .manage-users-table-wrap[data-mobile-cards] td[data-label="Business Finances"] {
+                display: grid !important;
+                grid-area: financials;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+                padding-top: 9px;
+                border-top: 1px solid var(--line);
+            }
+
+            .permit-status-form {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                gap: 7px;
+                margin-top: 7px;
+            }
+
+            .permit-status-form select {
+                min-width: 0;
+                width: 100%;
             }
 
             .manage-users-table-wrap[data-mobile-cards] td[data-label="Failed"],
@@ -1901,7 +2123,7 @@ $csrfManageUsers = generateCsrfToken('manage_users_action');
                     </select>
                 </form>
 
-                <?php renderManageUsersTable($users, $search, $roleFilter, $statusFilter); ?>
+                <?php renderManageUsersTable($users, $search, $roleFilter, $statusFilter, $businessEntitiesByUser); ?>
             </div>
         </section> 
     </main>
@@ -2098,7 +2320,7 @@ $csrfManageUsers = generateCsrfToken('manage_users_action');
     <i class="bi bi-arrow-up"></i>
 </button>
 
-<script src="/NexGen/CODE/JS/admin_module.js"></script>
+<script src="<?php echo e(nxCodeUrl('JS/admin_module.js')); ?>"></script>
 <script>
 function setModuleCheckboxState(disabled) {
     const ids = [

@@ -346,7 +346,7 @@ if (!function_exists('nxGetAccessibleWorkspaces')) {
         $userId = $userId ?? (int)($_SESSION['user_id'] ?? 0);
         $role = $role ?? (string)($_SESSION['role'] ?? '');
 
-        if ($userId <= 0 || $role === 'system_admin') {
+        if ($userId <= 0 || nxIsAdminRole($role)) {
             return [];
         }
 
@@ -449,7 +449,7 @@ if (!function_exists('nxInitializeUserWorkspace')) {
         $userId = (int)($_SESSION['user_id'] ?? 0);
         $role = (string)($_SESSION['role'] ?? '');
 
-        if ($userId <= 0 || $role === 'system_admin') {
+        if ($userId <= 0 || nxIsAdminRole($role)) {
             return [];
         }
 
@@ -663,16 +663,60 @@ if (!function_exists('nxSeedDefaultInventoryCategories')) {
     }
 }
 
+if (!function_exists('nxGetBusinessPermitAccess')) {
+    function nxGetBusinessPermitAccess(mysqli $conn, int $businessId): array
+    {
+        if ($businessId <= 0) {
+            return ['found' => false, 'status' => '', 'unpaid_since' => null, 'grace_expired' => false];
+        }
+
+        $stmt = $conn->prepare(
+            "SELECT be.permit_payment_status, be.permit_unpaid_since
+             FROM businesses b
+             INNER JOIN business_entities be ON be.id = b.business_entity_id
+             WHERE b.id = ?
+             LIMIT 1"
+        );
+        if (!$stmt) {
+            throw new RuntimeException('Business permit access check could not be prepared: ' . $conn->error);
+        }
+        $stmt->bind_param('i', $businessId);
+        if (!$stmt->execute()) {
+            $error = $stmt->error;
+            $stmt->close();
+            throw new RuntimeException('Business permit access check failed: ' . $error);
+        }
+        $permit = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if (!$permit) {
+            return ['found' => false, 'status' => '', 'unpaid_since' => null, 'grace_expired' => false];
+        }
+
+        $status = strtolower(trim((string)($permit['permit_payment_status'] ?? '')));
+        $unpaidSince = trim((string)($permit['permit_unpaid_since'] ?? ''));
+        $unpaidTimestamp = $unpaidSince !== '' ? strtotime($unpaidSince) : false;
+        $graceExpired = $status !== 'paid'
+            && ($status !== 'unpaid' || $unpaidTimestamp === false || $unpaidTimestamp + (30 * 24 * 60 * 60) <= time());
+
+        return [
+            'found' => true,
+            'status' => $status,
+            'unpaid_since' => $unpaidSince !== '' ? $unpaidSince : null,
+            'grace_expired' => $graceExpired,
+        ];
+    }
+}
+
 if (!function_exists('nxRequireBusinessId')) {
     function nxRequireBusinessId(mysqli $conn): int
     {
         if (empty($_SESSION['user_id'])) {
-            header('Location: /NexGen/CODE/PHP/index.php');
+            header('Location: ' . nxAppUrl('index.php'));
             exit();
         }
 
         $role = (string)($_SESSION['role'] ?? '');
-        if ($role === 'system_admin') {
+        if (nxIsAdminRole($role)) {
             return 0;
         }
 
@@ -681,7 +725,27 @@ if (!function_exists('nxRequireBusinessId')) {
 
         if ($businessId <= 0) {
             $_SESSION['error'] = 'Your account is not connected to an active SME business branch. Please contact the administrator.';
-            header('Location: /NexGen/CODE/PHP/dashboard.php');
+            header('Location: ' . nxAppUrl('dashboard.php'));
+            exit();
+        }
+
+        try {
+            $permit = nxGetBusinessPermitAccess($conn, $businessId);
+        } catch (Throwable $error) {
+            error_log('NexGen business permit access check failed: ' . $error->getMessage());
+            http_response_code(503);
+            exit('Business access could not be verified. Please try again later.');
+        }
+
+        if (empty($permit['found'])) {
+            http_response_code(403);
+            exit('The active business permit record could not be verified.');
+        }
+
+        if (!empty($permit['grace_expired'])) {
+            $_SESSION['business_permit_access_blocked'] = true;
+            $_SESSION['business_permit_notice'] = 'Business access is temporarily suspended because the permit has remained unpaid beyond the 30-day grace period. Contact the business administrator after payment.';
+            header('Location: ' . nxAppUrl('dashboard.php'));
             exit();
         }
 

@@ -10,10 +10,11 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-if (($_SESSION['role'] ?? '') !== 'system_admin') {
+if (!nxIsAdminRole((string)($_SESSION['role'] ?? ''))) {
     header('Location: ' . nxAppUrl('dashboard.php'));
     exit();
 }
+$isSuperAdmin = nxIsSuperAdminRole((string)($_SESSION['role'] ?? ''));
 
 if (!function_exists('e')) {
     function e($value): string
@@ -55,11 +56,12 @@ $adminName = (string)($_SESSION['full_name'] ?? 'System Administrator');
 /* -------------------------------------------------------------------------
    CURRENT ADMIN MODULE METRICS
    ------------------------------------------------------------------------- */
+$accountQueueStatus = $isSuperAdmin ? 'pending' : 'validated';
 $pendingAccountRequests = adminDashboardCount(
     $conn,
     "SELECT COUNT(*) AS total
      FROM registration_requests
-     WHERE request_status = 'pending'"
+     WHERE request_status = '{$accountQueueStatus}'"
 );
 
 $resubmitAccountRequests = adminDashboardCount(
@@ -71,7 +73,7 @@ $resubmitAccountRequests = adminDashboardCount(
 
 $workspaceRequestsReady = false;
 try {
-    $workspaceRequestsReady = nxWorkspaceRequestSchemaReady($conn);
+    $workspaceRequestsReady = !$isSuperAdmin && nxWorkspaceRequestSchemaReady($conn);
 } catch (Throwable $e) {
     error_log('NexGen workspace-request dashboard check failed: ' . $e->getMessage());
 }
@@ -85,7 +87,9 @@ $pendingWorkspaceRequests = $workspaceRequestsReady
     )
     : 0;
 
-$pendingReviewTotal = $pendingAccountRequests + $pendingWorkspaceRequests;
+$pendingReviewTotal = $pendingAccountRequests
+    + $pendingWorkspaceRequests
+    + ($isSuperAdmin ? 0 : $resubmitAccountRequests);
 
 $managedUsers = adminDashboardCount(
     $conn,
@@ -119,14 +123,22 @@ $activeBusinesses = adminDashboardCount(
     $conn,
     "SELECT COUNT(*) AS total
      FROM business_entities
-     WHERE status = 'active'"
+     WHERE status = 'active'
+       AND (permit_payment_status = 'paid'
+            OR (permit_payment_status = 'unpaid'
+                AND permit_unpaid_since > DATE_SUB(NOW(), INTERVAL 30 DAY)))"
 );
 
 $activeBranches = adminDashboardCount(
     $conn,
     "SELECT COUNT(*) AS total
-     FROM businesses
-     WHERE branch_status = 'active'"
+     FROM businesses b
+     INNER JOIN business_entities be ON be.id = b.business_entity_id
+     WHERE b.branch_status = 'active'
+       AND be.status = 'active'
+       AND (be.permit_payment_status = 'paid'
+            OR (be.permit_payment_status = 'unpaid'
+                AND be.permit_unpaid_since > DATE_SUB(NOW(), INTERVAL 30 DAY)))"
 );
 
 $adminLogEntries = adminDashboardCount(
@@ -140,6 +152,60 @@ $activeUserRate = $managedUsers > 0
 $branchesPerBusiness = $activeBusinesses > 0
     ? number_format($activeBranches / $activeBusinesses, 1)
     : '0.0';
+
+$businessFinancials = [];
+if ($isSuperAdmin) {
+    $financialResult = $conn->query(
+        "SELECT be.id AS business_entity_id,
+                be.business_name,
+                COALESCE(owners.owner_names, 'No owner assigned') AS owner_names,
+                COALESCE(revenue.gross_revenue, 0) AS gross_revenue,
+                COALESCE(costs.cost_of_goods_sold, 0) AS cost_of_goods_sold,
+                COALESCE(revenue.gross_revenue, 0) - COALESCE(costs.cost_of_goods_sold, 0) AS net_profit
+         FROM business_entities be
+         LEFT JOIN (
+             SELECT business_owners.business_entity_id,
+                    GROUP_CONCAT(DISTINCT u.full_name ORDER BY u.full_name SEPARATOR ', ') AS owner_names
+             FROM (
+                 SELECT uba.user_id, uba.business_entity_id
+                 FROM user_business_assignments uba
+                 WHERE uba.status = 'active'
+                 UNION
+                 SELECT u.id, b.business_entity_id
+                 FROM users u
+                 INNER JOIN businesses b ON b.id = u.business_id
+                 WHERE u.role = 'owner'
+                   AND NOT EXISTS (
+                       SELECT 1
+                       FROM user_business_assignments existing_uba
+                       WHERE existing_uba.user_id = u.id
+                   )
+             ) business_owners
+             INNER JOIN users u ON u.id = business_owners.user_id AND u.role = 'owner'
+             GROUP BY business_owners.business_entity_id
+         ) owners ON owners.business_entity_id = be.id
+         LEFT JOIN (
+             SELECT b.business_entity_id, SUM(s.total_amount) AS gross_revenue
+             FROM businesses b
+             INNER JOIN sales s ON s.business_id = b.id
+             GROUP BY b.business_entity_id
+         ) revenue ON revenue.business_entity_id = be.id
+         LEFT JOIN (
+             SELECT b.business_entity_id, SUM(p.cost_price * si.quantity) AS cost_of_goods_sold
+             FROM businesses b
+             INNER JOIN sales s ON s.business_id = b.id
+             INNER JOIN sale_items si ON si.sale_id = s.id
+             INNER JOIN products p ON p.id = si.product_id AND p.business_id = s.business_id
+             GROUP BY b.business_entity_id
+         ) costs ON costs.business_entity_id = be.id
+         ORDER BY be.business_name ASC, be.id ASC"
+    );
+    if ($financialResult instanceof mysqli_result) {
+        while ($row = $financialResult->fetch_assoc()) {
+            $businessFinancials[] = $row;
+        }
+    }
+}
 
 $currentHour = (int)date('G');
 $greeting = $currentHour < 12
@@ -165,12 +231,13 @@ if ($pendingReviewTotal === 0) {
 $reviewQueue = [];
 
 try {
+    $accountQueueStatuses = $isSuperAdmin ? "'pending'" : "'validated', 'resubmit'";
     $accountResult = $conn->query(
         "SELECT id, request_code, full_name, username, requested_role,
                 business_name, business_type, business_type_other, business_code, branch_code,
                 possible_duplicate, created_at
          FROM registration_requests
-         WHERE request_status = 'pending'
+         WHERE request_status IN ({$accountQueueStatuses})
          ORDER BY created_at DESC
          LIMIT 10"
     );
@@ -285,7 +352,7 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800;900&family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/NexGen/CODE/STYLE/admin_module.css">
+    <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/admin_module.css')); ?>">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         .dashboard-heading {
@@ -352,6 +419,16 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
             grid-template-rows: repeat(2, minmax(200px, auto));
             gap: 16px;
             margin: 4px 0 24px;
+        }
+
+        .dashboard-bento-grid.admin-review-only {
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-rows: auto;
+        }
+
+        .admin-review-only .dashboard-review-spotlight {
+            grid-row: auto;
+            min-height: 0;
         }
 
         .dashboard-bento-card {
@@ -1350,7 +1427,7 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
                 <div class="page-title">
                     <span class="dashboard-eyebrow">
                         <span class="dashboard-live-dot" aria-hidden="true"></span>
-                        Live system overview
+                        <?php echo $isSuperAdmin ? 'Live system overview' : 'San Andres review overview'; ?>
                     </span>
                     <h1><?php echo e($greeting); ?>, <?php echo e($adminName); ?></h1>
                 </div>
@@ -1361,7 +1438,7 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
             </div>
         </div>
 
-        <section class="dashboard-bento-grid" aria-label="System overview">
+        <section class="dashboard-bento-grid<?php echo $isSuperAdmin ? '' : ' admin-review-only'; ?>" aria-label="System overview">
             <article class="dashboard-bento-card dashboard-review-spotlight">
                 <div class="dashboard-card-header">
                     <span class="dashboard-card-label">Review workload</span>
@@ -1372,11 +1449,13 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
                 </div>
 
                 <strong class="dashboard-review-number"><?php echo $pendingReviewTotal; ?></strong>
-                <h2 class="dashboard-review-title">Awaiting administrator review</h2>
+                <h2 class="dashboard-review-title">
+                    <?php echo $isSuperAdmin ? 'Awaiting BPLO validation' : 'Awaiting San Andres review'; ?>
+                </h2>
                 <div class="dashboard-review-breakdown" aria-label="Review request breakdown">
                     <div class="dashboard-breakdown-item">
                         <strong><?php echo $pendingAccountRequests; ?></strong>
-                        <span>Account requests</span>
+                        <span><?php echo $isSuperAdmin ? 'For validation' : 'Validated accounts'; ?></span>
                     </div>
                     <div class="dashboard-breakdown-item">
                         <strong><?php echo $pendingWorkspaceRequests; ?></strong>
@@ -1384,7 +1463,7 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
                     </div>
                     <div class="dashboard-breakdown-item">
                         <strong><?php echo $resubmitAccountRequests; ?></strong>
-                        <span>Awaiting resubmission</span>
+                        <span>Resubmission</span>
                     </div>
                 </div>
 
@@ -1394,6 +1473,7 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
                 </a>
             </article>
 
+            <?php if ($isSuperAdmin): ?>
             <article class="dashboard-bento-card dashboard-activity-card">
                 <div class="dashboard-card-header">
                     <span class="dashboard-card-label">7-day activity</span>
@@ -1471,14 +1551,58 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
                     </div>
                 </div>
             </article>
+            <?php endif; ?>
         </section>
+
+        <?php if ($isSuperAdmin): ?>
+        <section class="panel dashboard-section" aria-labelledby="businessFinancialsHeading">
+            <div class="panel-header">
+                <div>
+                    <h2 id="businessFinancialsHeading">Business Revenue &amp; Net Profit</h2>
+                    <p style="margin:5px 0 0; color:var(--muted, #aab4cf); font-size:0.84rem;">
+                        All recorded sales, less cost of goods sold; operating expenses are excluded.
+                    </p>
+                </div>
+            </div>
+            <div class="panel-body">
+                <?php if (empty($businessFinancials)): ?>
+                    <div class="dashboard-empty-state">No business financial records are available yet.</div>
+                <?php else: ?>
+                    <div class="table-wrap dashboard-requests-table-wrap" data-mobile-cards>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Business</th>
+                                    <th>Owner(s)</th>
+                                    <th>Gross Revenue</th>
+                                    <th>Net Profit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($businessFinancials as $businessFinancial): ?>
+                                    <tr>
+                                        <td data-label="Business"><?php echo e($businessFinancial['business_name']); ?></td>
+                                        <td data-label="Owner(s)"><?php echo e($businessFinancial['owner_names']); ?></td>
+                                        <td data-label="Gross Revenue">₱<?php echo number_format((float)$businessFinancial['gross_revenue'], 2); ?></td>
+                                        <td data-label="Net Profit">₱<?php echo number_format((float)$businessFinancial['net_profit'], 2); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </section>
+        <?php endif; ?>
 
         <section class="panel dashboard-section" id="reviewQueue">
             <div class="panel-header">
                 <div>
                     <h2>Review Queue</h2>
                     <p style="margin:5px 0 0; color:var(--muted, #aab4cf); font-size:0.84rem;">
-                        The latest account and workspace requests requiring a decision, newest first.
+                        <?php echo $isSuperAdmin
+                            ? 'The newest SME registration requests awaiting BPLO validation.'
+                            : 'The newest validated registrations and workspace requests awaiting a decision.'; ?>
                     </p>
                 </div>
                 <a class="btn btn-gold" href="pending_requests.php">
@@ -1586,7 +1710,7 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
     </div>
 </div>
 
-<script src="/NexGen/CODE/JS/admin_module.js"></script>
+<script src="<?php echo e(nxCodeUrl('JS/admin_module.js')); ?>"></script>
 <script>
     /* Keep request details inside the dashboard, matching Pending Requests. */
     document.addEventListener('DOMContentLoaded', function () {
@@ -1689,7 +1813,7 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
         let inactivityTimer = null;
 
         function triggerTimeoutLogout() {
-            window.location.href = '/NexGen/CODE/PHP/logout.php?timeout=1';
+            window.location.href = <?php echo json_encode(nxAppUrl('logout.php?timeout=1')); ?>;
         }
 
         function resetInactivityTimer() {

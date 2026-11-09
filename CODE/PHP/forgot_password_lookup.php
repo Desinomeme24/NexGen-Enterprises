@@ -75,7 +75,7 @@ unset(
 */
 
 $portalRoleFilter = $fpPortal === 'admin'
-    ? "u.role = 'system_admin'"
+    ? "u.role IN ('system_admin', 'super_admin', 'admin')"
     : "u.role IN ('owner', 'employee')";
 
 $stmt = $conn->prepare(

@@ -4,12 +4,12 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/tenant_helper.php';
 
 if (empty($_SESSION['user_id'])) {
-    header('Location: /NexGen/CODE/PHP/index.php');
+    header('Location: ' . nxAppUrl('index.php'));
     exit();
 }
 
-if (($_SESSION['role'] ?? '') !== 'system_admin') {
-    header('Location: /NexGen/CODE/PHP/dashboard.php');
+if (($_SESSION['role'] ?? '') !== 'admin') {
+    header('Location: ' . nxAppUrl('dashboard.php'));
     exit();
 }
 
@@ -105,7 +105,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
             } catch (e) {}
         })();
     </script>
-    <link rel="stylesheet" href="/NexGen/CODE/STYLE/admin_module.css">
+    <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/admin_module.css')); ?>">
     <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/document_preview_modal.css')); ?>">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
@@ -386,7 +386,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
     </div>
 </div>
 
-<script src="/NexGen/CODE/JS/admin_module.js"></script>
+<script src="<?php echo e(nxCodeUrl('JS/admin_module.js')); ?>"></script>
 <script>
 <?php if ($isEmbeddedView): ?>
 (function() {

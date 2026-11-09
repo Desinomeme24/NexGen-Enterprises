@@ -61,9 +61,9 @@ if (isset($_SESSION['success'])) {
 
 $profileImage = nxProfileImageUrl($user['profile_image'] ?? null);
 
-$backLink = "/NexGen/CODE/PHP/dashboard.php";
-if (isset($_SESSION['role']) && $_SESSION['role'] === 'system_admin') {
-    $backLink = "/NexGen/CODE/PHP/admin_dashboard.php";
+$backLink = nxAppUrl('dashboard.php');
+if (nxIsAdminRole((string)($_SESSION['role'] ?? ''))) {
+    $backLink = nxAppUrl('admin_dashboard.php');
 }
 
 /* SECURITY: Generate CSRF tokens for settings forms */
@@ -181,10 +181,10 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
 
         <div class="settings-sidebar-footer">
             <div class="legal-links">
-                <a href="/NexGen/CODE/PHP/privacy_policy.php" class="back-link">
+                <a href="<?php echo e(nxAppUrl('privacy_policy.php')); ?>" class="back-link">
                     <i class="bi bi-file-earmark-text"></i> Privacy Policy
                 </a>
-                <a href="/NexGen/CODE/PHP/privacy_policy.php#cookie-notice" class="back-link">
+                <a href="<?php echo e(nxAppUrl('privacy_policy.php#cookie-notice')); ?>" class="back-link">
                     <i class="bi bi-cookie"></i> Cookie Notice
                 </a>
             </div>
@@ -260,7 +260,7 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
                 </div>
 
                 <?php if (count($workspaces) > 1): ?>
-                    <form action="/NexGen/CODE/PHP/workspace_action.php" method="POST" class="account-form workspace-form-card" id="workspaceSwitchForm">
+                    <form action="<?php echo e(nxAppUrl('workspace_action.php')); ?>" method="POST" class="account-form workspace-form-card" id="workspaceSwitchForm">
                         <input type="hidden" name="csrf_token" value="<?php echo e($workspaceCsrfToken); ?>">
                         <input type="hidden" name="action" value="switch_workspace">
                         <input type="hidden" name="return_to" value="settings.php">
@@ -313,7 +313,7 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
                             <span class="workspace-request-status"><i class="bi bi-clock-history"></i> Pending</span>
                         </div>
                     <?php else: ?>
-                    <form action="/NexGen/CODE/PHP/workspace_action.php" method="POST" enctype="multipart/form-data" class="account-form workspace-form-card" id="addBusinessForm">
+                    <form action="<?php echo e(nxAppUrl('workspace_action.php')); ?>" method="POST" enctype="multipart/form-data" class="account-form workspace-form-card" id="addBusinessForm">
                         <input type="hidden" name="csrf_token" value="<?php echo e($workspaceCsrfToken); ?>">
                         <input type="hidden" name="action" value="add_business">
                         <input type="hidden" name="return_to" value="settings.php">
@@ -359,7 +359,7 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
                         <div class="form-actions-left"><button type="submit" class="btn btn-save">Submit Business Request</button></div>
                     </form>
 
-                    <form action="/NexGen/CODE/PHP/workspace_action.php" method="POST" enctype="multipart/form-data" class="account-form workspace-form-card" id="addBranchForm">
+                    <form action="<?php echo e(nxAppUrl('workspace_action.php')); ?>" method="POST" enctype="multipart/form-data" class="account-form workspace-form-card" id="addBranchForm">
                         <input type="hidden" name="csrf_token" value="<?php echo e($workspaceCsrfToken); ?>">
                         <input type="hidden" name="action" value="add_branch">
                         <input type="hidden" name="return_to" value="settings.php">
@@ -544,6 +544,6 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
     </main>
 </div>
 
-<script src="/NexGen/CODE/JS/settings.js"></script>
+<script src="<?php echo e(nxCodeUrl('JS/settings.js')); ?>"></script>
 </body>
 </html>

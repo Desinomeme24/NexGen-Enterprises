@@ -17,7 +17,7 @@ function nxResubmitRequestRespond(
     string $message,
     int $requestId = 0,
     int $httpStatus = 200,
-    string $redirect = '/NexGen/CODE/PHP/pending_requests.php'
+    string $redirect = ''
 ): void {
     if (nxResubmitRequestWantsJson()) {
         http_response_code($httpStatus);
@@ -37,7 +37,7 @@ function nxResubmitRequestRespond(
         'type' => $success ? 'notice-success' : 'notice-error',
         'message' => $message,
     ];
-    header('Location: ' . $redirect);
+    header('Location: ' . ($redirect !== '' ? $redirect : nxAppUrl('pending_requests.php')));
     exit;
 }
 
@@ -76,7 +76,7 @@ function nxResubmitDeleteDocument(string $reference, string $slot, int $adminId,
     } catch (Throwable $error) {
         nxDocumentUploadLog('document.cleanup_failed', [
             'user_id' => $adminId,
-            'role' => 'system_admin',
+            'role' => 'admin',
             'request_id' => $requestId,
             'slot' => $slot,
         ]);
@@ -85,13 +85,13 @@ function nxResubmitDeleteDocument(string $reference, string $slot, int $adminId,
     }
 }
 
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'system_admin') {
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
     nxResubmitRequestRespond(
         false,
         'Your administrator session is no longer valid. Please log in again.',
         0,
         401,
-        '/NexGen/CODE/PHP/index.php?open=login'
+        nxAppUrl('index.php?open=login')
     );
 }
 
@@ -161,7 +161,7 @@ if (!nxResubmitLengthBetween($address, 5, 500) || nxResubmitHasControlCharacters
 $adminStmt = $conn->prepare(
     "SELECT id
      FROM users
-     WHERE id = ? AND role = 'system_admin' AND account_status = 'active'
+     WHERE id = ? AND role = 'admin' AND account_status = 'active'
      LIMIT 1"
 );
 if (!$adminStmt) {
@@ -177,7 +177,7 @@ if (!$adminIsActive) {
         'Your administrator account is no longer active.',
         $requestId,
         403,
-        '/NexGen/CODE/PHP/index.php?open=login'
+        nxAppUrl('index.php?open=login')
     );
 }
 
@@ -194,7 +194,7 @@ try {
     $requestLookup = $conn->prepare(
         "SELECT requested_role, valid_id_path, business_permit_path
          FROM registration_requests
-         WHERE id = ? AND request_status IN ('pending', 'resubmit')
+         WHERE id = ? AND request_status IN ('validated', 'resubmit')
          LIMIT 1"
     );
     if (!$requestLookup) {
@@ -264,14 +264,14 @@ try {
     if ($replacementUpload !== null) {
         $stagedValidId = nxStageSensitiveDocument($replacementUpload, 'valid_id', [
             'user_id' => $adminId,
-            'role' => 'system_admin',
+            'role' => 'admin',
             'request_id' => $requestId,
         ]);
     }
     if ($replacementPermitUpload !== null) {
         $stagedBusinessPermit = nxStageSensitiveDocument($replacementPermitUpload, 'business_permit', [
             'user_id' => $adminId,
-            'role' => 'system_admin',
+            'role' => 'admin',
             'request_id' => $requestId,
         ]);
     }
@@ -286,7 +286,7 @@ try {
 } catch (NxDocumentUploadUnavailable $uploadError) {
     nxDocumentUploadLog('upload.unavailable', [
         'user_id' => $adminId,
-        'role' => 'system_admin',
+        'role' => 'admin',
         'request_id' => $requestId,
         'slot' => 'admin_resubmission',
     ]);
@@ -302,7 +302,7 @@ try {
 } catch (NxDocumentUploadRejected $uploadError) {
     nxDocumentUploadLog('upload.rejected', [
         'user_id' => $adminId,
-        'role' => 'system_admin',
+        'role' => 'admin',
         'request_id' => $requestId,
         'slot' => 'admin_resubmission',
     ]);
@@ -318,7 +318,7 @@ try {
 } catch (Throwable $uploadError) {
     nxDocumentUploadLog('upload.processing_failed', [
         'user_id' => $adminId,
-        'role' => 'system_admin',
+        'role' => 'admin',
         'request_id' => $requestId,
         'slot' => 'admin_resubmission',
     ]);
@@ -340,7 +340,7 @@ try {
     $adminStmt = $conn->prepare(
         "SELECT id
          FROM users
-         WHERE id = ? AND role = 'system_admin' AND account_status = 'active'
+         WHERE id = ? AND role = 'admin' AND account_status = 'active'
          LIMIT 1"
     );
     if (!$adminStmt) {
@@ -357,7 +357,7 @@ try {
             'Your administrator account is no longer active.',
             $requestId,
             403,
-            '/NexGen/CODE/PHP/index.php?open=login'
+            nxAppUrl('index.php?open=login')
         );
     }
 
@@ -382,8 +382,8 @@ try {
     }
 
     $currentStatus = (string)$request['request_status'];
-    if (!in_array($currentStatus, ['pending', 'resubmit'], true)) {
-        throw new RuntimeException('Only pending or resubmission requests can be corrected.');
+    if (!in_array($currentStatus, ['validated', 'resubmit'], true)) {
+        throw new RuntimeException('Only BPLO-validated or resubmission requests can be corrected.');
     }
 
     $role = (string)$request['requested_role'];
@@ -410,7 +410,7 @@ try {
         "SELECT id
          FROM registration_requests
          WHERE id <> ?
-           AND request_status IN ('pending', 'resubmit')
+           AND request_status IN ('pending', 'validated', 'resubmit')
            AND (username = ? OR email = ?)
          LIMIT 1"
     );
@@ -609,7 +609,7 @@ try {
              reviewed_by = ?,
              reviewed_at = ?
          WHERE id = ?
-           AND request_status IN ('pending', 'resubmit')"
+           AND request_status IN ('validated', 'resubmit')"
     );
     if (!$stmt) {
         throw new RuntimeException('Unable to prepare the corrected request update.');
@@ -672,7 +672,7 @@ try {
     ) {
         nxDocumentUploadLog('replacement.cleanup_failed', [
             'user_id' => $adminId,
-            'role' => 'system_admin',
+            'role' => 'admin',
             'request_id' => $requestId,
             'slot' => 'valid_id',
         ]);
@@ -684,7 +684,7 @@ try {
     ) {
         nxDocumentUploadLog('replacement.cleanup_failed', [
             'user_id' => $adminId,
-            'role' => 'system_admin',
+            'role' => 'admin',
             'request_id' => $requestId,
             'slot' => 'business_permit',
         ]);
@@ -696,7 +696,7 @@ try {
         if ($newReference !== null) {
             nxDocumentUploadLog('upload.stored', [
                 'user_id' => $adminId,
-                'role' => 'system_admin',
+                'role' => 'admin',
                 'request_id' => $requestId,
                 'slot' => $slot,
             ]);
@@ -726,7 +726,7 @@ try {
         'The resubmission update could not be completed. Please try again.',
         $requestId,
         422,
-        '/NexGen/CODE/PHP/view_request.php?id=' . $requestId
+        nxAppUrl('view_request.php') . '?id=' . $requestId
     );
 }
 

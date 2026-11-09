@@ -10,15 +10,18 @@ if (!function_exists('e')) {
 }
 
 $profileImage  = nxProfileImageUrl($_SESSION['profile_image'] ?? null);
-$adminFullName = $_SESSION['full_name'] ?? 'System Administrator';
+$adminRole = (string)($_SESSION['role'] ?? '');
+$isSuperAdmin = nxIsSuperAdminRole($adminRole);
+$adminFullName = $_SESSION['full_name'] ?? ($isSuperAdmin ? 'BPLO Super Admin' : 'San Andres Admin');
 $currentPage   = basename($_SERVER['PHP_SELF']);
 $pendingRequestCount = 0;
 
 if (isset($conn) && $conn instanceof mysqli) {
+    $accountQueueStatus = $isSuperAdmin ? 'pending' : 'validated';
     $accountCountResult = $conn->query(
         "SELECT COUNT(*) AS total
          FROM registration_requests
-         WHERE request_status IN ('pending', 'resubmit')"
+         WHERE request_status = '{$accountQueueStatus}'" . ($isSuperAdmin ? '' : " OR request_status = 'resubmit'")
     );
     if ($accountCountResult instanceof mysqli_result) {
         $pendingRequestCount += (int)($accountCountResult->fetch_assoc()['total'] ?? 0);
@@ -32,7 +35,7 @@ if (isset($conn) && $conn instanceof mysqli) {
     $workspaceTableExists = $workspaceTableResult instanceof mysqli_result
         && (int)($workspaceTableResult->fetch_assoc()['total'] ?? 0) === 1;
 
-    if ($workspaceTableExists) {
+    if ($workspaceTableExists && !$isSuperAdmin) {
         $workspaceCountResult = $conn->query(
             "SELECT COUNT(*) AS total
              FROM workspace_requests
@@ -71,14 +74,14 @@ $pendingPageActive = in_array(
             </span>
             <span class="brand-meta">
                 <span class="admin-profile-name"><?php echo e($adminFullName); ?></span>
-                <span class="admin-profile-role">System Administrator</span>
+                <span class="admin-profile-role"><?php echo $isSuperAdmin ? 'BPLO Super Admin' : 'San Andres Admin'; ?></span>
             </span>
             <i class="bi bi-chevron-down admin-profile-chevron" aria-hidden="true"></i>
         </button>
 
         <div class="admin-profile-dropdown" id="adminProfileDropdown" role="menu" aria-hidden="true">
             <a
-                href="/NexGen/CODE/PHP/settings.php"
+                href="<?php echo e(nxAppUrl('settings.php')); ?>"
                 class="admin-profile-action <?php echo $currentPage === 'settings.php' ? 'active' : ''; ?>"
                 role="menuitem"
             >
@@ -103,8 +106,11 @@ $pendingPageActive = in_array(
                     </span>
                 <?php endif; ?>
             </a>
-            <a href="manage_users.php" class="<?php echo $currentPage === 'manage_users.php' ? 'active' : ''; ?>"><i class="bi bi-people"></i><span>Manage Users</span></a>
-            <a href="accounts_masterlist.php" class="<?php echo $currentPage === 'accounts_masterlist.php' ? 'active' : ''; ?>"><i class="bi bi-list-ul"></i><span>Accounts Masterlist</span></a>
+            <?php if ($isSuperAdmin): ?>
+                <a href="manage_users.php" class="<?php echo $currentPage === 'manage_users.php' ? 'active' : ''; ?>"><i class="bi bi-people"></i><span>Manage Users</span></a>
+            <?php else: ?>
+                <a href="accounts_masterlist.php" class="<?php echo $currentPage === 'accounts_masterlist.php' ? 'active' : ''; ?>"><i class="bi bi-list-ul"></i><span>Accounts Masterlist</span></a>
+            <?php endif; ?>
             <a href="admin_logs.php" class="<?php echo $currentPage === 'admin_logs.php' ? 'active' : ''; ?>"><i class="bi bi-file-earmark-text"></i><span>Admin Logs</span></a>
         </div>
     </nav>
@@ -118,7 +124,7 @@ $pendingPageActive = in_array(
 
         <div class="logout-confirm-actions">
             <button type="button" class="logout-btn-cancel" onclick="closeLogoutModal()">Cancel</button>
-            <form action="/NexGen/CODE/PHP/logout.php" method="POST" style="margin:0;">
+            <form action="<?php echo e(nxAppUrl('logout.php')); ?>" method="POST" style="margin:0;">
                 <input type="hidden" name="csrf_token" value="<?php echo e(generateCsrfToken('logout_form')); ?>">
                 <button type="submit" class="logout-btn-confirm">Log Out</button>
             </form>

@@ -6,7 +6,7 @@ function nxDocumentDeliveryFail(int $status, int $adminId = 0, int $requestId = 
 {
     nxDocumentUploadLog('document.access_denied', [
         'user_id' => $adminId,
-        'role' => $adminId > 0 ? 'system_admin' : 'unauthenticated',
+        'role' => $adminId > 0 ? (string)($_SESSION['role'] ?? 'admin') : 'unauthenticated',
         'request_id' => $requestId,
         'slot' => $slot,
     ]);
@@ -17,7 +17,7 @@ function nxDocumentDeliveryFail(int $status, int $adminId = 0, int $requestId = 
 }
 
 $adminId = (int)($_SESSION['user_id'] ?? 0);
-if ($adminId <= 0 || ($_SESSION['role'] ?? '') !== 'system_admin') {
+if ($adminId <= 0 || !nxIsAdminRole((string)($_SESSION['role'] ?? ''))) {
     nxDocumentDeliveryFail(403, $adminId);
 }
 
@@ -39,12 +39,16 @@ if (
 ) {
     nxDocumentDeliveryFail(404, $adminId, is_int($requestId) ? $requestId : 0, $slot);
 }
+$isSuperAdmin = nxIsSuperAdminRole((string)$_SESSION['role']);
+if ($source === 'workspace' && $isSuperAdmin) {
+    nxDocumentDeliveryFail(403, $adminId, $requestId, $slot);
+}
 
 try {
     $adminStmt = $conn->prepare(
         "SELECT id
          FROM users
-         WHERE id = ? AND role = 'system_admin' AND account_status = 'active'
+         WHERE id = ? AND role IN ('system_admin', 'super_admin', 'admin') AND account_status = 'active'
          LIMIT 1"
     );
     if (!$adminStmt) {
@@ -81,6 +85,8 @@ try {
 if (
     !$request
     || ($source === 'registration' && (string)$request['request_status'] === 'rejected')
+    || ($source === 'registration' && $isSuperAdmin && (string)$request['request_status'] !== 'pending')
+    || ($source === 'registration' && !$isSuperAdmin && (string)$request['request_status'] === 'pending')
     || empty($request['document_reference'])
 ) {
     nxDocumentDeliveryFail(404, $adminId, $requestId, $slot);
@@ -95,7 +101,7 @@ try {
 
     nxDocumentUploadLog('document.accessed', [
         'user_id' => $adminId,
-        'role' => 'system_admin',
+        'role' => (string)$_SESSION['role'],
         'request_id' => $requestId,
         'slot' => $slot,
     ]);
@@ -169,7 +175,7 @@ try {
     error_log('NexGen private document delivery failed: ' . $error->getMessage());
     nxDocumentUploadLog('document.access_denied', [
         'user_id' => $adminId,
-        'role' => 'system_admin',
+        'role' => (string)$_SESSION['role'],
         'request_id' => $requestId,
         'slot' => $slot,
     ]);

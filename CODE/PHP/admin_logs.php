@@ -3,12 +3,12 @@ session_start();
 require_once("config.php");
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: /NexGen/CODE/PHP/index.php");
+    header('Location: ' . nxAppUrl('index.php'));
     exit();
 }
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'system_admin') {
-    header("Location: /NexGen/CODE/PHP/dashboard.php");
+if (!nxIsAdminRole((string)($_SESSION['role'] ?? ''))) {
+    header('Location: ' . nxAppUrl('dashboard.php'));
     exit();
 }
 
@@ -24,9 +24,10 @@ $fullName     = $_SESSION['full_name'] ?? 'System Administrator';
 $search = trim($_GET['search'] ?? '');
 $action = trim($_GET['action'] ?? '');
 
-$where = " WHERE 1=1 ";
-$params = [];
-$types = "";
+$viewerRole = nxIsSuperAdminRole((string)$_SESSION['role']) ? 'super_admin' : 'admin';
+$where = " WHERE u.role = ? ";
+$params = [$viewerRole];
+$types = "s";
 
 if ($search !== '') {
     /* Search only the Action, Target, and Date & Time values shown in the log table. */
@@ -58,13 +59,27 @@ if ($action !== '') {
 $logs = [];
 $actions = [];
 
-$actionSql = "SELECT DISTINCT action FROM admin_logs ORDER BY action ASC";
-$actionResult = $conn->query($actionSql);
-if ($actionResult) {
+$actionStmt = $conn->prepare(
+    "SELECT DISTINCT l.action
+     FROM admin_logs l
+     INNER JOIN users u ON u.id = l.admin_id
+     WHERE u.role = ?
+     ORDER BY l.action ASC"
+);
+if (!$actionStmt) {
+    error_log('NexGen admin-log action filter query failed: ' . $conn->error);
+    http_response_code(503);
+    exit('Admin logs are temporarily unavailable.');
+}
+$actionStmt->bind_param('s', $viewerRole);
+$actionStmt->execute();
+$actionResult = $actionStmt->get_result();
+if ($actionResult instanceof mysqli_result) {
     while ($row = $actionResult->fetch_assoc()) {
         $actions[] = $row['action'];
     }
 }
+$actionStmt->close();
 
 $sql = "
     SELECT 
@@ -209,7 +224,7 @@ if (
             } catch (e) {}
         })();
     </script>
-    <link rel="stylesheet" href="/NexGen/CODE/STYLE/admin_module.css">
+    <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/admin_module.css')); ?>">
        
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
@@ -627,7 +642,7 @@ if (
     </div>
 </div>
 
-<script src="/NexGen/CODE/JS/admin_module.js"></script>
+<script src="<?php echo e(nxCodeUrl('JS/admin_module.js')); ?>"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('logsFilterForm');

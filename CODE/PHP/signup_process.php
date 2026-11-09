@@ -18,7 +18,7 @@ function signupRedirect(string $message, string $type = 'error'): void
         );
     }
 
-    header('Location: /NexGen/CODE/PHP/index.php?open=signup');
+    header('Location: ' . nxAppUrl('index.php?open=signup'));
     exit();
 }
 
@@ -410,7 +410,7 @@ try {
         $checkRequest = $conn->prepare(
             "SELECT id
              FROM registration_requests
-             WHERE request_status IN ('pending', 'resubmit')
+             WHERE request_status IN ('pending', 'validated', 'resubmit')
                AND (
                     username = ? OR email = ?
                     OR (requested_role = 'employee' AND business_id = ? AND employee_no = ?)
@@ -425,7 +425,7 @@ try {
         $checkRequest = $conn->prepare(
             "SELECT id
              FROM registration_requests
-             WHERE request_status IN ('pending', 'resubmit')
+             WHERE request_status IN ('pending', 'validated', 'resubmit')
                AND (username = ? OR email = ?)
              LIMIT 1"
         );

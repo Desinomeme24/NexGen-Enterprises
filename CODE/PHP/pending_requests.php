@@ -5,14 +5,15 @@ require_once __DIR__ . '/tenant_helper.php';
 enforceSessionTimeout();
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: /NexGen/CODE/PHP/index.php");
+    header('Location: ' . nxAppUrl('index.php'));
     exit();
 }
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'system_admin') {
-    header("Location: /NexGen/CODE/PHP/dashboard.php");
+if (!nxIsAdminRole((string)($_SESSION['role'] ?? ''))) {
+    header('Location: ' . nxAppUrl('dashboard.php'));
     exit();
 }
+$isSuperAdmin = nxIsSuperAdminRole((string)$_SESSION['role']);
 
 if (!function_exists('e')) {
     function e($str): string
@@ -30,6 +31,8 @@ function statusIcon(string $status): string {
             return 'bi-x-circle-fill';
         case 'resubmit':
             return 'bi-arrow-repeat';
+        case 'validated':
+            return 'bi-shield-check';
         case 'pending':
         default:
             return 'bi-hourglass-split';
@@ -38,28 +41,39 @@ function statusIcon(string $status): string {
 
 function requestStatusLabel(array $request): string {
     $status = (string)($request['request_status'] ?? 'pending');
-    return $status === 'resubmit' ? 'Resubmission' : ucfirst($status);
+    return match ($status) {
+        'pending' => 'Awaiting BPLO validation',
+        'validated' => 'Awaiting San Andres',
+        'resubmit' => 'Resubmission',
+        default => ucfirst($status),
+    };
 }
 
 $profileImage = !empty($_SESSION['profile_image']) ? $_SESSION['profile_image'] : 'uploads/default.png';
 $fullName     = $_SESSION['full_name'] ?? 'System Administrator';
 
-$status = $_GET['status'] ?? 'all';
+$status = $_GET['status'] ?? ($isSuperAdmin ? 'pending' : 'validated');
 $search = trim($_GET['search'] ?? '');
 
-$allowedStatuses = ['all', 'pending', 'approved', 'rejected', 'resubmit'];
+$allowedStatuses = $isSuperAdmin
+    ? ['all', 'pending']
+    : ['all', 'pending', 'validated', 'resubmit'];
 if (!in_array($status, $allowedStatuses, true)) {
-    $status = 'all';
+    $status = $isSuperAdmin ? 'pending' : 'validated';
 }
 
-$accountWhere = " WHERE 1=1 ";
+$accountWhere = $isSuperAdmin
+    ? " WHERE request_status = 'pending' "
+    : " WHERE request_status IN ('validated', 'resubmit') ";
 $accountParams = [];
 $accountTypes = "";
 
-if ($status !== 'all') {
+if ($status !== 'all' && in_array($status, $isSuperAdmin ? ['pending'] : ['validated', 'resubmit'], true)) {
     $accountWhere .= " AND request_status = ? ";
     $accountParams[] = $status;
     $accountTypes .= "s";
+} elseif (!$isSuperAdmin && $status === 'pending') {
+    $accountWhere .= " AND 1 = 0 ";
 }
 
 if ($search !== '') {
@@ -90,15 +104,17 @@ if ($stmt) {
     $stmt->close();
 }
 
-if (nxWorkspaceRequestSchemaReady($conn) && $status !== 'resubmit') {
+if (!$isSuperAdmin && nxWorkspaceRequestSchemaReady($conn)) {
     $workspaceWhere = " WHERE 1=1 ";
     $workspaceParams = [];
     $workspaceTypes = "";
 
-    if ($status !== 'all') {
+    if ($status === 'pending') {
         $workspaceWhere .= " AND wr.request_status = ? ";
         $workspaceParams[] = $status;
         $workspaceTypes .= "s";
+    } elseif ($status !== 'all') {
+        $workspaceWhere .= " AND 1 = 0 ";
     }
 
     if ($search !== '') {
@@ -247,7 +263,7 @@ unset($_SESSION['flash'], $_SESSION['success'], $_SESSION['error']);
             } catch (e) {}
         })();
     </script>
-    <link rel="stylesheet" href="/NexGen/CODE/STYLE/admin_module.css">
+    <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/admin_module.css')); ?>">
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
@@ -1046,7 +1062,7 @@ unset($_SESSION['flash'], $_SESSION['success'], $_SESSION['error']);
         <div class="topbar">
             <div class="page-title pending-page-heading">
                 <i class="bi bi-person-workspace" aria-hidden="true"></i>
-                <h1>Account &amp; Workspace Requests</h1>
+                <h1><?php echo $isSuperAdmin ? 'BPLO Registration Validation' : 'San Andres Request Review'; ?></h1>
             </div>
         </div>
 
@@ -1058,7 +1074,7 @@ unset($_SESSION['flash'], $_SESSION['success'], $_SESSION['error']);
 
         <section class="panel">
             <div class="panel-header">
-                <h2>All Requests</h2>
+                <h2><?php echo $isSuperAdmin ? 'Requests Awaiting Validation' : 'Requests Awaiting Final Review'; ?></h2>
             </div>
             <div class="panel-body">
                 <form method="GET" class="filters pending-request-filters" id="requestFilterForm">
@@ -1078,11 +1094,14 @@ unset($_SESSION['flash'], $_SESSION['success'], $_SESSION['error']);
                         </div>
                     </div>
                     <select class="select w-240" name="status" id="requestStatusFilter" aria-label="Filter requests by status">
-                        <option value="all" <?php echo $status === 'all' ? 'selected' : ''; ?>>All Statuses</option>
-                        <option value="pending" <?php echo $status === 'pending' ? 'selected' : ''; ?>>Pending</option>
-                        <option value="approved" <?php echo $status === 'approved' ? 'selected' : ''; ?>>Approved</option>
-                        <option value="rejected" <?php echo $status === 'rejected' ? 'selected' : ''; ?>>Rejected</option>
-                        <option value="resubmit" <?php echo $status === 'resubmit' ? 'selected' : ''; ?>>Resubmission</option>
+                        <option value="all" <?php echo $status === 'all' ? 'selected' : ''; ?>>All Queue Items</option>
+                        <?php if ($isSuperAdmin): ?>
+                            <option value="pending" <?php echo $status === 'pending' ? 'selected' : ''; ?>>Awaiting BPLO Validation</option>
+                        <?php else: ?>
+                            <option value="pending" <?php echo $status === 'pending' ? 'selected' : ''; ?>>Workspace Requests</option>
+                            <option value="validated" <?php echo $status === 'validated' ? 'selected' : ''; ?>>Awaiting San Andres Review</option>
+                            <option value="resubmit" <?php echo $status === 'resubmit' ? 'selected' : ''; ?>>Resubmission</option>
+                        <?php endif; ?>
                     </select>
                     <button class="btn btn-silver" type="button" id="pendingResetButton">Reset</button>
                 </form>
@@ -1122,7 +1141,7 @@ unset($_SESSION['flash'], $_SESSION['success'], $_SESSION['error']);
 
         <div class="logout-confirm-actions">
             <button type="button" class="logout-btn-cancel" onclick="closeLogoutModal()">Cancel</button>
-            <form action="/NexGen/CODE/PHP/logout.php" method="POST" style="margin:0;">
+            <form action="<?php echo e(nxAppUrl('logout.php')); ?>" method="POST" style="margin:0;">
     <input type="hidden" name="csrf_token" value="<?php echo e(generateCsrfToken('logout_form')); ?>">
     <button type="submit" class="logout-btn-confirm">Log Out</button>
 </form>
@@ -1134,7 +1153,7 @@ unset($_SESSION['flash'], $_SESSION['success'], $_SESSION['error']);
     <i class="bi bi-arrow-up"></i>
 </button>
 
-<script src="/NexGen/CODE/JS/admin_module.js"></script>
+<script src="<?php echo e(nxCodeUrl('JS/admin_module.js')); ?>"></script>
 <script>
 function openLogoutModal(event) {
     if (event) event.preventDefault();

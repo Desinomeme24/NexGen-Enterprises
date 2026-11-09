@@ -6,22 +6,22 @@ require_once __DIR__ . '/tenant_helper.php';
 if (
     empty($_SESSION['user_id'])
     || empty($_SESSION['role'])
-    || $_SESSION['role'] !== 'system_admin'
+    || $_SESSION['role'] !== 'admin'
 ) {
-    header('Location: /NexGen/CODE/PHP/index.php');
+    header('Location: ' . nxAppUrl('index.php'));
     exit();
 }
 
 enforceSessionTimeout();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: /NexGen/CODE/PHP/pending_requests.php');
+    header('Location: ' . nxAppUrl('pending_requests.php'));
     exit();
 }
 
 if (!validateCsrfToken('admin_request_action', $_POST['csrf_token'] ?? null)) {
     $_SESSION['flash'] = ['type' => 'notice-error', 'message' => 'Your session expired. Please try again.'];
-    header('Location: /NexGen/CODE/PHP/pending_requests.php');
+    header('Location: ' . nxAppUrl('pending_requests.php'));
     exit();
 }
 
@@ -32,13 +32,13 @@ $adminId = (int)$_SESSION['user_id'];
 
 if ($requestId <= 0 || !in_array($decision, ['approve', 'reject'], true)) {
     $_SESSION['flash'] = ['type' => 'notice-error', 'message' => 'Invalid workspace review action.'];
-    header('Location: /NexGen/CODE/PHP/pending_requests.php');
+    header('Location: ' . nxAppUrl('pending_requests.php'));
     exit();
 }
 
 if ($decision === 'reject' && $remarks === '') {
     $_SESSION['flash'] = ['type' => 'notice-error', 'message' => 'A rejection reason is required.'];
-    header('Location: /NexGen/CODE/PHP/view_workspace_request.php?id=' . $requestId);
+    header('Location: ' . nxAppUrl('view_workspace_request.php') . '?id=' . $requestId);
     exit();
 }
 
@@ -47,7 +47,7 @@ if (!nxWorkspaceSchemaReady($conn) || !nxWorkspaceRequestSchemaReady($conn)) {
         'type' => 'notice-error',
         'message' => 'The required Multi-Tenancy v3 database migration is incomplete.',
     ];
-    header('Location: /NexGen/CODE/PHP/view_workspace_request.php?id=' . $requestId);
+    header('Location: ' . nxAppUrl('view_workspace_request.php') . '?id=' . $requestId);
     exit();
 }
 
@@ -130,7 +130,7 @@ try {
             error_log('Workspace rejection email failed: ' . $mailError->getMessage());
         }
 
-        header('Location: /NexGen/CODE/PHP/pending_requests.php');
+        header('Location: ' . nxAppUrl('pending_requests.php'));
         exit();
     }
 
@@ -447,7 +447,7 @@ try {
         error_log('Workspace approval email failed: ' . $mailError->getMessage());
     }
 
-    header('Location: /NexGen/CODE/PHP/pending_requests.php');
+    header('Location: ' . nxAppUrl('pending_requests.php'));
     exit();
 } catch (Throwable $e) {
     $conn->rollback();
@@ -456,6 +456,6 @@ try {
     );
     $_SESSION['flash'] = ['type' => 'notice-error', 'message' => 'Workspace review failed: ' . $e->getMessage()];
     $_SESSION['last_activity'] = time();
-    header('Location: /NexGen/CODE/PHP/view_workspace_request.php?id=' . $requestId);
+    header('Location: ' . nxAppUrl('view_workspace_request.php') . '?id=' . $requestId);
     exit();
 }

@@ -69,7 +69,7 @@ if (isset($_SESSION['lockout_until_ts']) && (int)$_SESSION['lockout_until_ts'] >
     $lockoutUsername = (string)($_SESSION['lockout_username'] ?? '');
     $lockoutUserId = (int)($_SESSION['lockout_user_id'] ?? 0);
     $lockoutRole = (string)($_SESSION['lockout_role'] ?? '');
-    $lockoutIsAdmin = ($lockoutRole === 'system_admin');
+    $lockoutIsAdmin = nxIsAdminRole($lockoutRole);
     $openLoginAfterLoad = true;
 } else {
     unset(
@@ -4281,7 +4281,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
             <!-- Sign Up Modal: Form Left, Info Right -->
             <div class="signup-form-panel">
                 <h2>Create Account</h2>
-                <form action="/NexGen/CODE/PHP/signup_process.php" method="POST" enctype="multipart/form-data" id="signupForm">
+                <form action="<?php echo e(nxAppUrl('signup_process.php')); ?>" method="POST" enctype="multipart/form-data" id="signupForm">
                     <input type="hidden" name="csrf_token" value="<?php echo e($signupCsrfToken); ?>">
                     <input type="hidden" name="privacy_ack_token" value="<?php echo e($signupPrivacyAckToken); ?>">
                     <div class="signup-grid">
@@ -4501,7 +4501,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
         This system uses essential cookies or browser storage for login session handling, inactivity timeout,
         security settings, and access control. By continuing to use NextGen, you acknowledge this use.
         Read our
-        <a href="/NexGen/CODE/PHP/privacy_policy.php?return_to=login">Privacy Policy</a>.
+        <a href="<?php echo e(nxAppUrl('privacy_policy.php?return_to=login')); ?>">Privacy Policy</a>.
     </div>
 
     <div class="cookie-actions">
@@ -7020,7 +7020,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (adminOtpUnlockBtn) {
         adminOtpUnlockBtn.addEventListener('click', function() {
-            window.location.href = '/NexGen/CODE/PHP/admin_unlock_otp.php';
+            window.location.href = <?php echo json_encode(nxAppUrl('admin_unlock_otp.php')); ?>;
         });
     }
 
