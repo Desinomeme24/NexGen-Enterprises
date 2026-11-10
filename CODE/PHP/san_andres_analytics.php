@@ -426,7 +426,7 @@ function nxAnalyticsMoney(float $amount): string
                                     'permit_year' => (int)date('Y'),
                                 ];
                                 ?>
-                                <tr class="analytics-business-row" tabindex="0" role="button" aria-haspopup="dialog"
+                                <tr class="analytics-business-row" data-business-row tabindex="0" role="button" aria-haspopup="dialog"
                                     aria-label="<?php echo e('View details for ' . $business['business_name']); ?>"
                                     data-business="<?php echo e((string)json_encode($businessPayload, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP)); ?>">
                                     <th>Business</th>
