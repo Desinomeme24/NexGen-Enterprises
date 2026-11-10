@@ -180,14 +180,6 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
         </nav>
 
         <div class="settings-sidebar-footer">
-            <div class="legal-links">
-                <a href="<?php echo e(nxAppUrl('privacy_policy.php')); ?>" class="back-link">
-                    <i class="bi bi-file-earmark-text"></i> Privacy Policy
-                </a>
-                <a href="<?php echo e(nxAppUrl('privacy_policy.php#cookie-notice')); ?>" class="back-link">
-                    <i class="bi bi-cookie"></i> Cookie Notice
-                </a>
-            </div>
             <div class="back-link-wrap">
                 <a href="<?php echo $backLink; ?>" class="back-link back-to-dashboard"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
             </div>
