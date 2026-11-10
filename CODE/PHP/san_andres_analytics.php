@@ -465,10 +465,27 @@ function nxAnalyticsMoney(float $amount): string
             cursor: pointer;
         }
         .analytics-modal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 20px 0 0; }
-        .analytics-financial-grid { grid-template-columns: minmax(0, 360px); }
+        .analytics-financial-grid {
+            grid-template-columns: minmax(220px, .75fr) minmax(300px, 1.25fr);
+            align-items: stretch;
+        }
         .analytics-financial-grid .analytics-detail-card { min-height: 100px; }
         .analytics-financial-grid .analytics-detail-card h3 { color: var(--muted); font-size: .82rem; }
         .analytics-financial-grid .analytics-detail-card p { color: var(--text); font-size: 1.3rem; font-weight: 750; font-variant-numeric: tabular-nums; }
+        .analytics-location-summary { display: flex; flex-direction: column; }
+        .analytics-location-summary h3 { color: var(--muted); font-size: .82rem; }
+        .analytics-location-list { display: grid; gap: 12px; }
+        .analytics-location-item {
+            display: grid;
+            gap: 4px;
+            padding: 11px 12px;
+            border: 1px solid var(--line);
+            border-radius: 11px;
+            background: color-mix(in srgb, var(--card) 75%, transparent);
+        }
+        .analytics-location-item strong { color: var(--text); font-size: .88rem; }
+        .analytics-location-item span,
+        .analytics-location-empty { color: var(--muted); font-size: .84rem; line-height: 1.5; }
         .analytics-detail-card,
         .analytics-quarter-card {
             min-width: 0;
@@ -566,6 +583,9 @@ function nxAnalyticsMoney(float $amount): string
             .analytics-panel-header { align-items: flex-start; flex-direction: column; }
             .analytics-search { width: 100%; flex-basis: auto; }
             .analytics-quarter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 700px) {
+            .analytics-financial-grid { grid-template-columns: 1fr; }
         }
         @media (max-width: 560px) {
             .analytics-summary { grid-template-columns: 1fr; }
@@ -721,13 +741,16 @@ function nxAnalyticsMoney(float $amount): string
             </div>
             <button type="button" class="analytics-modal-close" id="businessDetailsClose" aria-label="Close business details">&times;</button>
         </div>
-        <div class="analytics-modal-grid analytics-financial-grid" id="businessDetailsFinancials"></div>
-        <section class="analytics-modal-section">
-            <div class="analytics-modal-section-heading">
-                <div><h3>Business locations</h3><p>Active branches registered to this business.</p></div>
-            </div>
-            <div class="analytics-modal-grid" id="businessDetailsLocations"></div>
-        </section>
+        <div class="analytics-modal-grid analytics-financial-grid" id="businessDetailsFinancials">
+            <article class="analytics-detail-card">
+                <h3>Net profit</h3>
+                <p id="businessDetailsNetProfit"></p>
+            </article>
+            <article class="analytics-detail-card analytics-location-summary">
+                <h3>Business location(s)</h3>
+                <div class="analytics-location-list" id="businessDetailsLocations"></div>
+            </article>
+        </div>
         <section class="analytics-modal-section" aria-labelledby="permitDetailsHeading">
             <div class="analytics-modal-section-heading">
                 <div><h3 id="permitDetailsHeading">Business permit payments</h3><p id="permitScheduleDescription"></p></div>
@@ -745,7 +768,6 @@ function nxAnalyticsMoney(float $amount): string
         var backdrop = document.getElementById('businessDetailsBackdrop');
         var modal = document.getElementById('businessDetailsModal');
         var closeButton = document.getElementById('businessDetailsClose');
-        var financials = document.getElementById('businessDetailsFinancials');
         var locations = document.getElementById('businessDetailsLocations');
         var quarters = document.getElementById('permitQuarterDetails');
         var controls = document.getElementById('permitAssessmentControls');
@@ -771,17 +793,6 @@ function nxAnalyticsMoney(float $amount): string
                 element.classList.remove('is-dismissing');
             }, 1000);
             dismissTimers.set(element, [fadeTimer, hideTimer]);
-        }
-
-        function addCard(container, heading, content) {
-            var card = document.createElement('article');
-            card.className = 'analytics-detail-card';
-            var title = document.createElement('h3');
-            title.textContent = heading;
-            var text = document.createElement('p');
-            text.textContent = content;
-            card.append(title, text);
-            container.appendChild(card);
         }
 
         function hiddenField(form, name, value) {
@@ -825,15 +836,24 @@ function nxAnalyticsMoney(float $amount): string
                 permitStatus === 'paid' ? 'is-paid' : (permitStatus === 'unpaid' ? 'is-unpaid' : 'is-unknown')
             );
             permitBadge.textContent = permitStatus === 'paid' ? 'Permit paid' : (permitStatus === 'unpaid' ? 'Permit unpaid' : 'Status not set');
-            financials.replaceChildren();
-            addCard(financials, 'Net profit', money(data.net_profit));
+            document.getElementById('businessDetailsNetProfit').textContent = money(data.net_profit);
             locations.replaceChildren();
             if (!data.locations.length) {
-                addCard(locations, 'No active locations', 'No active business branches are currently listed.');
+                var emptyLocation = document.createElement('span');
+                emptyLocation.className = 'analytics-location-empty';
+                emptyLocation.textContent = 'No active business locations are currently listed.';
+                locations.appendChild(emptyLocation);
             } else {
                 data.locations.forEach(function (location) {
+                    var item = document.createElement('div');
+                    item.className = 'analytics-location-item';
                     var branchName = location.branch_name || 'Business location';
-                    addCard(locations, branchName + (location.is_main_branch ? ' · Main' : ''), location.business_address || 'No address recorded');
+                    var heading = document.createElement('strong');
+                    heading.textContent = branchName + (location.is_main_branch ? ' · Main' : '');
+                    var address = document.createElement('span');
+                    address.textContent = location.business_address || 'No address recorded';
+                    item.append(heading, address);
+                    locations.appendChild(item);
                 });
             }
 
