@@ -413,21 +413,39 @@ function nxAnalyticsMoney(float $amount): string
         .analytics-modal-backdrop[hidden] { display: none; }
         .analytics-modal {
             width: min(100%, 1050px);
-            max-height: min(92vh, 900px);
+            max-height: min(90vh, 900px);
             overflow: auto;
-            padding: clamp(18px, 3vw, 32px);
+            padding: clamp(20px, 3vw, 34px);
             border: 1px solid var(--line);
-            border-radius: 20px;
+            border-radius: 22px;
             color: var(--text);
             background: #0e1b3d;
-            box-shadow: 0 24px 80px rgba(0, 0, 0, .35);
+            box-shadow: 0 28px 90px rgba(0, 0, 0, .48);
         }
         html[data-theme="light"] .analytics-modal { background: #fff; }
-        .analytics-modal-header,
-        .analytics-modal-section-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
-        .analytics-modal-header h2 { margin: 0 0 6px; }
-        .analytics-modal-header p,
-        .analytics-modal-section-heading p { margin: 0; color: var(--muted); }
+        .analytics-modal-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: flex-start;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--line);
+        }
+        .analytics-modal-title-line { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+        .analytics-modal-header h2 { margin: 0; font-size: clamp(1.25rem, 2.4vw, 1.65rem); }
+        .analytics-modal-header p { margin: 7px 0 0; color: var(--muted); }
+        .analytics-business-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 10px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            font-size: .73rem;
+            font-weight: 800;
+        }
+        .analytics-business-status.is-paid { color: #34d399; background: rgba(52, 211, 153, .1); }
+        .analytics-business-status.is-unpaid { color: #ff9aa3; background: rgba(239, 68, 68, .1); }
+        .analytics-business-status.is-unknown { color: var(--muted); background: var(--card); }
         .analytics-modal-close {
             flex: 0 0 auto;
             width: 40px;
@@ -439,25 +457,76 @@ function nxAnalyticsMoney(float $amount): string
             font-size: 1.4rem;
             cursor: pointer;
         }
-        .analytics-modal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+        .analytics-modal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 20px 0 0; }
         .analytics-detail-card,
         .analytics-quarter-card {
             min-width: 0;
-            padding: 16px;
+            padding: 17px;
             border: 1px solid var(--line);
-            border-radius: 14px;
+            border-radius: 15px;
             background: #14264b;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, .1);
         }
         html[data-theme="light"] .analytics-detail-card,
         html[data-theme="light"] .analytics-quarter-card { background: #f6f8fc; }
         .analytics-detail-card h3,
         .analytics-quarter-card h4 { margin: 0 0 8px; font-size: 1rem; }
         .analytics-detail-card p { margin: 0; overflow-wrap: anywhere; color: var(--muted); }
-        .analytics-modal-section { margin-top: 24px; }
-        .analytics-modal-section-heading { margin-bottom: 14px; align-items: center; }
-        .analytics-modal-section-heading h3 { margin: 0 0 5px; }
-        .analytics-permit-summary { font-weight: 700; white-space: nowrap; }
+        .analytics-modal-section {
+            margin-top: 24px;
+            padding-top: 22px;
+            border-top: 1px solid var(--line);
+        }
+        .analytics-modal-section-heading { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 14px; }
+        .analytics-modal-section-heading h3 { margin: 0 0 5px; font-size: 1.05rem; }
+        .analytics-modal-section-heading p { margin: 0; color: var(--muted); }
+        .analytics-permit-summary {
+            flex: 0 0 auto;
+            padding: 9px 13px;
+            border: 1px solid var(--line);
+            border-radius: 11px;
+            background: var(--card);
+            font-size: .88rem;
+            font-weight: 750;
+            white-space: nowrap;
+        }
+        .analytics-permit-access {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin: 0 0 14px;
+            padding: 10px 13px;
+            border: 1px solid var(--line);
+            border-radius: 11px;
+            color: var(--muted);
+            background: var(--card);
+            font-size: .84rem;
+        }
+        .analytics-permit-access.is-active { color: #34d399; border-color: rgba(52, 211, 153, .28); }
+        .analytics-permit-access.is-inactive { color: #ff9aa3; border-color: rgba(239, 68, 68, .28); }
         .analytics-quarter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+        .analytics-quarter-grid.is-empty { grid-template-columns: 1fr; }
+        .analytics-quarter-card { display: flex; flex-direction: column; min-height: 182px; }
+        .analytics-quarter-card h4 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .analytics-quarter-card .analytics-quarter-status { margin-top: auto; padding-top: 8px; }
+        .analytics-quarter-status span { font-size: .76rem; font-weight: 800; }
+        .analytics-quarter-status.is-paid { color: #34d399 !important; }
+        .analytics-quarter-status.is-unpaid { color: #ff9aa3 !important; }
+        .analytics-permit-empty { max-width: none; }
+        .analytics-assessment-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 22px;
+            margin-top: 16px;
+            padding: 18px;
+            border: 1px solid var(--line);
+            border-radius: 15px;
+            background: var(--card);
+        }
+        .analytics-assessment-copy { max-width: 520px; }
+        .analytics-assessment-copy h4 { margin: 0 0 5px; font-size: .95rem; }
+        .analytics-assessment-copy p { margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.5; }
         .analytics-quarter-card p { margin: 6px 0; color: var(--muted); }
         .analytics-quarter-card form { margin-top: 12px; }
         .analytics-quarter-card button,
@@ -469,7 +538,7 @@ function nxAnalyticsMoney(float $amount): string
             background: var(--line);
             cursor: pointer;
         }
-        .analytics-assessment-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-top: 16px; }
+        .analytics-assessment-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
         .analytics-assessment-form label { display: grid; gap: 6px; color: var(--muted); }
         .analytics-assessment-form input {
             min-width: 190px;
@@ -480,11 +549,12 @@ function nxAnalyticsMoney(float $amount): string
             background: var(--card);
         }
         .analytics-permit-help { color: var(--muted); }
+        .analytics-permit-help.analytics-assessment-note { margin: 10px 0 0; }
         @media (max-width: 900px) {
             .analytics-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .analytics-quarter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .analytics-panel-header { align-items: flex-start; flex-direction: column; }
             .analytics-search { width: 100%; flex-basis: auto; }
+            .analytics-quarter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 560px) {
             .analytics-summary { grid-template-columns: 1fr; }
@@ -494,6 +564,10 @@ function nxAnalyticsMoney(float $amount): string
             .analytics-modal-backdrop { padding: 8px; }
             .analytics-modal-grid, .analytics-quarter-grid { grid-template-columns: 1fr; }
             .analytics-modal-section-heading { align-items: flex-start; flex-direction: column; }
+            .analytics-assessment-panel { align-items: stretch; flex-direction: column; }
+            .analytics-assessment-form { width: 100%; }
+            .analytics-assessment-form label, .analytics-assessment-form input { width: 100%; }
+            .analytics-quarter-card { min-height: 0; }
         }
     </style>
 </head>
@@ -516,7 +590,7 @@ function nxAnalyticsMoney(float $amount): string
             <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="all" aria-pressed="true" aria-controls="analyticsBusinessRows">
                 <span>Registered businesses</span>
                 <strong><?php echo number_format($businessCount); ?></strong>
-                <small class="analytics-filter-hint">Show all businesses</small>
+               
             </button>
             <article class="analytics-metric">
                 <span>Total net profit</span>
@@ -525,12 +599,12 @@ function nxAnalyticsMoney(float $amount): string
             <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="paid" aria-pressed="false" aria-controls="analyticsBusinessRows">
                 <span>Paid business permits</span>
                 <strong><?php echo number_format($paidPermitCount); ?></strong>
-                <small class="analytics-filter-hint">Filter paid businesses</small>
+              
             </button>
             <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="unpaid" aria-pressed="false" aria-controls="analyticsBusinessRows">
                 <span>Unpaid business permits</span>
                 <strong><?php echo number_format($unpaidPermitCount); ?></strong>
-                <small class="analytics-filter-hint">Filter unpaid businesses</small>
+                
             </button>
         </section>
 
@@ -630,7 +704,10 @@ function nxAnalyticsMoney(float $amount): string
     <section class="analytics-modal" id="businessDetailsModal" role="dialog" aria-modal="true" aria-labelledby="businessDetailsTitle" tabindex="-1">
         <div class="analytics-modal-header">
             <div>
-                <h2 id="businessDetailsTitle"></h2>
+                <div class="analytics-modal-title-line">
+                    <h2 id="businessDetailsTitle"></h2>
+                    <span class="analytics-business-status" id="businessDetailsPermitBadge"></span>
+                </div>
                 <p id="businessDetailsOwner"></p>
             </div>
             <button type="button" class="analytics-modal-close" id="businessDetailsClose" aria-label="Close business details">&times;</button>
@@ -647,7 +724,7 @@ function nxAnalyticsMoney(float $amount): string
                 <div><h3 id="permitDetailsHeading">Business permit payments</h3><p id="permitScheduleDescription"></p></div>
                 <strong class="analytics-permit-summary" id="permitAnnualTotal"></strong>
             </div>
-            <p class="analytics-permit-help" id="permitAccessSummary"></p>
+            <p class="analytics-permit-access" id="permitAccessSummary"></p>
             <div class="analytics-quarter-grid" id="permitQuarterDetails"></div>
             <div id="permitAssessmentControls"></div>
         </section>
@@ -712,6 +789,12 @@ function nxAnalyticsMoney(float $amount): string
             lastFocused = document.activeElement;
             document.getElementById('businessDetailsTitle').textContent = data.business_name;
             document.getElementById('businessDetailsOwner').textContent = 'Owner(s): ' + data.owner_names;
+            var permitBadge = document.getElementById('businessDetailsPermitBadge');
+            var permitStatus = (data.permit_status || '').toLowerCase();
+            permitBadge.className = 'analytics-business-status ' + (
+                permitStatus === 'paid' ? 'is-paid' : (permitStatus === 'unpaid' ? 'is-unpaid' : 'is-unknown')
+            );
+            permitBadge.textContent = permitStatus === 'paid' ? 'Permit paid' : (permitStatus === 'unpaid' ? 'Permit unpaid' : 'Status not set');
             financials.replaceChildren();
             addCard(financials, 'Gross revenue', money(data.gross_revenue));
             addCard(financials, 'Cost of goods sold', money(data.cost_of_goods_sold));
@@ -731,13 +814,16 @@ function nxAnalyticsMoney(float $amount): string
                 'Calendar quarters for ' + year + ' (Jan 1, Apr 1, Jul 1, and Oct 1).';
             var accessSummary = document.getElementById('permitAccessSummary');
             if (data.permit_status === 'paid') {
+                accessSummary.className = 'analytics-permit-access is-active';
                 accessSummary.textContent = 'Business access: Active · permit paid.';
             } else {
                 var unpaidDate = data.permit_unpaid_since ? new Date(data.permit_unpaid_since.replace(' ', 'T')) : null;
                 var graceDeadline = unpaidDate && !Number.isNaN(unpaidDate.getTime())
                     ? new Date(unpaidDate.getTime() + 30 * 24 * 60 * 60 * 1000)
                     : null;
-                accessSummary.textContent = graceDeadline && graceDeadline.getTime() > Date.now()
+                var withinGrace = graceDeadline && graceDeadline.getTime() > Date.now();
+                accessSummary.className = 'analytics-permit-access ' + (withinGrace ? 'is-active' : 'is-inactive');
+                accessSummary.textContent = withinGrace
                     ? 'Business access: Active during grace period through ' + graceDeadline.toLocaleDateString('en-PH') + '.'
                     : 'Business access: Inactive · permit grace period has expired.';
             }
@@ -745,19 +831,33 @@ function nxAnalyticsMoney(float $amount): string
             controls.replaceChildren();
             if (!data.permit_tracking_ready) {
                 document.getElementById('permitAnnualTotal').textContent = 'Tracking not configured';
-                addCard(quarters, 'Migration required', 'Apply the quarterly permit-payment migration before recording assessments or payments.');
+                quarters.classList.add('is-empty');
+                var migrationCard = document.createElement('article');
+                migrationCard.className = 'analytics-quarter-card analytics-permit-empty';
+                var migrationHeading = document.createElement('h4');
+                migrationHeading.textContent = 'Permit payment tracking is not configured';
+                var migrationText = document.createElement('p');
+                migrationText.textContent = 'Apply the quarterly permit-payment database migration to view and manage permit assessments.';
+                migrationCard.append(migrationHeading, migrationText);
+                quarters.appendChild(migrationCard);
             } else {
+                quarters.classList.remove('is-empty');
                 var assessment = data.permit;
                 document.getElementById('permitAnnualTotal').textContent = assessment
                     ? 'Annual fee: ' + money(assessment.annual_fee)
                     : 'Annual fee: not set';
                 if (!assessment) {
-                    addCard(
-                        quarters,
-                        'No annual assessment',
-                        'Set this year’s annual permit fee to create four unpaid quarterly records. Any started quarter left unpaid for more than 30 days can make business access inactive.'
-                    );
+                    quarters.classList.add('is-empty');
+                    var emptyAssessment = document.createElement('article');
+                    emptyAssessment.className = 'analytics-quarter-card analytics-permit-empty';
+                    var emptyHeading = document.createElement('h4');
+                    emptyHeading.textContent = 'Annual assessment needed';
+                    var emptyCopy = document.createElement('p');
+                    emptyCopy.textContent = 'Set the annual permit fee below to create the four quarterly records. An overdue unpaid quarter may make business access inactive after the 30-day grace period.';
+                    emptyAssessment.append(emptyHeading, emptyCopy);
+                    quarters.appendChild(emptyAssessment);
                 } else {
+                    quarters.classList.remove('is-empty');
                     for (var quarterNumber = 1; quarterNumber <= 4; quarterNumber++) {
                         var quarter = assessment.quarters[quarterNumber];
                         var card = document.createElement('article');
@@ -770,7 +870,9 @@ function nxAnalyticsMoney(float $amount): string
                         var amount = document.createElement('p');
                         amount.textContent = 'Amount: ' + money(quarter ? quarter.assessed_amount : 0);
                         var status = document.createElement('p');
-                        status.textContent = quarter && quarter.payment_status === 'paid'
+                        var isQuarterPaid = quarter && quarter.payment_status === 'paid';
+                        status.className = 'analytics-quarter-status ' + (isQuarterPaid ? 'is-paid' : 'is-unpaid');
+                        status.textContent = isQuarterPaid
                             ? 'Status: Paid' + (quarter.paid_at ? ' · ' + quarter.paid_at : '')
                             : 'Status: Unpaid';
                         card.append(heading, dueDate, amount, status);
@@ -808,10 +910,20 @@ function nxAnalyticsMoney(float $amount): string
                 save.textContent = assessment ? 'Update annual assessment' : 'Set annual assessment';
                 save.disabled = feeInput.readOnly;
                 assessmentForm.append(feeLabel, save);
-                controls.appendChild(assessmentForm);
+                var assessmentPanel = document.createElement('div');
+                assessmentPanel.className = 'analytics-assessment-panel';
+                var assessmentCopy = document.createElement('div');
+                assessmentCopy.className = 'analytics-assessment-copy';
+                var assessmentHeading = document.createElement('h4');
+                assessmentHeading.textContent = 'Annual assessment';
+                var assessmentDescription = document.createElement('p');
+                assessmentDescription.textContent = 'Set or update the annual permit fee. It is divided across four calendar quarters.';
+                assessmentCopy.append(assessmentHeading, assessmentDescription);
+                assessmentPanel.append(assessmentCopy, assessmentForm);
+                controls.appendChild(assessmentPanel);
                 if (feeInput.readOnly) {
                     var lockedNote = document.createElement('p');
-                    lockedNote.className = 'analytics-permit-help';
+                    lockedNote.className = 'analytics-permit-help analytics-assessment-note';
                     lockedNote.textContent = 'The annual fee is locked after a quarterly payment is recorded.';
                     controls.appendChild(lockedNote);
                 }
