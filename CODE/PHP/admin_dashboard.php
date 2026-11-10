@@ -154,60 +154,6 @@ $branchesPerBusiness = $activeBusinesses > 0
     ? number_format($activeBranches / $activeBusinesses, 1)
     : '0.0';
 
-$businessFinancials = [];
-if ($isSuperAdmin) {
-    $financialResult = $conn->query(
-        "SELECT be.id AS business_entity_id,
-                be.business_name,
-                COALESCE(owners.owner_names, 'No owner assigned') AS owner_names,
-                COALESCE(revenue.gross_revenue, 0) AS gross_revenue,
-                COALESCE(costs.cost_of_goods_sold, 0) AS cost_of_goods_sold,
-                COALESCE(revenue.gross_revenue, 0) - COALESCE(costs.cost_of_goods_sold, 0) AS net_profit
-         FROM business_entities be
-         LEFT JOIN (
-             SELECT business_owners.business_entity_id,
-                    GROUP_CONCAT(DISTINCT u.full_name ORDER BY u.full_name SEPARATOR ', ') AS owner_names
-             FROM (
-                 SELECT uba.user_id, uba.business_entity_id
-                 FROM user_business_assignments uba
-                 WHERE uba.status = 'active'
-                 UNION
-                 SELECT u.id, b.business_entity_id
-                 FROM users u
-                 INNER JOIN businesses b ON b.id = u.business_id
-                 WHERE u.role = 'owner'
-                   AND NOT EXISTS (
-                       SELECT 1
-                       FROM user_business_assignments existing_uba
-                       WHERE existing_uba.user_id = u.id
-                   )
-             ) business_owners
-             INNER JOIN users u ON u.id = business_owners.user_id AND u.role = 'owner'
-             GROUP BY business_owners.business_entity_id
-         ) owners ON owners.business_entity_id = be.id
-         LEFT JOIN (
-             SELECT b.business_entity_id, SUM(s.total_amount) AS gross_revenue
-             FROM businesses b
-             INNER JOIN sales s ON s.business_id = b.id
-             GROUP BY b.business_entity_id
-         ) revenue ON revenue.business_entity_id = be.id
-         LEFT JOIN (
-             SELECT b.business_entity_id, SUM(p.cost_price * si.quantity) AS cost_of_goods_sold
-             FROM businesses b
-             INNER JOIN sales s ON s.business_id = b.id
-             INNER JOIN sale_items si ON si.sale_id = s.id
-             INNER JOIN products p ON p.id = si.product_id AND p.business_id = s.business_id
-             GROUP BY b.business_entity_id
-         ) costs ON costs.business_entity_id = be.id
-         ORDER BY be.business_name ASC, be.id ASC"
-    );
-    if ($financialResult instanceof mysqli_result) {
-        while ($row = $financialResult->fetch_assoc()) {
-            $businessFinancials[] = $row;
-        }
-    }
-}
-
 $currentHour = (int)date('G');
 $greeting = $currentHour < 12
     ? 'Good morning'
@@ -1545,47 +1491,6 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
             </article>
             <?php endif; ?>
         </section>
-
-        <?php if ($isSuperAdmin): ?>
-        <section class="panel dashboard-section" aria-labelledby="businessFinancialsHeading">
-            <div class="panel-header">
-                <div>
-                    <h2 id="businessFinancialsHeading">Business Revenue &amp; Net Profit</h2>
-                    <p style="margin:5px 0 0; color:var(--muted, #aab4cf); font-size:0.84rem;">
-                        All recorded sales, less cost of goods sold; operating expenses are excluded.
-                    </p>
-                </div>
-            </div>
-            <div class="panel-body">
-                <?php if (empty($businessFinancials)): ?>
-                    <div class="dashboard-empty-state">No business financial records are available yet.</div>
-                <?php else: ?>
-                    <div class="table-wrap dashboard-requests-table-wrap" data-mobile-cards>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Business</th>
-                                    <th>Owner(s)</th>
-                                    <th>Gross Revenue</th>
-                                    <th>Net Profit</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($businessFinancials as $businessFinancial): ?>
-                                    <tr>
-                                        <td data-label="Business"><?php echo e($businessFinancial['business_name']); ?></td>
-                                        <td data-label="Owner(s)"><?php echo e($businessFinancial['owner_names']); ?></td>
-                                        <td data-label="Gross Revenue">₱<?php echo number_format((float)$businessFinancial['gross_revenue'], 2); ?></td>
-                                        <td data-label="Net Profit">₱<?php echo number_format((float)$businessFinancial['net_profit'], 2); ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </section>
-        <?php endif; ?>
 
         <section class="panel dashboard-section" id="reviewQueue">
             <div class="panel-header">
