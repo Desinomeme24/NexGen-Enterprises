@@ -387,7 +387,14 @@ function nxAnalyticsMoney(float $amount): string
         .analytics-table tbody tr.analytics-business-row:hover td {
             background: color-mix(in srgb, var(--gold, #eab75e) 7%, var(--panel, var(--card)));
         }
-        .analytics-notice { margin-bottom: 16px; padding: 12px 16px; border-radius: 10px; }
+        .analytics-notice {
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            opacity: 1;
+            transition: opacity .2s ease;
+        }
+        .analytics-auto-dismiss.is-dismissing { opacity: 0; }
         .notice-success { color: var(--text); background: rgba(42, 160, 96, .14); }
         .notice-error { color: var(--text); background: rgba(210, 65, 65, .14); }
         .analytics-sr-only {
@@ -580,7 +587,7 @@ function nxAnalyticsMoney(float $amount): string
     <?php include __DIR__ . '/admin_sidebar.php'; ?>
     <main class="admin-content">
         <?php if ($permitFlash !== ''): ?>
-            <div class="analytics-notice <?php echo e($permitFlashType); ?>" role="status"><?php echo e($permitFlash); ?></div>
+            <div class="analytics-notice analytics-auto-dismiss <?php echo e($permitFlashType); ?>" id="permitFlashNotice" role="status"><?php echo e($permitFlash); ?></div>
         <?php endif; ?>
         <div class="topbar">
             <div class="analytics-heading">
@@ -743,7 +750,28 @@ function nxAnalyticsMoney(float $amount): string
         var quarters = document.getElementById('permitQuarterDetails');
         var controls = document.getElementById('permitAssessmentControls');
         var lastFocused = null;
+        var dismissTimers = new WeakMap();
         var phpEndpoint = <?php echo json_encode(nxAppUrl('update_business_permit.php'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+
+        function dismissAfterOneSecond(element) {
+            if (!element) return;
+            var existingTimers = dismissTimers.get(element);
+            if (existingTimers) {
+                existingTimers.forEach(function (timerId) { window.clearTimeout(timerId); });
+            }
+            element.hidden = false;
+            element.classList.remove('is-dismissing');
+            element.setAttribute('aria-hidden', 'false');
+            var fadeTimer = window.setTimeout(function () {
+                element.classList.add('is-dismissing');
+            }, 800);
+            var hideTimer = window.setTimeout(function () {
+                element.hidden = true;
+                element.setAttribute('aria-hidden', 'true');
+                element.classList.remove('is-dismissing');
+            }, 1000);
+            dismissTimers.set(element, [fadeTimer, hideTimer]);
+        }
 
         function addCard(container, heading, content) {
             var card = document.createElement('article');
@@ -827,6 +855,8 @@ function nxAnalyticsMoney(float $amount): string
                     ? 'Business access: Active during grace period through ' + graceDeadline.toLocaleDateString('en-PH') + '.'
                     : 'Business access: Inactive · permit grace period has expired.';
             }
+            accessSummary.classList.add('analytics-auto-dismiss');
+            dismissAfterOneSecond(accessSummary);
             quarters.replaceChildren();
             controls.replaceChildren();
             if (!data.permit_tracking_ready) {
@@ -992,6 +1022,7 @@ function nxAnalyticsMoney(float $amount): string
             });
         });
         if (searchInput) searchInput.addEventListener('input', applyBusinessFilters);
+        dismissAfterOneSecond(document.getElementById('permitFlashNotice'));
         closeButton.addEventListener('click', closeDetails);
         backdrop.addEventListener('click', function (event) {
             if (event.target === backdrop) closeDetails();
