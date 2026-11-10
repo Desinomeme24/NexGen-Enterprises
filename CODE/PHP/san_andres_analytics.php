@@ -408,8 +408,19 @@ function nxAnalyticsMoney(float $amount): string
                     <div class="table-wrap">
                         <table>
                             <thead>
+                                <tr>
+                                    <th>Business</th>
+                                    <th>Gross Revenue</th>
+                                    <th>Cost of Goods Sold</th>
+                                    <th>Net Profit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($businesses as $business): ?>
                                 <?php
                                 $entityId = (int)$business['business_entity_id'];
+                                $revenue = (float)$business['gross_revenue'];
+                                $barWidth = $maxRevenue > 0 ? min(100, ($revenue / $maxRevenue) * 100) : 0;
                                 $businessPayload = [
                                     'business_entity_id' => $entityId,
                                     'business_name' => (string)$business['business_name'],
@@ -429,19 +440,6 @@ function nxAnalyticsMoney(float $amount): string
                                 <tr class="analytics-business-row" data-business-row tabindex="0" role="button" aria-haspopup="dialog"
                                     aria-label="<?php echo e('View details for ' . $business['business_name']); ?>"
                                     data-business="<?php echo e((string)json_encode($businessPayload, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP)); ?>">
-                                    <th>Business</th>
-                                    <th>Gross Revenue</th>
-                                    <th>Cost of Goods Sold</th>
-                                    <th>Net Profit</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            <?php foreach ($businesses as $business): ?>
-                                <?php
-                                $revenue = (float)$business['gross_revenue'];
-                                $barWidth = $maxRevenue > 0 ? min(100, ($revenue / $maxRevenue) * 100) : 0;
-                                ?>
-                                <tr>
                                     <td class="analytics-business">
                                         <span class="analytics-business-name"><?php echo e($business['business_name']); ?></span>
                                         <span class="analytics-owner"><?php echo e($business['owner_names']); ?></span>
