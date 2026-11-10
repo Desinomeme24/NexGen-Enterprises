@@ -19,7 +19,7 @@ function nxApprovedDocumentDeleteRespond(bool $success, string $message, int $re
 
 if (
     !isset($_SESSION['user_id'], $_SESSION['role'])
-    || $_SESSION['role'] !== 'admin'
+    || !nxIsAdminRole((string)($_SESSION['role'] ?? ''))
 ) {
     nxApprovedDocumentDeleteRespond(
         false,
@@ -59,7 +59,7 @@ try {
     $adminStmt = $conn->prepare(
         "SELECT id
          FROM users
-         WHERE id = ? AND role = 'admin' AND account_status = 'active'
+         WHERE id = ? AND role IN ('system_admin', 'super_admin') AND account_status = 'active'
          LIMIT 1"
     );
     if (!$adminStmt) {
@@ -170,7 +170,7 @@ try {
 
 nxDocumentUploadLog($deleted ? 'document.admin_deleted' : 'document.admin_delete_cleanup_failed', [
     'user_id' => $adminId,
-    'role' => 'admin',
+    'role' => (string)($_SESSION['role'] ?? 'system_admin'),
     'request_id' => $requestId,
     'slot' => $slot,
 ]);

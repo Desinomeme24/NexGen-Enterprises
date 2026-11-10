@@ -10,18 +10,15 @@ if (!function_exists('e')) {
 }
 
 $profileImage  = nxProfileImageUrl($_SESSION['profile_image'] ?? null);
-$adminRole = (string)($_SESSION['role'] ?? '');
-$isSuperAdmin = nxIsSuperAdminRole($adminRole);
-$adminFullName = $_SESSION['full_name'] ?? ($isSuperAdmin ? 'BPLO Super Admin' : 'San Andres Admin');
+$adminFullName = $_SESSION['full_name'] ?? 'BPLO Administrator';
 $currentPage   = basename($_SERVER['PHP_SELF']);
 $pendingRequestCount = 0;
 
 if (isset($conn) && $conn instanceof mysqli) {
-    $accountQueueStatus = $isSuperAdmin ? 'pending' : 'validated';
     $accountCountResult = $conn->query(
         "SELECT COUNT(*) AS total
          FROM registration_requests
-         WHERE request_status = '{$accountQueueStatus}'" . ($isSuperAdmin ? '' : " OR request_status = 'resubmit'")
+         WHERE request_status IN ('pending', 'resubmit')"
     );
     if ($accountCountResult instanceof mysqli_result) {
         $pendingRequestCount += (int)($accountCountResult->fetch_assoc()['total'] ?? 0);
@@ -35,7 +32,7 @@ if (isset($conn) && $conn instanceof mysqli) {
     $workspaceTableExists = $workspaceTableResult instanceof mysqli_result
         && (int)($workspaceTableResult->fetch_assoc()['total'] ?? 0) === 1;
 
-    if ($workspaceTableExists && !$isSuperAdmin) {
+    if ($workspaceTableExists) {
         $workspaceCountResult = $conn->query(
             "SELECT COUNT(*) AS total
              FROM workspace_requests
@@ -74,7 +71,7 @@ $pendingPageActive = in_array(
             </span>
             <span class="brand-meta">
                 <span class="admin-profile-name"><?php echo e($adminFullName); ?></span>
-                <span class="admin-profile-role"><?php echo $isSuperAdmin ? 'BPLO Super Admin' : 'San Andres Admin'; ?></span>
+                <span class="admin-profile-role">BPLO Administrator</span>
             </span>
             <i class="bi bi-chevron-down admin-profile-chevron" aria-hidden="true"></i>
         </button>
@@ -97,8 +94,8 @@ $pendingPageActive = in_array(
 
     <nav class="admin-menu admin-menu-custom">
         <div class="admin-menu-main">
-            <a href="admin_dashboard.php" class="<?php echo $currentPage === 'admin_dashboard.php' ? 'active' : ''; ?>"><i class="bi bi-house"></i><span>Dashboard</span></a>
-            <a href="pending_requests.php" class="<?php echo $pendingPageActive ? 'active' : ''; ?>">
+            <a href="<?php echo e(nxAppUrl('admin_dashboard.php')); ?>" class="<?php echo $currentPage === 'admin_dashboard.php' ? 'active' : ''; ?>"><i class="bi bi-house"></i><span>Dashboard</span></a>
+            <a href="<?php echo e(nxAppUrl('pending_requests.php')); ?>" class="<?php echo $pendingPageActive ? 'active' : ''; ?>">
                 <i class="bi bi-clock-history"></i><span>Pending Requests</span>
                 <?php if ($pendingRequestCount > 0): ?>
                     <span class="admin-pending-count" aria-label="<?php echo (int)$pendingRequestCount; ?> pending requests">
@@ -106,12 +103,10 @@ $pendingPageActive = in_array(
                     </span>
                 <?php endif; ?>
             </a>
-            <?php if ($isSuperAdmin): ?>
-                <a href="manage_users.php" class="<?php echo $currentPage === 'manage_users.php' ? 'active' : ''; ?>"><i class="bi bi-people"></i><span>Manage Users</span></a>
-            <?php else: ?>
-                <a href="accounts_masterlist.php" class="<?php echo $currentPage === 'accounts_masterlist.php' ? 'active' : ''; ?>"><i class="bi bi-list-ul"></i><span>Accounts Masterlist</span></a>
-            <?php endif; ?>
-            <a href="admin_logs.php" class="<?php echo $currentPage === 'admin_logs.php' ? 'active' : ''; ?>"><i class="bi bi-file-earmark-text"></i><span>Admin Logs</span></a>
+            <a href="<?php echo e(nxAppUrl('manage_users.php')); ?>" class="<?php echo $currentPage === 'manage_users.php' ? 'active' : ''; ?>"><i class="bi bi-people"></i><span>Manage Users</span></a>
+            <a href="<?php echo e(nxAppUrl('accounts_masterlist.php')); ?>" class="<?php echo $currentPage === 'accounts_masterlist.php' ? 'active' : ''; ?>"><i class="bi bi-list-ul"></i><span>Accounts Masterlist</span></a>
+            <a href="<?php echo e(nxAppUrl('san_andres_analytics.php')); ?>" class="<?php echo $currentPage === 'san_andres_analytics.php' ? 'active' : ''; ?>"><i class="bi bi-graph-up-arrow"></i><span>San Andres Analytics</span></a>
+            <a href="<?php echo e(nxAppUrl('admin_logs.php')); ?>" class="<?php echo $currentPage === 'admin_logs.php' ? 'active' : ''; ?>"><i class="bi bi-file-earmark-text"></i><span>Admin Logs</span></a>
         </div>
     </nav>
 </aside>

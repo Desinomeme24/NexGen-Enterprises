@@ -7,7 +7,7 @@ require_once __DIR__ . '/otp_security.php';
 
 $lockoutRole = (string)($_SESSION['lockout_role'] ?? '');
 $adminLoginPath = nxLoginPathForRole($lockoutRole);
-$_SESSION['login_portal'] = nxIsSuperAdminRole($lockoutRole) ? 'admin' : 'san_andres';
+$_SESSION['login_portal'] = 'admin';
 
 if (
     !isset($_SESSION['lockout_user_id'], $_SESSION['lockout_username'], $_SESSION['lockout_role']) ||
@@ -21,7 +21,7 @@ if (
 $adminId = (int)$_SESSION['lockout_user_id'];
 $adminUsername = (string)$_SESSION['lockout_username'];
 
-$stmt = $conn->prepare("SELECT id, username, full_name, email, role, locked_until, otp_code, otp_expires_at FROM users WHERE id = ? AND role IN ('system_admin', 'super_admin', 'admin') LIMIT 1");
+$stmt = $conn->prepare("SELECT id, username, full_name, email, role, locked_until, otp_code, otp_expires_at FROM users WHERE id = ? AND role IN ('system_admin', 'super_admin') LIMIT 1");
 if (!$stmt) {
     $_SESSION['error'] = "Database error while checking locked admin account.";
     header('Location: ' . $adminLoginPath);
@@ -93,7 +93,7 @@ if (!isset($_SESSION['admin_unlock_otp_sent']) || $_SESSION['admin_unlock_otp_se
         exit();
     }
 
-    $otpStmt = $conn->prepare("UPDATE users SET otp_code = ?, otp_expires_at = ? WHERE id = ? AND role IN ('system_admin', 'super_admin', 'admin')");
+    $otpStmt = $conn->prepare("UPDATE users SET otp_code = ?, otp_expires_at = ? WHERE id = ? AND role IN ('system_admin', 'super_admin')");
     if (!$otpStmt) {
         $_SESSION['error'] = "Unable to prepare the administrator unlock code right now.";
         header('Location: ' . $adminLoginPath);
@@ -148,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
 
-        $checkStmt = $conn->prepare("SELECT otp_code, otp_expires_at FROM users WHERE id = ? AND role IN ('system_admin', 'super_admin', 'admin') LIMIT 1");
+        $checkStmt = $conn->prepare("SELECT otp_code, otp_expires_at FROM users WHERE id = ? AND role IN ('system_admin', 'super_admin') LIMIT 1");
         if (!$checkStmt) {
             $_SESSION['error'] = "Database error while verifying OTP.";
             header('Location: ' . nxAppUrl('admin_unlock_otp.php'));
@@ -196,7 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 otp_code = NULL,
                 otp_expires_at = NULL
             WHERE id = ?
-              AND role IN ('system_admin', 'super_admin', 'admin')
+              AND role IN ('system_admin', 'super_admin')
         ");
         if (!$unlockStmt) {
             $_SESSION['error'] = "Unable to unlock the administrator account right now.";
@@ -241,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
 
-        $otpStmt = $conn->prepare("UPDATE users SET otp_code = ?, otp_expires_at = ? WHERE id = ? AND role IN ('system_admin', 'super_admin', 'admin')");
+        $otpStmt = $conn->prepare("UPDATE users SET otp_code = ?, otp_expires_at = ? WHERE id = ? AND role IN ('system_admin', 'super_admin')");
         if (!$otpStmt) {
             $_SESSION['error'] = "Unable to prepare a new administrator unlock code right now.";
             header('Location: ' . nxAppUrl('admin_unlock_otp.php'));

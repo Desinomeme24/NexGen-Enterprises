@@ -3,7 +3,7 @@ session_start();
 require_once("config.php");
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ' . nxAppUrl('index.php'));
+    header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
     exit();
 }
 
@@ -24,10 +24,9 @@ $fullName     = $_SESSION['full_name'] ?? 'System Administrator';
 $search = trim($_GET['search'] ?? '');
 $action = trim($_GET['action'] ?? '');
 
-$viewerRole = nxIsSuperAdminRole((string)$_SESSION['role']) ? 'super_admin' : 'admin';
-$where = " WHERE u.role = ? ";
-$params = [$viewerRole];
-$types = "s";
+$where = " WHERE u.role IN ('system_admin', 'super_admin') ";
+$params = [];
+$types = "";
 
 if ($search !== '') {
     /* Search only the Action, Target, and Date & Time values shown in the log table. */
@@ -63,7 +62,7 @@ $actionStmt = $conn->prepare(
     "SELECT DISTINCT l.action
      FROM admin_logs l
      INNER JOIN users u ON u.id = l.admin_id
-     WHERE u.role = ?
+     WHERE u.role IN ('system_admin', 'super_admin')
      ORDER BY l.action ASC"
 );
 if (!$actionStmt) {
@@ -71,7 +70,6 @@ if (!$actionStmt) {
     http_response_code(503);
     exit('Admin logs are temporarily unavailable.');
 }
-$actionStmt->bind_param('s', $viewerRole);
 $actionStmt->execute();
 $actionResult = $actionStmt->get_result();
 if ($actionResult instanceof mysqli_result) {

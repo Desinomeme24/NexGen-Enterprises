@@ -6,7 +6,7 @@ function nxDocumentDeliveryFail(int $status, int $adminId = 0, int $requestId = 
 {
     nxDocumentUploadLog('document.access_denied', [
         'user_id' => $adminId,
-        'role' => $adminId > 0 ? (string)($_SESSION['role'] ?? 'admin') : 'unauthenticated',
+        'role' => $adminId > 0 ? (string)($_SESSION['role'] ?? 'system_admin') : 'unauthenticated',
         'request_id' => $requestId,
         'slot' => $slot,
     ]);
@@ -48,7 +48,7 @@ try {
     $adminStmt = $conn->prepare(
         "SELECT id
          FROM users
-         WHERE id = ? AND role IN ('system_admin', 'super_admin', 'admin') AND account_status = 'active'
+         WHERE id = ? AND role IN ('system_admin', 'super_admin') AND account_status = 'active'
          LIMIT 1"
     );
     if (!$adminStmt) {

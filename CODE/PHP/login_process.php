@@ -17,7 +17,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
    rejected instead of silently falling back to another authentication path. */
 $loginPortal = strtolower(trim((string)($_POST['login_portal'] ?? '')));
 
-if (!in_array($loginPortal, ['admin', 'san_andres', 'client'], true)) {
+if (!in_array($loginPortal, ['admin', 'client'], true)) {
     $_SESSION['error'] = 'Invalid login portal request. Please open the login page again.';
     $_SESSION['form_type'] = 'login';
     header('Location: ' . NEXGEN_CLIENT_LOGIN_PATH);
@@ -25,11 +25,9 @@ if (!in_array($loginPortal, ['admin', 'san_andres', 'client'], true)) {
 }
 
 $loginPage = nxLoginPathForPortal($loginPortal);
-$loginFormKey = match ($loginPortal) {
-    'admin' => 'admin_login_form',
-    'san_andres' => 'san_andres_login_form',
-    default => 'client_login_form',
-};
+$loginFormKey = $loginPortal === 'admin'
+    ? 'admin_login_form'
+    : 'client_login_form';
 
 /* SECURITY: CSRF validation */
 if (!validateCsrfToken($loginFormKey, $_POST['csrf_token'] ?? '')) {
@@ -103,13 +101,7 @@ if ($result->num_rows !== 1) {
 
                 switch ($requestStatus) {
                     case 'pending':
-                        $_SESSION['error'] = "Your account request is still being validated by the BPLO. Please wait for confirmation.";
-                        $_SESSION['form_type'] = 'login';
-                        header('Location: ' . $loginPage);
-                        exit();
-
-                    case 'validated':
-                        $_SESSION['error'] = "Your account request has passed BPLO validation and is waiting for final San Andres admin review.";
+                        $_SESSION['error'] = "Your account request is pending BPLO administrator review.";
                         $_SESSION['form_type'] = 'login';
                         header('Location: ' . $loginPage);
                         exit();

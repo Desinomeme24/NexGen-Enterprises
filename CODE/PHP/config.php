@@ -290,9 +290,9 @@ if (!defined('SESSION_TIMEOUT_SECONDS')) {
     define('SESSION_TIMEOUT_SECONDS', 600); // 10 minutes
 }
 
-/* AUTH PORTALS: keep BPLO Super Admin, San Andres Admin, and business-user
-   sign-in routes distinct. Centralize paths so authentication, recovery,
-   session timeouts, role guards, and logout return to the correct portal. */
+/* AUTH PORTALS: keep the BPLO administrator and business-user sign-in routes
+   distinct. Centralize paths so authentication, recovery, timeouts, and
+   logout return to the correct portal. */
 if (!defined('NEXGEN_CLIENT_LOGIN_PATH')) {
     define('NEXGEN_CLIENT_LOGIN_PATH', nxAppUrl('index.php'));
 }
@@ -304,13 +304,6 @@ if (!defined('NEXGEN_ADMIN_LOGIN_PATH')) {
         nxProjectUrl('nx-control-1407')
     );
 }
-if (!defined('NEXGEN_SAN_ANDRES_LOGIN_PATH')) {
-    define(
-        'NEXGEN_SAN_ANDRES_LOGIN_PATH',
-        nxAppUrl('BrgySanAndres.php')
-    );
-}
-
 /* =========================================================================
    COMMON HELPERS
    ========================================================================= */
@@ -964,11 +957,6 @@ if (!function_exists('nxNormalizeLoginPortal')) {
     function nxNormalizeLoginPortal(?string $portal): string
     {
         $normalizedPortal = strtolower(trim((string)$portal));
-
-        if ($normalizedPortal === 'san_andres') {
-            return 'san_andres';
-        }
-
         return $normalizedPortal === 'admin' ? 'admin' : 'client';
     }
 }
@@ -976,7 +964,7 @@ if (!function_exists('nxNormalizeLoginPortal')) {
 if (!function_exists('nxIsAdminRole')) {
     function nxIsAdminRole(?string $role): bool
     {
-        return in_array(strtolower(trim((string)$role)), ['system_admin', 'super_admin', 'admin'], true);
+        return nxIsSuperAdminRole($role);
     }
 }
 
@@ -992,10 +980,6 @@ if (!function_exists('nxLoginPathForPortal')) {
     {
         $normalizedPortal = nxNormalizeLoginPortal($portal);
 
-        if ($normalizedPortal === 'san_andres') {
-            return NEXGEN_SAN_ANDRES_LOGIN_PATH;
-        }
-
         return $normalizedPortal === 'admin'
             ? NEXGEN_ADMIN_LOGIN_PATH
             : NEXGEN_CLIENT_LOGIN_PATH;
@@ -1007,10 +991,6 @@ if (!function_exists('nxRoleMatchesLoginPortal')) {
     {
         $normalizedPortal = nxNormalizeLoginPortal($portal);
         $normalizedRole = strtolower(trim((string)$role));
-
-        if ($normalizedPortal === 'san_andres') {
-            return $normalizedRole === 'admin';
-        }
 
         return $normalizedPortal === 'admin'
             ? nxIsSuperAdminRole($normalizedRole)
@@ -1025,9 +1005,7 @@ if (!function_exists('nxLoginPathForRole')) {
             return nxLoginPathForPortal('admin');
         }
 
-        return strtolower(trim((string)$role)) === 'admin'
-            ? nxLoginPathForPortal('san_andres')
-            : nxLoginPathForPortal('client');
+        return nxLoginPathForPortal('client');
     }
 }
 
@@ -1085,9 +1063,10 @@ if (!function_exists('requireRole')) {
     function requireRole(array $roles): void
     {
         if (!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
-            $adminOnly = (in_array('system_admin', $roles, true)
-                    || in_array('super_admin', $roles, true)
-                    || in_array('admin', $roles, true))
+            $adminOnly = (
+                in_array('system_admin', $roles, true)
+                || in_array('super_admin', $roles, true)
+            )
                 && !in_array('owner', $roles, true)
                 && !in_array('employee', $roles, true);
             header('Location: ' . ($adminOnly ? NEXGEN_ADMIN_LOGIN_PATH : NEXGEN_CLIENT_LOGIN_PATH));

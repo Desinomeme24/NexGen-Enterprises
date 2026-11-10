@@ -12,7 +12,7 @@ if (
     !isset($_SESSION['user_id'], $_SESSION['role'])
     || !nxIsSuperAdminRole((string)$_SESSION['role'])
 ) {
-    nxBusinessPermitRedirect(false, 'Only the BPLO super admin can update business permit status.');
+    nxBusinessPermitRedirect(false, 'Only the BPLO administrator can update business permit status.');
 }
 
 enforceSessionTimeout();

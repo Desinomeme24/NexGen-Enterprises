@@ -43,19 +43,19 @@ function nxApproveRequestRespond(
 
 /*
  * NexGen registration approval handler.
- * Revalidates the San Andres administrator against the database before any
+ * Revalidates the BPLO administrator against the database before any
  * registration is finalized.
  */
 
 if (!isset($_SESSION['user_id'], $_SESSION['username'], $_SESSION['role']) ||
-    $_SESSION['role'] !== 'admin') {
+    !nxIsAdminRole((string)$_SESSION['role'])) {
     $_SESSION['form_type'] = 'login';
     nxApproveRequestRespond(
         false,
         'Your administrator session is no longer valid. Please log in again.',
         0,
         401,
-        nxAppUrl('index.php?open=login')
+        NEXGEN_ADMIN_LOGIN_PATH
     );
 }
 
@@ -69,7 +69,7 @@ $adminStmt = $conn->prepare(
     "SELECT id, username, role, account_status
      FROM users
      WHERE (id = ? OR username = ?)
-       AND role = 'admin'
+       AND role IN ('system_admin', 'super_admin')
      LIMIT 1"
 );
 
@@ -91,7 +91,7 @@ if (!$adminAccount || $adminAccount['account_status'] !== 'active') {
         'Your administrator account could not be verified. Please log in again.',
         0,
         401,
-        nxAppUrl('index.php?open=login')
+        NEXGEN_ADMIN_LOGIN_PATH
     );
 }
 
@@ -149,8 +149,11 @@ try {
         throw new RuntimeException('Registration request not found.');
     }
 
-    if (!in_array($request['request_status'], ['validated', 'resubmit'], true)) {
-        throw new RuntimeException('Only BPLO-validated or resubmitted requests can be approved.');
+    if (!in_array($request['request_status'], ['pending', 'resubmit'], true)) {
+        throw new RuntimeException('Only pending or resubmitted requests can be approved.');
+    }
+    if ((string)($_POST['small_enterprise_confirmed'] ?? '') !== '1') {
+        throw new RuntimeException('Confirm that the business qualifies as a small enterprise before approval.');
     }
 
     $stmt = $conn->prepare(
@@ -458,7 +461,7 @@ try {
              business_id = ?,
              business_entity_id = ?,
              branch_code = ?
-         WHERE id = ? AND request_status IN ('validated', 'resubmit')"
+         WHERE id = ? AND request_status IN ('pending', 'resubmit')"
     );
 
     if (!$stmt) {

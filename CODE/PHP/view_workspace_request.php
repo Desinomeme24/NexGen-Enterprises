@@ -4,11 +4,11 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/tenant_helper.php';
 
 if (empty($_SESSION['user_id'])) {
-    header('Location: ' . nxAppUrl('index.php'));
+    header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
     exit();
 }
 
-if (($_SESSION['role'] ?? '') !== 'admin') {
+if (!nxIsAdminRole((string)($_SESSION['role'] ?? ''))) {
     header('Location: ' . nxAppUrl('dashboard.php'));
     exit();
 }

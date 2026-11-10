@@ -4,7 +4,7 @@ require_once("config.php");
 require_once __DIR__ . '/tenant_helper.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ' . nxAppUrl('index.php'));
+    header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
     exit();
 }
 

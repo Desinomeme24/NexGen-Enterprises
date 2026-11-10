@@ -3,11 +3,11 @@ session_start();
 require_once("config.php");
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ' . nxAppUrl('index.php'));
+    header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
     exit();
 }
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+if (!nxIsAdminRole((string)($_SESSION['role'] ?? ''))) {
     header('Location: ' . nxAppUrl('dashboard.php'));
     exit();
 }

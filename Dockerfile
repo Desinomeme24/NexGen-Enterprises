@@ -19,8 +19,8 @@ COPY . .
 
 # Stop the build if NexGen's required application folders are missing.
 RUN test -f /app/CODE/PHP/index.php \
-    && test -f /app/CODE/PHP/BrgySanAndres.php \
     && test -f /app/CODE/PHP/health.php \
+    && test -f /app/CODE/PHP/san_andres_analytics.php \
     && test -d /app/CODE/JS \
     && test -d /app/CODE/STYLE \
     && test -d /app/IMAGES/captcha \

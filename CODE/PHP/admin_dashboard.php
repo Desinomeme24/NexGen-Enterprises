@@ -56,7 +56,6 @@ $adminName = (string)($_SESSION['full_name'] ?? 'System Administrator');
 /* -------------------------------------------------------------------------
    CURRENT ADMIN MODULE METRICS
    ------------------------------------------------------------------------- */
-$accountQueueStatus = $isSuperAdmin ? 'pending' : 'validated';
 $pendingAccountRequests = adminDashboardCount(
     $conn,
     "SELECT COUNT(*) AS total
@@ -73,7 +72,7 @@ $resubmitAccountRequests = adminDashboardCount(
 
 $workspaceRequestsReady = false;
 try {
-    $workspaceRequestsReady = !$isSuperAdmin && nxWorkspaceRequestSchemaReady($conn);
+    $workspaceRequestsReady = nxWorkspaceRequestSchemaReady($conn);
 } catch (Throwable $e) {
     error_log('NexGen workspace-request dashboard check failed: ' . $e->getMessage());
 }
@@ -89,7 +88,7 @@ $pendingWorkspaceRequests = $workspaceRequestsReady
 
 $pendingReviewTotal = $pendingAccountRequests
     + $pendingWorkspaceRequests
-    + ($isSuperAdmin ? 0 : $resubmitAccountRequests);
+    + $resubmitAccountRequests;
 
 $managedUsers = adminDashboardCount(
     $conn,
@@ -231,13 +230,12 @@ if ($pendingReviewTotal === 0) {
 $reviewQueue = [];
 
 try {
-    $accountQueueStatuses = $isSuperAdmin ? "'pending'" : "'validated', 'resubmit'";
     $accountResult = $conn->query(
         "SELECT id, request_code, full_name, username, requested_role,
                 business_name, business_type, business_type_other, business_code, branch_code,
                 possible_duplicate, created_at
          FROM registration_requests
-         WHERE request_status IN ({$accountQueueStatuses})
+         WHERE request_status IN ('pending', 'resubmit')
          ORDER BY created_at DESC
          LIMIT 10"
     );
@@ -1427,7 +1425,7 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
                 <div class="page-title">
                     <span class="dashboard-eyebrow">
                         <span class="dashboard-live-dot" aria-hidden="true"></span>
-                        <?php echo $isSuperAdmin ? 'Live system overview' : 'San Andres review overview'; ?>
+                        Live system overview
                     </span>
                     <h1><?php echo e($greeting); ?>, <?php echo e($adminName); ?></h1>
                 </div>
@@ -1450,12 +1448,12 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
 
                 <strong class="dashboard-review-number"><?php echo $pendingReviewTotal; ?></strong>
                 <h2 class="dashboard-review-title">
-                    <?php echo $isSuperAdmin ? 'Awaiting BPLO validation' : 'Awaiting San Andres review'; ?>
+                    Awaiting BPLO decision
                 </h2>
                 <div class="dashboard-review-breakdown" aria-label="Review request breakdown">
                     <div class="dashboard-breakdown-item">
                         <strong><?php echo $pendingAccountRequests; ?></strong>
-                        <span><?php echo $isSuperAdmin ? 'For validation' : 'Validated accounts'; ?></span>
+                        <span>Account requests</span>
                     </div>
                     <div class="dashboard-breakdown-item">
                         <strong><?php echo $pendingWorkspaceRequests; ?></strong>
@@ -1600,9 +1598,7 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
                 <div>
                     <h2>Review Queue</h2>
                     <p style="margin:5px 0 0; color:var(--muted, #aab4cf); font-size:0.84rem;">
-                        <?php echo $isSuperAdmin
-                            ? 'The newest SME registration requests awaiting BPLO validation.'
-                            : 'The newest validated registrations and workspace requests awaiting a decision.'; ?>
+                        The newest SME account and workspace requests awaiting BPLO review.
                     </p>
                 </div>
                 <a class="btn btn-gold" href="pending_requests.php">

@@ -1,19 +1,10 @@
 <?php
 require_once __DIR__ . '/config.php';
 
-$adminLoginPortal = nxNormalizeLoginPortal($nxAdminLoginPortal ?? 'admin');
-if (!in_array($adminLoginPortal, ['admin', 'san_andres'], true)) {
-    $adminLoginPortal = 'admin';
-}
-$adminLoginFormKey = $adminLoginPortal === 'san_andres'
-    ? 'san_andres_login_form'
-    : 'admin_login_form';
-$adminPortalTitle = $adminLoginPortal === 'san_andres'
-    ? 'BrgySanAndres Administrator Portal'
-    : 'BPLO Super Admin Portal';
-$adminPortalDashboardLabel = $adminLoginPortal === 'san_andres'
-    ? 'San Andres Admin Dashboard'
-    : 'BPLO Super Admin Dashboard';
+$adminLoginPortal = 'admin';
+$adminLoginFormKey = 'admin_login_form';
+$adminPortalTitle = 'BPLO Administrator Portal';
+$adminPortalDashboardLabel = 'BPLO Admin Dashboard';
 
 /* An authenticated account should never be shown another login form. */
 if (!empty($_SESSION['user_id'])) {
@@ -580,11 +571,8 @@ if (session_status() === PHP_SESSION_ACTIVE) {
                     <button class="submit-btn" type="submit" id="adminSubmit">Continue to <?php echo e($adminPortalDashboardLabel); ?></button>
                 </form>
                 <p class="portal-note">
-                    <?php if ($adminLoginPortal === 'san_andres'): ?>
-                        BrgySanAndres administrators only. <a href="<?php echo e(NEXGEN_CLIENT_LOGIN_PATH); ?>">Return to the business portal</a>.
-                    <?php else: ?>
-                        BPLO Super Admins only. <a href="<?php echo e(NEXGEN_CLIENT_LOGIN_PATH); ?>">Return to the business portal</a>.
-                    <?php endif; ?>
+                    Authorized BPLO administrators only.
+                    <a href="<?php echo e(NEXGEN_CLIENT_LOGIN_PATH); ?>">Return to the business portal</a>.
                 </p>
             </div>
         </div>
@@ -614,7 +602,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
                     <button class="forgot-submit" type="submit" id="adminForgotEmailSubmit">Continue</button>
                 </form>
                 <div class="forgot-footer">
-                    <span>Restricted to authorized <?php echo e($adminLoginPortal === 'san_andres' ? 'San Andres' : 'BPLO Super Admin'); ?> accounts.</span>
+                    <span>Restricted to authorized BPLO administrator accounts.</span>
                     <button class="forgot-link-btn" type="button" id="adminForgotBackToLogin">Back to login</button>
                 </div>
             </section>

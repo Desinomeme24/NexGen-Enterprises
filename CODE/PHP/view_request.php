@@ -2,7 +2,7 @@
 require_once __DIR__ . '/config.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ' . nxAppUrl('index.php'));
+    header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
     exit();
 }
 
@@ -57,12 +57,8 @@ if (!$request) {
     exit();
 }
 
-$isSuperAdmin = nxIsSuperAdminRole((string)$_SESSION['role']);
 $currentStatus = strtolower((string)($request['request_status'] ?? 'pending'));
-if (
-    ($isSuperAdmin && $currentStatus !== 'pending')
-    || (!$isSuperAdmin && $currentStatus === 'pending')
-) {
+if (!in_array($currentStatus, ['pending', 'resubmit'], true)) {
     header('Location: ' . nxAppUrl('pending_requests.php'));
     exit();
 }
@@ -85,8 +81,7 @@ $businessPermitIsPdf = ($businessPermitExt === 'pdf');
 // resubmit -> approve / reject / update corrected information
 // approved/rejected are final and cannot be changed.
 $isFinalized = in_array($currentStatus, ['approved', 'rejected'], true);
-$canValidate = $isSuperAdmin && $currentStatus === 'pending';
-$canFinalReview = !$isSuperAdmin && in_array($currentStatus, ['validated', 'resubmit'], true);
+$canFinalReview = in_array($currentStatus, ['pending', 'resubmit'], true);
 $isEmployeeRequest = ($request['requested_role'] ?? '') === 'employee';
 $allowedBusinessTypes = [
     'Hardware / Construction Supplies',
@@ -798,10 +793,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                     <div class="kv-item"><label>Phone</label><div class="value"><?php echo e($request['phone']); ?></div></div>
                     <div class="kv-item"><label>Address</label><div class="value"><?php echo e($request['address']); ?></div></div>
                     <div class="kv-item"><label>Requested Role</label><div class="value"><?php echo e(ucwords(str_replace('_', ' ', $request['requested_role']))); ?></div></div>
-                    <div class="kv-item"><label>Status</label><div class="value"><span class="badge badge-<?php echo e($request['request_status']); ?>"><?php echo e($request['request_status'] === 'pending' ? 'Awaiting BPLO validation' : ($request['request_status'] === 'validated' ? 'Awaiting San Andres review' : ucfirst($request['request_status']))); ?></span></div></div>
-                    <?php if (!empty($request['validation_remarks'])): ?>
-                        <div class="kv-item" style="grid-column: 1 / -1;"><label>BPLO Validation Notes</label><div class="value"><?php echo nl2br(e($request['validation_remarks'])); ?></div></div>
-                    <?php endif; ?>
+                    <div class="kv-item"><label>Status</label><div class="value"><span class="badge badge-<?php echo e($request['request_status']); ?>"><?php echo e($request['request_status'] === 'pending' ? 'Awaiting BPLO decision' : ucfirst($request['request_status'])); ?></span></div></div>
                     <div class="kv-item"><label>Submitted At</label><div class="value"><?php echo e(date('M d, Y h:i A', strtotime($request['created_at']))); ?></div></div>
                     <div class="kv-item" style="grid-column: 1 / -1;">
                         <label>Valid ID</label>
@@ -891,33 +883,17 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
 
         <section class="panel admin-actions-panel">
             <div class="panel-header">
-                <h2><?php echo $isSuperAdmin ? 'BPLO Validation' : 'San Andres Admin Actions'; ?></h2>
+                <h2>BPLO Administrator Actions</h2>
             </div>
             <div class="panel-body">
                 <?php if ($isFinalized): ?>
                     <div class="notice <?php echo $currentStatus === 'approved' ? 'notice-success' : 'notice-error'; ?>">
                         This request has already been <strong><?php echo e($currentStatus); ?></strong> and is final. No further status changes are allowed.
                     </div>
-                <?php elseif ($canValidate): ?>
-                    <p class="notice">
-                        Check the applicant and business permit against BPLO municipal records. Successful validation moves this registration to the San Andres admin review queue; it does not create or approve the account.
-                    </p>
-                    <form method="POST" action="<?php echo e(nxAppUrl('validate_request.php')); ?>" class="request-action-form modern-action-form">
-                        <input type="hidden" name="csrf_token" value="<?php echo e(generateCsrfToken('bplo_validate_request')); ?>">
-                        <input type="hidden" name="request_id" value="<?php echo (int)$request['id']; ?>">
-                        <div class="modern-field">
-                            <label for="validationRemarks">BPLO verification notes</label>
-                            <textarea id="validationRemarks" name="remarks" minlength="3" maxlength="2000" required placeholder="Record the permit/municipal record reference checked"></textarea>
-                        </div>
-                        <div class="modern-field">
-                            <label>
-                                <input type="checkbox" name="small_enterprise_confirmed" value="1" required>
-                                I confirmed from BPLO records that this business qualifies as a small enterprise.
-                            </label>
-                        </div>
-                        <button class="btn btn-gold" type="submit">Validate and Send to San Andres</button>
-                    </form>
                 <?php elseif ($canFinalReview): ?>
+                    <p class="notice">
+                        Verify the applicant and business permit against BPLO records before approving this small-enterprise account.
+                    </p>
                     <div class="notice request-action-feedback" id="requestActionFeedback" role="status"></div>
 
                     <div class="request-action-processing" id="requestActionProcessing" role="status" aria-live="polite">
@@ -950,13 +926,21 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                                         <?php echo !$branchIntegrityOk && $isEmployeeRequest ? 'Approve Request (branch unresolved)' : 'Approve Request'; ?>
                                     </option>
                                     <option value="reject">Reject Request</option>
-                                    <?php if ($currentStatus === 'validated'): ?>
+                                    <?php if (in_array($currentStatus, ['pending', 'resubmit'], true)): ?>
                                         <option value="resubmit">Send for Resubmission</option>
-                                    <?php elseif ($currentStatus === 'resubmit'): ?>
+                                    <?php endif; ?>
+                                    <?php if ($currentStatus === 'resubmit'): ?>
                                         <option value="update_resubmit">Update Resubmission Details</option>
                                     <?php endif; ?>
                                 </select>
                             </div>
+                        </div>
+
+                        <div class="modern-field">
+                            <label>
+                                <input type="checkbox" name="small_enterprise_confirmed" value="1" id="smallEnterpriseConfirmed">
+                                I verified this business qualifies as a small enterprise.
+                            </label>
                         </div>
 
                         <div class="correction-editor" id="correctionEditor" aria-hidden="true">
@@ -1320,6 +1304,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const actionMode = document.getElementById('actionMode');
     const correctionEditor = document.getElementById('correctionEditor');
     const correctionRequiredFields = document.querySelectorAll('[data-correction-required]');
+    const smallEnterpriseConfirmation = document.getElementById('smallEnterpriseConfirmed');
 
     if (actionSelect && adminActionForm && remarksWrapper && remarksLabel && remarksInput && submitBtn) {
         actionSelect.addEventListener('change', function() {
@@ -1337,6 +1322,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 correctionRequiredFields.forEach(function(field) {
                     field.required = false;
                 });
+                if (smallEnterpriseConfirmation) smallEnterpriseConfirmation.required = false;
                 return;
             }
 
@@ -1362,6 +1348,9 @@ document.addEventListener('DOMContentLoaded', function() {
             correctionRequiredFields.forEach(function(field) {
                 field.required = config.showCorrections === true;
             });
+            if (smallEnterpriseConfirmation) {
+                smallEnterpriseConfirmation.required = actionSelect.value === 'approve';
+            }
         });
     }
 

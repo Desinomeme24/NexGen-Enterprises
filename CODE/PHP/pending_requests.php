@@ -5,7 +5,7 @@ require_once __DIR__ . '/tenant_helper.php';
 enforceSessionTimeout();
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ' . nxAppUrl('index.php'));
+    header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
     exit();
 }
 
@@ -13,8 +13,6 @@ if (!nxIsAdminRole((string)($_SESSION['role'] ?? ''))) {
     header('Location: ' . nxAppUrl('dashboard.php'));
     exit();
 }
-$isSuperAdmin = nxIsSuperAdminRole((string)$_SESSION['role']);
-
 if (!function_exists('e')) {
     function e($str): string
     {
@@ -31,8 +29,6 @@ function statusIcon(string $status): string {
             return 'bi-x-circle-fill';
         case 'resubmit':
             return 'bi-arrow-repeat';
-        case 'validated':
-            return 'bi-shield-check';
         case 'pending':
         default:
             return 'bi-hourglass-split';
@@ -42,8 +38,7 @@ function statusIcon(string $status): string {
 function requestStatusLabel(array $request): string {
     $status = (string)($request['request_status'] ?? 'pending');
     return match ($status) {
-        'pending' => 'Awaiting BPLO validation',
-        'validated' => 'Awaiting San Andres',
+        'pending' => 'Awaiting BPLO decision',
         'resubmit' => 'Resubmission',
         default => ucfirst($status),
     };
@@ -52,28 +47,22 @@ function requestStatusLabel(array $request): string {
 $profileImage = !empty($_SESSION['profile_image']) ? $_SESSION['profile_image'] : 'uploads/default.png';
 $fullName     = $_SESSION['full_name'] ?? 'System Administrator';
 
-$status = $_GET['status'] ?? ($isSuperAdmin ? 'pending' : 'validated');
+$status = $_GET['status'] ?? 'pending';
 $search = trim($_GET['search'] ?? '');
 
-$allowedStatuses = $isSuperAdmin
-    ? ['all', 'pending']
-    : ['all', 'pending', 'validated', 'resubmit'];
+$allowedStatuses = ['all', 'pending', 'resubmit'];
 if (!in_array($status, $allowedStatuses, true)) {
-    $status = $isSuperAdmin ? 'pending' : 'validated';
+    $status = 'pending';
 }
 
-$accountWhere = $isSuperAdmin
-    ? " WHERE request_status = 'pending' "
-    : " WHERE request_status IN ('validated', 'resubmit') ";
+$accountWhere = " WHERE request_status IN ('pending', 'resubmit') ";
 $accountParams = [];
 $accountTypes = "";
 
-if ($status !== 'all' && in_array($status, $isSuperAdmin ? ['pending'] : ['validated', 'resubmit'], true)) {
+if ($status !== 'all' && in_array($status, ['pending', 'resubmit'], true)) {
     $accountWhere .= " AND request_status = ? ";
     $accountParams[] = $status;
     $accountTypes .= "s";
-} elseif (!$isSuperAdmin && $status === 'pending') {
-    $accountWhere .= " AND 1 = 0 ";
 }
 
 if ($search !== '') {
@@ -104,7 +93,7 @@ if ($stmt) {
     $stmt->close();
 }
 
-if (!$isSuperAdmin && nxWorkspaceRequestSchemaReady($conn)) {
+if (nxWorkspaceRequestSchemaReady($conn)) {
     $workspaceWhere = " WHERE 1=1 ";
     $workspaceParams = [];
     $workspaceTypes = "";
@@ -1062,7 +1051,7 @@ unset($_SESSION['flash'], $_SESSION['success'], $_SESSION['error']);
         <div class="topbar">
             <div class="page-title pending-page-heading">
                 <i class="bi bi-person-workspace" aria-hidden="true"></i>
-                <h1><?php echo $isSuperAdmin ? 'BPLO Registration Validation' : 'San Andres Request Review'; ?></h1>
+                <h1>Pending Requests</h1>
             </div>
         </div>
 
@@ -1074,7 +1063,7 @@ unset($_SESSION['flash'], $_SESSION['success'], $_SESSION['error']);
 
         <section class="panel">
             <div class="panel-header">
-                <h2><?php echo $isSuperAdmin ? 'Requests Awaiting Validation' : 'Requests Awaiting Final Review'; ?></h2>
+                <h2>Requests Awaiting BPLO Review</h2>
             </div>
             <div class="panel-body">
                 <form method="GET" class="filters pending-request-filters" id="requestFilterForm">
@@ -1095,13 +1084,8 @@ unset($_SESSION['flash'], $_SESSION['success'], $_SESSION['error']);
                     </div>
                     <select class="select w-240" name="status" id="requestStatusFilter" aria-label="Filter requests by status">
                         <option value="all" <?php echo $status === 'all' ? 'selected' : ''; ?>>All Queue Items</option>
-                        <?php if ($isSuperAdmin): ?>
-                            <option value="pending" <?php echo $status === 'pending' ? 'selected' : ''; ?>>Awaiting BPLO Validation</option>
-                        <?php else: ?>
-                            <option value="pending" <?php echo $status === 'pending' ? 'selected' : ''; ?>>Workspace Requests</option>
-                            <option value="validated" <?php echo $status === 'validated' ? 'selected' : ''; ?>>Awaiting San Andres Review</option>
-                            <option value="resubmit" <?php echo $status === 'resubmit' ? 'selected' : ''; ?>>Resubmission</option>
-                        <?php endif; ?>
+                        <option value="pending" <?php echo $status === 'pending' ? 'selected' : ''; ?>>Awaiting Review</option>
+                        <option value="resubmit" <?php echo $status === 'resubmit' ? 'selected' : ''; ?>>Resubmission</option>
                     </select>
                     <button class="btn btn-silver" type="button" id="pendingResetButton">Reset</button>
                 </form>

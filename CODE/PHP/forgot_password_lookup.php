@@ -76,7 +76,6 @@ unset(
 
 $portalRoleFilter = match ($fpPortal) {
     'admin' => "u.role IN ('system_admin', 'super_admin')",
-    'san_andres' => "u.role = 'admin'",
     default => "u.role IN ('owner', 'employee')",
 };
 

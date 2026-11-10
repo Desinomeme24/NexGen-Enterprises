@@ -76,7 +76,7 @@ function nxResubmitDeleteDocument(string $reference, string $slot, int $adminId,
     } catch (Throwable $error) {
         nxDocumentUploadLog('document.cleanup_failed', [
             'user_id' => $adminId,
-            'role' => 'admin',
+            'role' => (string)($_SESSION['role'] ?? 'system_admin'),
             'request_id' => $requestId,
             'slot' => $slot,
         ]);
@@ -85,13 +85,13 @@ function nxResubmitDeleteDocument(string $reference, string $slot, int $adminId,
     }
 }
 
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
+if (!isset($_SESSION['user_id']) || !nxIsAdminRole((string)($_SESSION['role'] ?? ''))) {
     nxResubmitRequestRespond(
         false,
         'Your administrator session is no longer valid. Please log in again.',
         0,
         401,
-        nxAppUrl('index.php?open=login')
+        NEXGEN_ADMIN_LOGIN_PATH
     );
 }
 
@@ -161,7 +161,7 @@ if (!nxResubmitLengthBetween($address, 5, 500) || nxResubmitHasControlCharacters
 $adminStmt = $conn->prepare(
     "SELECT id
      FROM users
-     WHERE id = ? AND role = 'admin' AND account_status = 'active'
+     WHERE id = ? AND role IN ('system_admin', 'super_admin') AND account_status = 'active'
      LIMIT 1"
 );
 if (!$adminStmt) {
@@ -177,7 +177,7 @@ if (!$adminIsActive) {
         'Your administrator account is no longer active.',
         $requestId,
         403,
-        nxAppUrl('index.php?open=login')
+        NEXGEN_ADMIN_LOGIN_PATH
     );
 }
 
@@ -194,7 +194,7 @@ try {
     $requestLookup = $conn->prepare(
         "SELECT requested_role, valid_id_path, business_permit_path
          FROM registration_requests
-         WHERE id = ? AND request_status IN ('validated', 'resubmit')
+         WHERE id = ? AND request_status IN ('pending', 'resubmit')
          LIMIT 1"
     );
     if (!$requestLookup) {
@@ -264,14 +264,14 @@ try {
     if ($replacementUpload !== null) {
         $stagedValidId = nxStageSensitiveDocument($replacementUpload, 'valid_id', [
             'user_id' => $adminId,
-            'role' => 'admin',
+            'role' => (string)($_SESSION['role'] ?? 'system_admin'),
             'request_id' => $requestId,
         ]);
     }
     if ($replacementPermitUpload !== null) {
         $stagedBusinessPermit = nxStageSensitiveDocument($replacementPermitUpload, 'business_permit', [
             'user_id' => $adminId,
-            'role' => 'admin',
+            'role' => (string)($_SESSION['role'] ?? 'system_admin'),
             'request_id' => $requestId,
         ]);
     }
@@ -286,7 +286,7 @@ try {
 } catch (NxDocumentUploadUnavailable $uploadError) {
     nxDocumentUploadLog('upload.unavailable', [
         'user_id' => $adminId,
-        'role' => 'admin',
+        'role' => (string)($_SESSION['role'] ?? 'system_admin'),
         'request_id' => $requestId,
         'slot' => 'admin_resubmission',
     ]);
@@ -302,7 +302,7 @@ try {
 } catch (NxDocumentUploadRejected $uploadError) {
     nxDocumentUploadLog('upload.rejected', [
         'user_id' => $adminId,
-        'role' => 'admin',
+        'role' => (string)($_SESSION['role'] ?? 'system_admin'),
         'request_id' => $requestId,
         'slot' => 'admin_resubmission',
     ]);
@@ -318,7 +318,7 @@ try {
 } catch (Throwable $uploadError) {
     nxDocumentUploadLog('upload.processing_failed', [
         'user_id' => $adminId,
-        'role' => 'admin',
+        'role' => (string)($_SESSION['role'] ?? 'system_admin'),
         'request_id' => $requestId,
         'slot' => 'admin_resubmission',
     ]);
@@ -340,7 +340,7 @@ try {
     $adminStmt = $conn->prepare(
         "SELECT id
          FROM users
-         WHERE id = ? AND role = 'admin' AND account_status = 'active'
+         WHERE id = ? AND role IN ('system_admin', 'super_admin') AND account_status = 'active'
          LIMIT 1"
     );
     if (!$adminStmt) {
@@ -357,7 +357,7 @@ try {
             'Your administrator account is no longer active.',
             $requestId,
             403,
-            nxAppUrl('index.php?open=login')
+            NEXGEN_ADMIN_LOGIN_PATH
         );
     }
 
@@ -382,8 +382,8 @@ try {
     }
 
     $currentStatus = (string)$request['request_status'];
-    if (!in_array($currentStatus, ['validated', 'resubmit'], true)) {
-        throw new RuntimeException('Only BPLO-validated or resubmission requests can be corrected.');
+    if (!in_array($currentStatus, ['pending', 'resubmit'], true)) {
+        throw new RuntimeException('Only pending or resubmission requests can be corrected.');
     }
 
     $role = (string)$request['requested_role'];
@@ -410,7 +410,7 @@ try {
         "SELECT id
          FROM registration_requests
          WHERE id <> ?
-           AND request_status IN ('pending', 'validated', 'resubmit')
+           AND request_status IN ('pending', 'resubmit')
            AND (username = ? OR email = ?)
          LIMIT 1"
     );
@@ -609,7 +609,7 @@ try {
              reviewed_by = ?,
              reviewed_at = ?
          WHERE id = ?
-           AND request_status IN ('validated', 'resubmit')"
+           AND request_status IN ('pending', 'resubmit')"
     );
     if (!$stmt) {
         throw new RuntimeException('Unable to prepare the corrected request update.');
@@ -672,7 +672,7 @@ try {
     ) {
         nxDocumentUploadLog('replacement.cleanup_failed', [
             'user_id' => $adminId,
-            'role' => 'admin',
+            'role' => (string)($_SESSION['role'] ?? 'system_admin'),
             'request_id' => $requestId,
             'slot' => 'valid_id',
         ]);
@@ -684,7 +684,7 @@ try {
     ) {
         nxDocumentUploadLog('replacement.cleanup_failed', [
             'user_id' => $adminId,
-            'role' => 'admin',
+            'role' => (string)($_SESSION['role'] ?? 'system_admin'),
             'request_id' => $requestId,
             'slot' => 'business_permit',
         ]);
@@ -696,7 +696,7 @@ try {
         if ($newReference !== null) {
             nxDocumentUploadLog('upload.stored', [
                 'user_id' => $adminId,
-                'role' => 'admin',
+                'role' => (string)($_SESSION['role'] ?? 'system_admin'),
                 'request_id' => $requestId,
                 'slot' => $slot,
             ]);
