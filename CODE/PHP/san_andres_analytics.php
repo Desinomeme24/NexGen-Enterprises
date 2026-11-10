@@ -274,6 +274,18 @@ function nxAnalyticsMoney(float $amount): string
         .analytics-business { min-width: 210px; }
         .analytics-business-name { display: block; font-weight: 750; color: var(--text); }
         .analytics-owner { display: block; margin-top: 4px; color: var(--muted); font-size: .8rem; }
+        .analytics-permit-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            font-size: .78rem;
+            font-weight: 750;
+        }
+        .analytics-permit-status.is-paid { color: #34d399; background: rgba(52, 211, 153, .1); }
+        .analytics-permit-status.is-unpaid { color: #ff9aa3; background: rgba(239, 68, 68, .1); }
+        .analytics-permit-status.is-unknown { color: var(--muted); background: var(--line); }
         .analytics-bar-track {
             height: 7px;
             margin-top: 8px;
@@ -393,7 +405,7 @@ function nxAnalyticsMoney(float $amount): string
             <div class="analytics-heading">
                 <div>
                     <div class="page-title"><h1>San Andres Analytics</h1></div>
-                    <p>Revenue and net profit across all registered businesses.</p>
+                    <p>Net profit and business permit payment status across all registered businesses.</p>
                 </div>
                 <div class="dashboard-date">
                     <i class="bi bi-calendar3"></i>
@@ -409,8 +421,8 @@ function nxAnalyticsMoney(float $amount): string
                 <small class="analytics-filter-hint">Show all businesses</small>
             </button>
             <article class="analytics-metric">
-                <span>Total gross revenue</span>
-                <strong><?php echo e(nxAnalyticsMoney($totalRevenue)); ?></strong>
+                <span>Total net profit</span>
+                <strong><?php echo e(nxAnalyticsMoney($totalProfit)); ?></strong>
             </article>
             <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="paid" aria-pressed="false" aria-controls="analyticsBusinessRows">
                 <span>Paid business permits</span>
@@ -440,9 +452,8 @@ function nxAnalyticsMoney(float $amount): string
                             <thead>
                                 <tr>
                                     <th>Business</th>
-                                    <th>Gross Revenue</th>
-                                    <th>Cost of Goods Sold</th>
                                     <th>Net Profit</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody id="analyticsBusinessRows">
@@ -478,9 +489,17 @@ function nxAnalyticsMoney(float $amount): string
                                             <span class="analytics-bar" style="display:block;width:<?php echo e((string)$barWidth); ?>%"></span>
                                         </span>
                                     </td>
-                                    <td data-label="Gross Revenue"><?php echo e(nxAnalyticsMoney($revenue)); ?></td>
-                                    <td data-label="Cost of Goods Sold"><?php echo e(nxAnalyticsMoney((float)$business['cost_of_goods_sold'])); ?></td>
                                     <td data-label="Net Profit"><?php echo e(nxAnalyticsMoney((float)$business['net_profit'])); ?></td>
+                                    <?php
+                                    $permitStatus = strtolower(trim((string)$business['permit_payment_status']));
+                                    $permitStatusLabel = $permitStatus === 'paid' ? 'Paid' : ($permitStatus === 'unpaid' ? 'Unpaid' : 'Not set');
+                                    $permitStatusClass = $permitStatus === 'paid' ? 'is-paid' : ($permitStatus === 'unpaid' ? 'is-unpaid' : 'is-unknown');
+                                    ?>
+                                    <td data-label="Status">
+                                        <span class="analytics-permit-status <?php echo e($permitStatusClass); ?>">
+                                            <?php echo e($permitStatusLabel); ?>
+                                        </span>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                             </tbody>
