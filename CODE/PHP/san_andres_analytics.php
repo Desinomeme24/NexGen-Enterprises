@@ -85,6 +85,15 @@ while ($row = $financialResult->fetch_assoc()) {
     $businesses[] = $row;
 }
 $businessCount = count($businesses);
+$paidPermitCount = 0;
+$unpaidPermitCount = 0;
+foreach ($businesses as $business) {
+    if (strtolower((string)$business['permit_payment_status']) === 'paid') {
+        $paidPermitCount++;
+    } elseif (strtolower((string)$business['permit_payment_status']) === 'unpaid') {
+        $unpaidPermitCount++;
+    }
+}
 
 $locationsByEntity = [];
 $locationResult = $conn->query(
@@ -236,6 +245,24 @@ function nxAnalyticsMoney(float $amount): string
             border-radius: 16px;
             background: var(--panel, var(--card));
         }
+        .analytics-filter-button {
+            width: 100%;
+            color: inherit;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+            transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+        }
+        .analytics-filter-button:hover,
+        .analytics-filter-button:focus-visible,
+        .analytics-filter-button[aria-pressed="true"] {
+            border-color: var(--gold, #eab75e);
+            outline: none;
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold, #eab75e) 35%, transparent);
+        }
+        .analytics-filter-button:hover { transform: translateY(-2px); }
+        .analytics-filter-button:focus-visible { outline: 2px solid var(--gold, #eab75e); outline-offset: 2px; }
+        .analytics-filter-hint { display: block; margin-top: 5px; color: var(--muted); font-size: .75rem; }
         .analytics-metric span { display: block; color: var(--muted); font-size: .82rem; }
         .analytics-metric strong {
             display: block;
@@ -375,30 +402,33 @@ function nxAnalyticsMoney(float $amount): string
             </div>
         </div>
 
-        <section class="analytics-summary" aria-label="Business financial summary">
-            <article class="analytics-metric">
+        <section class="analytics-summary" aria-label="Business and permit summary">
+            <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="all" aria-pressed="true" aria-controls="analyticsBusinessRows">
                 <span>Registered businesses</span>
                 <strong><?php echo number_format($businessCount); ?></strong>
-            </article>
+                <small class="analytics-filter-hint">Show all businesses</small>
+            </button>
             <article class="analytics-metric">
                 <span>Total gross revenue</span>
                 <strong><?php echo e(nxAnalyticsMoney($totalRevenue)); ?></strong>
             </article>
-            <article class="analytics-metric">
-                <span>Cost of goods sold</span>
-                <strong><?php echo e(nxAnalyticsMoney($totalCosts)); ?></strong>
-            </article>
-            <article class="analytics-metric">
-                <span>Net profit</span>
-                <strong><?php echo e(nxAnalyticsMoney($totalProfit)); ?></strong>
-            </article>
+            <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="paid" aria-pressed="false" aria-controls="analyticsBusinessRows">
+                <span>Paid business permits</span>
+                <strong><?php echo number_format($paidPermitCount); ?></strong>
+                <small class="analytics-filter-hint">Filter paid businesses</small>
+            </button>
+            <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="unpaid" aria-pressed="false" aria-controls="analyticsBusinessRows">
+                <span>Unpaid business permits</span>
+                <strong><?php echo number_format($unpaidPermitCount); ?></strong>
+                <small class="analytics-filter-hint">Filter unpaid businesses</small>
+            </button>
         </section>
 
         <section class="panel" aria-labelledby="analyticsBusinessesHeading">
             <div class="panel-header">
                 <div>
                     <h2 id="analyticsBusinessesHeading">Business Performance</h2>
-                    <p>Net profit is gross revenue minus cost of goods sold; operating expenses are excluded.</p>
+                    <p id="analyticsFilterStatus" aria-live="polite">Showing all registered businesses. Net profit is gross revenue minus cost of goods sold; operating expenses are excluded.</p>
                 </div>
             </div>
             <div class="panel-body">
@@ -415,7 +445,7 @@ function nxAnalyticsMoney(float $amount): string
                                     <th>Net Profit</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="analyticsBusinessRows">
                             <?php foreach ($businesses as $business): ?>
                                 <?php
                                 $entityId = (int)$business['business_entity_id'];
@@ -439,6 +469,7 @@ function nxAnalyticsMoney(float $amount): string
                                 ?>
                                 <tr class="analytics-business-row" data-business-row tabindex="0" role="button" aria-haspopup="dialog"
                                     aria-label="<?php echo e('View details for ' . $business['business_name']); ?>"
+                                    data-permit-status="<?php echo e(strtolower((string)$business['permit_payment_status'])); ?>"
                                     data-business="<?php echo e((string)json_encode($businessPayload, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP)); ?>">
                                     <td class="analytics-business">
                                         <span class="analytics-business-name"><?php echo e($business['business_name']); ?></span>
@@ -455,6 +486,7 @@ function nxAnalyticsMoney(float $amount): string
                             </tbody>
                         </table>
                     </div>
+                    <p class="analytics-empty" id="analyticsNoFilterMatches" hidden>No businesses match this permit status.</p>
                 <?php endif; ?>
             </div>
         </section>
@@ -674,6 +706,30 @@ function nxAnalyticsMoney(float $amount): string
                     event.preventDefault();
                     openDetails(row);
                 }
+            });
+            var filterButtons = document.querySelectorAll('[data-permit-filter]');
+            var filterStatus = document.getElementById('analyticsFilterStatus');
+            var noFilterMatches = document.getElementById('analyticsNoFilterMatches');
+            filterButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    var filter = button.getAttribute('data-permit-filter');
+                    var visibleCount = 0;
+                    document.querySelectorAll('[data-business-row]').forEach(function (row) {
+                        var show = filter === 'all' || row.getAttribute('data-permit-status') === filter;
+                        row.hidden = !show;
+                        if (show) visibleCount++;
+                    });
+                    filterButtons.forEach(function (item) {
+                        item.setAttribute('aria-pressed', item === button ? 'true' : 'false');
+                    });
+                    if (filterStatus) {
+                        var label = filter === 'all'
+                            ? 'all registered businesses'
+                            : filter + ' permit businesses';
+                        filterStatus.textContent = 'Showing ' + visibleCount + ' ' + label + '. Net profit is gross revenue minus cost of goods sold; operating expenses are excluded.';
+                    }
+                    if (noFilterMatches) noFilterMatches.hidden = visibleCount > 0;
+                });
             });
         });
         closeButton.addEventListener('click', closeDetails);
