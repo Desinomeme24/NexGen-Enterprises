@@ -266,32 +266,6 @@ $pageSubtitle = $isOwner
             </div>
 
             <div class="modern-module-grid">
-                <?php if ($isOwner): ?>
-                <a href="<?php echo e(nxAppUrl('manage_employees.php')); ?>" class="modern-module-card module-reveal">
-                    <div class="module-card-glow"></div>
-                    <div class="module-card-icon">
-                        <i class="bi bi-person-check-fill"></i>
-                    </div>
-                    <div class="module-card-content">
-                        <h3>Manage Employees</h3>
-                        <p>Review employee access requests and confirm each application is assigned to the right business branch.</p>
-                        <span class="module-card-link">Review Requests <i class="bi bi-arrow-right"></i></span>
-                    </div>
-                </a>
-
-                <a href="<?php echo e(nxAppUrl('owner_audit_logs.php')); ?>" class="modern-module-card module-reveal">
-                    <div class="module-card-glow"></div>
-                    <div class="module-card-icon">
-                        <i class="bi bi-shield-check"></i>
-                    </div>
-                    <div class="module-card-content">
-                        <h3>Audit Logs</h3>
-                        <p>See a clear, verifiable record of employee request decisions made from your owner account.</p>
-                        <span class="module-card-link">View Activity <i class="bi bi-arrow-right"></i></span>
-                    </div>
-                </a>
-                <?php endif; ?>
-
                 <?php if ($canInventory): ?>
                 <a href="<?php echo e(nxAppUrl('inventory_management.php')); ?>" class="modern-module-card module-reveal">
                     <div class="module-card-glow"></div>
@@ -330,6 +304,20 @@ $pageSubtitle = $isOwner
                             <h3>Sales Analytics</h3>
                             <p>View trends, monitor business performance, and analyze revenue insights with visual reports.</p>
                             <span class="module-card-link">Open Module <i class="bi bi-arrow-right"></i></span>
+                        </div>
+                    </a>
+                <?php endif; ?>
+
+                <?php if ($isOwner): ?>
+                    <a href="<?php echo e(nxAppUrl('manage_employees.php')); ?>" class="modern-module-card module-reveal">
+                        <div class="module-card-glow"></div>
+                        <div class="module-card-icon">
+                            <i class="bi bi-person-check-fill"></i>
+                        </div>
+                        <div class="module-card-content">
+                            <h3>Manage Employees</h3>
+                            <p>Review employee access requests and confirm each application is assigned to the right business branch.</p>
+                            <span class="module-card-link">Review Requests <i class="bi bi-arrow-right"></i></span>
                         </div>
                     </a>
                 <?php endif; ?>
