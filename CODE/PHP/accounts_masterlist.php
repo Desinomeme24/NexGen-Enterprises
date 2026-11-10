@@ -112,11 +112,10 @@ if ($search !== '') {
         u.full_name LIKE ?
         OR u.email LIKE ?
         OR u.phone LIKE ?
-        OR u.role LIKE ?
     ) ";
     $like = "%{$search}%";
-    $params = [$like, $like, $like, $like];
-    $types = "ssss";
+    $params = [$like, $like, $like];
+    $types = "sss";
 }
 
 $sql = "
@@ -126,7 +125,6 @@ $sql = "
         u.email,
         u.phone,
         {$profileImageExpr} AS profile_image,
-        'Owner' AS position,
         CASE
             WHEN u.account_status IN ('disabled', 'rejected') THEN 'terminated'
             WHEN {$activityExpr} < DATE_SUB(NOW(), INTERVAL 15 DAY) THEN 'inactive'
@@ -161,21 +159,19 @@ function renderAccountsTable(array $accounts): void
     <div class="table-wrap accounts-table-wrap" id="accountsTableWrap">
         <table>
             <colgroup>
-                <col style="width: 7%;">
-                <col style="width: 20%;">
-                <col style="width: 22%;">
-                <col style="width: 14%;">
-                <col style="width: 11%;">
+                <col style="width: 8%;">
+                <col style="width: 25%;">
+                <col style="width: 28%;">
+                <col style="width: 17%;">
                 <col style="width: 10%;">
-                <col style="width: 16%;">
+                <col style="width: 12%;">
             </colgroup>
             <thead>
                 <tr>
                     <th>PROFILE</th>
                     <th>FULL NAME</th>
                     <th>EMAIL</th>
-                    <th>PHONE</th>
-                    <th>POSITION</th>
+                    <th class="account-phone-heading">PHONE</th>
                     <th>STATUS</th>
                     <th>CREATED</th>
                 </tr>
@@ -183,7 +179,7 @@ function renderAccountsTable(array $accounts): void
             <tbody>
             <?php if (empty($accounts)): ?>
                 <tr>
-                    <td colspan="7">No account records found.</td>
+                    <td colspan="6">No account records found.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($accounts as $acc): ?>
@@ -194,7 +190,6 @@ function renderAccountsTable(array $accounts): void
                         <td class="account-name-col"><?php echo e($acc['full_name']); ?></td>
                         <td class="account-email-col"><?php echo e($acc['email']); ?></td>
                         <td class="account-phone-col"><?php echo e($acc['phone']); ?></td>
-                        <td class="position-col"><?php echo e($acc['position']); ?></td>
                         <td class="status-col">
                             <span class="<?php echo e(statusBadgeClass((string)$acc['visibility_status'])); ?>">
                                 <?php echo e(ucfirst((string)$acc['visibility_status'])); ?>
@@ -220,7 +215,6 @@ function renderAccountsTable(array $accounts): void
                     <div class="account-card-body">
                         <div class="account-card-top">
                             <span class="account-card-name"><?php echo e($acc['full_name']); ?></span>
-                            <span class="position-pill"><?php echo e($acc['position']); ?></span>
                         </div>
                         <div class="account-card-meta-row">
                             <span class="account-card-phone">
@@ -377,18 +371,22 @@ if (
 
         .created-col,
         .status-col,
-        .position-col,
         .account-phone-col {
             white-space: nowrap;
         }
 
         .account-table-avatar-cell,
         .accounts-table-wrap th:first-child,
+        .account-phone-heading,
         .account-phone-col,
-        .position-col,
         .status-col,
         .created-col {
             text-align: center;
+        }
+
+        .account-phone-col {
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.015em;
         }
 
         .account-name-col,
@@ -525,24 +523,6 @@ if (
             font-weight: 800;
             font-size: 15px;
             line-height: 1.3;
-        }
-
-        .position-pill {
-            flex: 0 0 auto;
-            padding: 5px 12px;
-            border-radius: 999px;
-            font-size: 11px;
-            font-weight: 700;
-            white-space: nowrap;
-            background: rgba(91, 141, 239, 0.14);
-            color: #8fb4ff;
-            border: 1px solid rgba(143, 180, 255, 0.4);
-        }
-
-        html[data-theme="light"] .position-pill {
-            background: rgba(59, 130, 246, 0.12);
-            color: #1d4ed8;
-            border-color: rgba(59, 130, 246, 0.3);
         }
 
         .account-card-meta-row {
