@@ -832,7 +832,6 @@ function renderManageUsersTable(
                                     <?php if ($assignedBusinesses): ?>
                                         <?php foreach ($assignedBusinesses as $assignedBusiness): ?>
                                             <?php
-                                            $businessEntityId = (int)$assignedBusiness['business_entity_id'];
                                             $permitStatus = strtolower((string)($assignedBusiness['permit_payment_status'] ?? ''));
                                             $permitUnpaidSince = trim((string)($assignedBusiness['permit_unpaid_since'] ?? ''));
                                             $permitUnpaidTimestamp = $permitUnpaidSince !== '' ? strtotime($permitUnpaidSince) : false;
@@ -850,17 +849,9 @@ function renderManageUsersTable(
                                                 <?php if ($permitStatus === 'unpaid' && $permitDeadline !== false && !$permitSuspended): ?>
                                                     <small class="activity-status-note">Grace ends <?php echo e(date('M d, Y', $permitDeadline)); ?></small>
                                                 <?php endif; ?>
-                                                <form method="POST" action="<?php echo e(nxAppUrl('update_business_permit.php')); ?>" class="permit-status-form">
-                                                    <input type="hidden" name="csrf_token" value="<?php echo e(generateCsrfToken('business_permit_' . $businessEntityId)); ?>">
-                                                    <input type="hidden" name="business_entity_id" value="<?php echo $businessEntityId; ?>">
-                                                    <select name="permit_payment_status" aria-label="Business permit payment status for <?php echo e($assignedBusiness['business_name']); ?>">
-                                                        <option value="paid" <?php echo $permitStatus === 'paid' ? 'selected' : ''; ?>>Paid</option>
-                                                        <option value="unpaid" <?php echo $permitStatus === 'unpaid' ? 'selected' : ''; ?>>Unpaid</option>
-                                                    </select>
-                                                    <button class="btn btn-silver" type="submit">Save</button>
-                                                </form>
                                             </div>
                                         <?php endforeach; ?>
+                                        <a class="activity-status-note" href="<?php echo e(nxAppUrl('san_andres_analytics.php')); ?>">Manage quarterly payments in San Andres Analytics</a>
                                     <?php else: ?>
                                         —
                                     <?php endif; ?>
