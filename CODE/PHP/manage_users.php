@@ -1254,6 +1254,15 @@ $csrfManageUsers = generateCsrfToken('manage_users_action');
             display: flex;
         }
 
+        .edit-modal-overlay {
+            z-index: 99998;
+        }
+
+        .custom-confirm-overlay,
+        .custom-alert-overlay {
+            z-index: 100000;
+        }
+
         .edit-modal-box,
         .custom-confirm-box,
         .custom-alert-box {
