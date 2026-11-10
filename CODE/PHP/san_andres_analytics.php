@@ -70,18 +70,12 @@ if (!$financialResult instanceof mysqli_result) {
 }
 
 $businesses = [];
-$totalRevenue = 0.0;
-$totalCosts = 0.0;
 $totalProfit = 0.0;
-$maxRevenue = 0.0;
 while ($row = $financialResult->fetch_assoc()) {
     $row['gross_revenue'] = (float)$row['gross_revenue'];
     $row['cost_of_goods_sold'] = (float)$row['cost_of_goods_sold'];
     $row['net_profit'] = (float)$row['net_profit'];
-    $totalRevenue += $row['gross_revenue'];
-    $totalCosts += $row['cost_of_goods_sold'];
     $totalProfit += $row['net_profit'];
-    $maxRevenue = max($maxRevenue, $row['gross_revenue']);
     $businesses[] = $row;
 }
 $businessCount = count($businesses);
@@ -209,7 +203,7 @@ function nxAnalyticsMoney(float $amount): string
     <meta charset="UTF-8">
     <?php include __DIR__ . '/nexgen_favicon/favicon.php'; ?>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>San Andres Analytics | NexGen</title>
+    <title>Cainta Analytics | NexGen</title>
     <script>
         (function () {
             try {
@@ -225,25 +219,34 @@ function nxAnalyticsMoney(float $amount): string
     <style>
         .analytics-heading {
             display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            gap: 18px;
-            margin-bottom: 22px;
+            align-items: center;
+            margin-bottom: 26px;
         }
         .analytics-heading h1 { margin: 0 0 6px; }
         .analytics-heading p { margin: 0; color: var(--muted); }
         .analytics-summary {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 14px;
-            margin-bottom: 20px;
+            gap: 18px;
+            margin-bottom: 26px;
         }
         .analytics-metric {
+            position: relative;
             min-width: 0;
-            padding: 18px;
-            border: 1px solid var(--line);
-            border-radius: 16px;
-            background: var(--panel, var(--card));
+            min-height: 132px;
+            padding: 22px;
+            border: 1px solid var(--glass-border, var(--line));
+            border-radius: 18px;
+            background: linear-gradient(145deg, var(--panel, var(--card)), var(--card));
+            box-shadow: 0 12px 28px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .045);
+        }
+        .analytics-metric::before {
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 4px;
+            border-radius: 18px 0 0 18px;
+            background: var(--gold, #eab75e);
+            content: '';
         }
         .analytics-filter-button {
             width: 100%;
@@ -251,29 +254,111 @@ function nxAnalyticsMoney(float $amount): string
             font: inherit;
             text-align: left;
             cursor: pointer;
-            transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+            transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease, background .18s ease;
         }
         .analytics-filter-button:hover,
         .analytics-filter-button:focus-visible,
         .analytics-filter-button[aria-pressed="true"] {
-            border-color: var(--gold, #eab75e);
+            border-color: color-mix(in srgb, var(--gold, #eab75e) 70%, var(--line));
             outline: none;
-            box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold, #eab75e) 35%, transparent);
+            box-shadow: 0 16px 34px rgba(0, 0, 0, .23), 0 0 0 2px color-mix(in srgb, var(--gold, #eab75e) 25%, transparent);
         }
         .analytics-filter-button:hover { transform: translateY(-2px); }
         .analytics-filter-button:focus-visible { outline: 2px solid var(--gold, #eab75e); outline-offset: 2px; }
-        .analytics-filter-hint { display: block; margin-top: 5px; color: var(--muted); font-size: .75rem; }
-        .analytics-metric span { display: block; color: var(--muted); font-size: .82rem; }
+        .analytics-filter-hint { display: block; margin-top: 9px; color: var(--muted); font-size: .78rem; }
+        .analytics-metric span { display: block; color: var(--muted); font-size: .86rem; font-weight: 650; }
         .analytics-metric strong {
             display: block;
-            margin-top: 8px;
+            margin-top: 14px;
             overflow-wrap: anywhere;
             color: var(--text);
-            font-size: clamp(1.05rem, 2vw, 1.55rem);
+            font-size: clamp(1.5rem, 2.4vw, 2rem);
+            line-height: 1.15;
+            letter-spacing: -.025em;
         }
-        .analytics-business { min-width: 210px; }
+        .analytics-metric:not(.analytics-filter-button)::before { background: #71aaff; }
+        .analytics-filter-button[data-permit-filter="paid"]::before { background: #34d399; }
+        .analytics-filter-button[data-permit-filter="unpaid"]::before { background: #ff9aa3; }
+        .analytics-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 22px 24px;
+        }
+        .analytics-panel-header h2 { margin: 0; font-size: 1.2rem; }
+        .analytics-panel-body { padding: 0 20px 20px; }
+        .analytics-search {
+            position: relative;
+            width: min(100%, 340px);
+            flex: 0 1 340px;
+        }
+        .analytics-search i {
+            position: absolute;
+            top: 50%;
+            left: 14px;
+            color: var(--muted);
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+        .analytics-search input {
+            width: 100%;
+            min-height: 44px;
+            padding: 10px 14px 10px 40px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            color: var(--text);
+            background: var(--card);
+            font: inherit;
+            font-size: .9rem;
+        }
+        .analytics-search input:focus {
+            border-color: var(--gold, #eab75e);
+            outline: 3px solid color-mix(in srgb, var(--gold, #eab75e) 20%, transparent);
+        }
+        .analytics-table-wrap {
+            overflow: auto;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: var(--panel, var(--card));
+            box-shadow: 0 10px 24px rgba(0, 0, 0, .12);
+        }
+        .analytics-table {
+            width: 100%;
+            min-width: 760px;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        .analytics-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--line);
+            color: var(--muted);
+            background: var(--card);
+            font-size: .72rem;
+            font-weight: 800;
+            letter-spacing: .075em;
+            text-align: left;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .analytics-table tbody td {
+            padding: 16px 18px;
+            border-bottom: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+            color: var(--text);
+            font-size: .9rem;
+            vertical-align: middle;
+        }
+        .analytics-table tbody tr:last-child td { border-bottom: 0; }
+        .analytics-business-row { transition: background .16s ease; }
+        .analytics-business-row:hover { background: color-mix(in srgb, var(--gold, #eab75e) 7%, var(--panel, var(--card))); }
+        .analytics-business { min-width: 230px; }
         .analytics-business-name { display: block; font-weight: 750; color: var(--text); }
-        .analytics-owner { display: block; margin-top: 4px; color: var(--muted); font-size: .8rem; }
+        .analytics-owner { display: block; margin-top: 4px; color: var(--muted); font-size: .82rem; }
+        .analytics-business-address { min-width: 240px; max-width: 380px; color: var(--muted) !important; line-height: 1.5; }
+        .analytics-profit-cell { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .analytics-permit-status {
             display: inline-flex;
             align-items: center;
@@ -286,25 +371,36 @@ function nxAnalyticsMoney(float $amount): string
         .analytics-permit-status.is-paid { color: #34d399; background: rgba(52, 211, 153, .1); }
         .analytics-permit-status.is-unpaid { color: #ff9aa3; background: rgba(239, 68, 68, .1); }
         .analytics-permit-status.is-unknown { color: var(--muted); background: var(--line); }
-        .analytics-bar-track {
-            height: 7px;
-            margin-top: 8px;
-            overflow: hidden;
-            border-radius: 99px;
-            background: var(--line);
-        }
-        .analytics-bar {
-            height: 100%;
-            border-radius: inherit;
-            background: var(--gold, #eab75e);
-        }
-        .analytics-empty { padding: 24px; color: var(--muted); text-align: center; }
+        .analytics-empty { padding: 32px 24px; color: var(--muted); text-align: center; }
         .analytics-business-row { cursor: pointer; }
         .analytics-business-row:hover,
         .analytics-business-row:focus-visible { outline: 2px solid var(--gold, #eab75e); outline-offset: -2px; }
+        .analytics-table-wrap table.analytics-table { min-width: 760px; table-layout: auto; }
+        .table-wrap.analytics-table-wrap td:nth-child(1),
+        .table-wrap.analytics-table-wrap th:nth-child(1) { min-width: 220px; text-align: left; }
+        .table-wrap.analytics-table-wrap td:nth-child(2),
+        .table-wrap.analytics-table-wrap th:nth-child(2) { min-width: 260px; text-align: left; }
+        .table-wrap.analytics-table-wrap td:nth-child(3),
+        .table-wrap.analytics-table-wrap th:nth-child(3) { min-width: 150px; text-align: right; }
+        .table-wrap.analytics-table-wrap td:nth-child(4),
+        .table-wrap.analytics-table-wrap th:nth-child(4) { min-width: 130px; text-align: center; }
+        .analytics-table tbody tr.analytics-business-row:hover td {
+            background: color-mix(in srgb, var(--gold, #eab75e) 7%, var(--panel, var(--card)));
+        }
         .analytics-notice { margin-bottom: 16px; padding: 12px 16px; border-radius: 10px; }
         .notice-success { color: var(--text); background: rgba(42, 160, 96, .14); }
         .notice-error { color: var(--text); background: rgba(210, 65, 65, .14); }
+        .analytics-sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
         .analytics-modal-backdrop {
             position: fixed;
             z-index: 1200;
@@ -323,9 +419,10 @@ function nxAnalyticsMoney(float $amount): string
             border: 1px solid var(--line);
             border-radius: 20px;
             color: var(--text);
-            background: var(--panel, var(--card));
+            background: #0e1b3d;
             box-shadow: 0 24px 80px rgba(0, 0, 0, .35);
         }
+        html[data-theme="light"] .analytics-modal { background: #fff; }
         .analytics-modal-header,
         .analytics-modal-section-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
         .analytics-modal-header h2 { margin: 0 0 6px; }
@@ -349,8 +446,10 @@ function nxAnalyticsMoney(float $amount): string
             padding: 16px;
             border: 1px solid var(--line);
             border-radius: 14px;
-            background: var(--card);
+            background: #14264b;
         }
+        html[data-theme="light"] .analytics-detail-card,
+        html[data-theme="light"] .analytics-quarter-card { background: #f6f8fc; }
         .analytics-detail-card h3,
         .analytics-quarter-card h4 { margin: 0 0 8px; font-size: 1rem; }
         .analytics-detail-card p { margin: 0; overflow-wrap: anywhere; color: var(--muted); }
@@ -384,10 +483,14 @@ function nxAnalyticsMoney(float $amount): string
         @media (max-width: 900px) {
             .analytics-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .analytics-quarter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .analytics-panel-header { align-items: flex-start; flex-direction: column; }
+            .analytics-search { width: 100%; flex-basis: auto; }
         }
         @media (max-width: 560px) {
-            .analytics-heading { align-items: flex-start; flex-direction: column; }
             .analytics-summary { grid-template-columns: 1fr; }
+            .analytics-metric { min-height: 118px; padding: 19px; }
+            .analytics-panel-header { padding: 18px 16px; }
+            .analytics-panel-body { padding: 0 12px 14px; }
             .analytics-modal-backdrop { padding: 8px; }
             .analytics-modal-grid, .analytics-quarter-grid { grid-template-columns: 1fr; }
             .analytics-modal-section-heading { align-items: flex-start; flex-direction: column; }
@@ -404,12 +507,7 @@ function nxAnalyticsMoney(float $amount): string
         <div class="topbar">
             <div class="analytics-heading">
                 <div>
-                    <div class="page-title"><h1>San Andres Analytics</h1></div>
-                    <p>Net profit and business permit payment status across all registered businesses.</p>
-                </div>
-                <div class="dashboard-date">
-                    <i class="bi bi-calendar3"></i>
-                    <?php echo e(date('l, F d, Y')); ?>
+                    <div class="page-title"><h1>Cainta Analytics</h1></div>
                 </div>
             </div>
         </div>
@@ -437,21 +535,24 @@ function nxAnalyticsMoney(float $amount): string
         </section>
 
         <section class="panel" aria-labelledby="analyticsBusinessesHeading">
-            <div class="panel-header">
-                <div>
-                    <h2 id="analyticsBusinessesHeading">Business Performance</h2>
-                    <p id="analyticsFilterStatus" aria-live="polite">Showing all registered businesses. Net profit is gross revenue minus cost of goods sold; operating expenses are excluded.</p>
-                </div>
+            <div class="panel-header analytics-panel-header">
+                <h2 id="analyticsBusinessesHeading">Business Performance</h2>
+                <label class="analytics-search">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <input type="search" id="analyticsBusinessSearch" placeholder="Search business, owner, or address" autocomplete="off" aria-label="Search businesses by business name, owner, or address">
+                </label>
             </div>
-            <div class="panel-body">
+            <p class="analytics-sr-only" id="analyticsFilterStatus" aria-live="polite">Showing all businesses.</p>
+            <div class="panel-body analytics-panel-body">
                 <?php if ($businesses === []): ?>
                     <div class="analytics-empty">No registered businesses are available to report.</div>
                 <?php else: ?>
-                    <div class="table-wrap">
-                        <table>
+                    <div class="table-wrap analytics-table-wrap">
+                        <table class="analytics-table">
                             <thead>
                                 <tr>
                                     <th>Business</th>
+                                    <th>Business Address</th>
                                     <th>Net Profit</th>
                                     <th>Status</th>
                                 </tr>
@@ -461,7 +562,14 @@ function nxAnalyticsMoney(float $amount): string
                                 <?php
                                 $entityId = (int)$business['business_entity_id'];
                                 $revenue = (float)$business['gross_revenue'];
-                                $barWidth = $maxRevenue > 0 ? min(100, ($revenue / $maxRevenue) * 100) : 0;
+                                $searchParts = [
+                                    (string)$business['business_name'],
+                                    (string)$business['owner_names'],
+                                ];
+                                foreach ($locationsByEntity[$entityId] ?? [] as $businessLocation) {
+                                    $searchParts[] = (string)$businessLocation['branch_name'];
+                                    $searchParts[] = (string)$businessLocation['business_address'];
+                                }
                                 $businessPayload = [
                                     'business_entity_id' => $entityId,
                                     'business_name' => (string)$business['business_name'],
@@ -481,20 +589,27 @@ function nxAnalyticsMoney(float $amount): string
                                 <tr class="analytics-business-row" data-business-row tabindex="0" role="button" aria-haspopup="dialog"
                                     aria-label="<?php echo e('View details for ' . $business['business_name']); ?>"
                                     data-permit-status="<?php echo e(strtolower((string)$business['permit_payment_status'])); ?>"
+                                    data-search="<?php echo e(implode(' ', $searchParts)); ?>"
                                     data-business="<?php echo e((string)json_encode($businessPayload, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP)); ?>">
                                     <td class="analytics-business">
                                         <span class="analytics-business-name"><?php echo e($business['business_name']); ?></span>
                                         <span class="analytics-owner"><?php echo e($business['owner_names']); ?></span>
-                                        <span class="analytics-bar-track" aria-hidden="true">
-                                            <span class="analytics-bar" style="display:block;width:<?php echo e((string)$barWidth); ?>%"></span>
-                                        </span>
                                     </td>
-                                    <td data-label="Net Profit"><?php echo e(nxAnalyticsMoney((float)$business['net_profit'])); ?></td>
                                     <?php
                                     $permitStatus = strtolower(trim((string)$business['permit_payment_status']));
                                     $permitStatusLabel = $permitStatus === 'paid' ? 'Paid' : ($permitStatus === 'unpaid' ? 'Unpaid' : 'Not set');
                                     $permitStatusClass = $permitStatus === 'paid' ? 'is-paid' : ($permitStatus === 'unpaid' ? 'is-unpaid' : 'is-unknown');
                                     ?>
+                                    <td class="analytics-business-address" data-label="Business Address">
+                                        <?php if (!empty($locationsByEntity[$entityId])): ?>
+                                            <?php foreach ($locationsByEntity[$entityId] as $businessLocation): ?>
+                                                <div><?php echo e($businessLocation['business_address'] !== '' ? $businessLocation['business_address'] : $businessLocation['branch_name']); ?></div>
+                                            <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <span>Address not available</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="analytics-profit-cell" data-label="Net Profit"><?php echo e(nxAnalyticsMoney((float)$business['net_profit'])); ?></td>
                                     <td data-label="Status">
                                         <span class="analytics-permit-status <?php echo e($permitStatusClass); ?>">
                                             <?php echo e($permitStatusLabel); ?>
@@ -505,7 +620,7 @@ function nxAnalyticsMoney(float $amount): string
                             </tbody>
                         </table>
                     </div>
-                    <p class="analytics-empty" id="analyticsNoFilterMatches" hidden>No businesses match this permit status.</p>
+                    <p class="analytics-empty" id="analyticsNoFilterMatches" hidden>No businesses match your search and permit filter.</p>
                 <?php endif; ?>
             </div>
         </section>
@@ -726,31 +841,45 @@ function nxAnalyticsMoney(float $amount): string
                     openDetails(row);
                 }
             });
-            var filterButtons = document.querySelectorAll('[data-permit-filter]');
-            var filterStatus = document.getElementById('analyticsFilterStatus');
-            var noFilterMatches = document.getElementById('analyticsNoFilterMatches');
-            filterButtons.forEach(function (button) {
-                button.addEventListener('click', function () {
-                    var filter = button.getAttribute('data-permit-filter');
-                    var visibleCount = 0;
-                    document.querySelectorAll('[data-business-row]').forEach(function (row) {
-                        var show = filter === 'all' || row.getAttribute('data-permit-status') === filter;
-                        row.hidden = !show;
-                        if (show) visibleCount++;
-                    });
-                    filterButtons.forEach(function (item) {
-                        item.setAttribute('aria-pressed', item === button ? 'true' : 'false');
-                    });
-                    if (filterStatus) {
-                        var label = filter === 'all'
-                            ? 'all registered businesses'
-                            : filter + ' permit businesses';
-                        filterStatus.textContent = 'Showing ' + visibleCount + ' ' + label + '. Net profit is gross revenue minus cost of goods sold; operating expenses are excluded.';
-                    }
-                    if (noFilterMatches) noFilterMatches.hidden = visibleCount > 0;
+        });
+        var filterButtons = document.querySelectorAll('[data-permit-filter]');
+        var filterStatus = document.getElementById('analyticsFilterStatus');
+        var noFilterMatches = document.getElementById('analyticsNoFilterMatches');
+        var searchInput = document.getElementById('analyticsBusinessSearch');
+        var activePermitFilter = 'all';
+
+        function applyBusinessFilters() {
+            var searchTerm = searchInput ? searchInput.value.trim().toLocaleLowerCase() : '';
+            var visibleCount = 0;
+            document.querySelectorAll('[data-business-row]').forEach(function (row) {
+                var permitMatches = activePermitFilter === 'all'
+                    || row.getAttribute('data-permit-status') === activePermitFilter;
+                var searchMatches = searchTerm === ''
+                    || (row.getAttribute('data-search') || '').toLocaleLowerCase().indexOf(searchTerm) !== -1;
+                var show = permitMatches && searchMatches;
+                row.hidden = !show;
+                if (show) visibleCount++;
+            });
+            if (filterStatus) {
+                var statusDescription = activePermitFilter === 'all'
+                    ? 'all businesses'
+                    : activePermitFilter + ' permit businesses';
+                filterStatus.textContent = 'Showing ' + visibleCount + ' ' + statusDescription + '.';
+            }
+            if (noFilterMatches) noFilterMatches.hidden = visibleCount > 0;
+        }
+
+        filterButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                activePermitFilter = button.getAttribute('data-permit-filter') || 'all';
+                if (activePermitFilter === 'all' && searchInput) searchInput.value = '';
+                filterButtons.forEach(function (item) {
+                    item.setAttribute('aria-pressed', item === button ? 'true' : 'false');
                 });
+                applyBusinessFilters();
             });
         });
+        if (searchInput) searchInput.addEventListener('input', applyBusinessFilters);
         closeButton.addEventListener('click', closeDetails);
         backdrop.addEventListener('click', function (event) {
             if (event.target === backdrop) closeDetails();
