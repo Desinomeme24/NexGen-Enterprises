@@ -37,7 +37,10 @@ function nxApproveRequestRespond(
         'type' => $success ? 'notice-success' : 'notice-error',
         'message' => $message,
     ];
-    header('Location: ' . ($redirect !== '' ? $redirect : nxAppUrl('pending_requests.php')));
+    $defaultRedirect = (string)($_SESSION['role'] ?? '') === 'owner'
+        ? nxAppUrl('manage_employees.php')
+        : nxAppUrl('pending_requests.php');
+    header('Location: ' . ($redirect !== '' ? $redirect : $defaultRedirect));
     exit;
 }
 
@@ -47,15 +50,22 @@ function nxApproveRequestRespond(
  * registration is finalized.
  */
 
-if (!isset($_SESSION['user_id'], $_SESSION['username'], $_SESSION['role']) ||
-    !nxIsAdminRole((string)$_SESSION['role'])) {
+if (
+    !isset($_SESSION['user_id'], $_SESSION['username'], $_SESSION['role'])
+    || (
+        (string)$_SESSION['role'] !== 'owner'
+        && !nxIsAdminRole((string)$_SESSION['role'])
+    )
+) {
     $_SESSION['form_type'] = 'login';
     nxApproveRequestRespond(
         false,
-        'Your administrator session is no longer valid. Please log in again.',
+        'Your reviewer session is no longer valid. Please log in again.',
         0,
         401,
-        NEXGEN_ADMIN_LOGIN_PATH
+        (string)($_SESSION['role'] ?? '') === 'owner'
+            ? NEXGEN_CLIENT_LOGIN_PATH
+            : NEXGEN_ADMIN_LOGIN_PATH
     );
 }
 
@@ -65,19 +75,28 @@ enforceSessionTimeout();
 $sessionAdminId = (int) $_SESSION['user_id'];
 $sessionUsername = trim((string) $_SESSION['username']);
 
-$adminStmt = $conn->prepare(
-    "SELECT id, username, role, account_status
-     FROM users
-     WHERE (id = ? OR username = ?)
-       AND role IN ('system_admin', 'super_admin')
-     LIMIT 1"
-);
+$isOwnerReviewer = (string)$_SESSION['role'] === 'owner';
+$reviewerSql = $isOwnerReviewer
+    ? "SELECT id, username, role, account_status
+       FROM users
+       WHERE id = ? AND role = 'owner'
+       LIMIT 1"
+    : "SELECT id, username, role, account_status
+       FROM users
+       WHERE (id = ? OR username = ?)
+         AND role IN ('system_admin', 'super_admin')
+       LIMIT 1";
+$adminStmt = $conn->prepare($reviewerSql);
 
 if (!$adminStmt) {
     nxApproveRequestRespond(false, 'Unable to verify the administrator account.', 0, 500);
 }
 
-$adminStmt->bind_param('is', $sessionAdminId, $sessionUsername);
+if ($isOwnerReviewer) {
+    $adminStmt->bind_param('i', $sessionAdminId);
+} else {
+    $adminStmt->bind_param('is', $sessionAdminId, $sessionUsername);
+}
 $adminStmt->execute();
 $adminAccount = $adminStmt->get_result()->fetch_assoc();
 $adminStmt->close();
@@ -88,10 +107,10 @@ if (!$adminAccount || $adminAccount['account_status'] !== 'active') {
     $_SESSION['form_type'] = 'login';
     nxApproveRequestRespond(
         false,
-        'Your administrator account could not be verified. Please log in again.',
+        'Your reviewer account could not be verified. Please log in again.',
         0,
         401,
-        NEXGEN_ADMIN_LOGIN_PATH
+        $isOwnerReviewer ? NEXGEN_CLIENT_LOGIN_PATH : NEXGEN_ADMIN_LOGIN_PATH
     );
 }
 
@@ -152,7 +171,14 @@ try {
     if (!in_array($request['request_status'], ['pending', 'resubmit'], true)) {
         throw new RuntimeException('Only pending or resubmitted requests can be approved.');
     }
-    if ((string)($_POST['small_enterprise_confirmed'] ?? '') !== '1') {
+    $role = (string)($request['requested_role'] ?? '');
+    if (
+        ($isOwnerReviewer && ($role !== 'employee' || !nxOwnerCanReviewEmployeeRequest($conn, $adminId, $request)))
+        || (!$isOwnerReviewer && $role !== 'owner')
+    ) {
+        throw new RuntimeException('This reviewer is not authorized to approve the requested account.');
+    }
+    if ($role === 'owner' && (string)($_POST['small_enterprise_confirmed'] ?? '') !== '1') {
         throw new RuntimeException('Confirm that the business qualifies as a small enterprise before approval.');
     }
 
@@ -172,7 +198,6 @@ try {
         throw new RuntimeException('A user with the same username or email already exists.');
     }
 
-    $role = (string) ($request['requested_role'] ?? 'employee');
     if (!in_array($role, ['owner', 'employee'], true)) {
         throw new RuntimeException('The requested role is invalid.');
     }
@@ -449,7 +474,7 @@ try {
 
     $finalRemarks = $remarks !== ''
         ? $remarks
-        : 'Approved by system administrator';
+        : ($isOwnerReviewer ? 'Approved by business owner' : 'Approved by system administrator');
 
     $stmt = $conn->prepare(
         "UPDATE registration_requests
@@ -537,7 +562,9 @@ try {
 
     nxApproveRequestRespond(
         true,
-        'Registration request approved successfully.',
+        $isOwnerReviewer
+            ? 'Employee access request accepted successfully.'
+            : 'Registration request approved successfully.',
         $requestId
     );
 } catch (Throwable $e) {
@@ -554,6 +581,8 @@ try {
         'Approval failed: ' . $e->getMessage(),
         $requestId,
         422,
-        nxAppUrl('view_request.php') . '?id=' . $requestId
+        nxAppUrl('view_request.php') . '?'
+            . ($isOwnerReviewer ? 'owner_review=1&' : '')
+            . 'id=' . $requestId
     );
 }

@@ -1729,10 +1729,9 @@ html[data-theme="light"] .mobile-nav-toggle {
 
   /* -----------------------------------------------------------
      Name-first request card (matches mobile reference design):
-       Row 1: Full Name (left)         Status badge (right)
-       Row 2: Employee No
-       Row 3: Requested Role (left)    Submitted date (right)
-       Row 4: View button (full width)
+       Row 1: Applicant (left)         Status badge (right)
+       Row 2: Request type (left)      Submitted date (right)
+       Row 3: View button (full width)
      Internal numeric ID, Username, and Email are hidden here —
      they still show normally in the desktop table.
   ----------------------------------------------------------- */
@@ -1741,7 +1740,6 @@ html[data-theme="light"] .mobile-nav-toggle {
     grid-template-columns: 1fr auto;
     grid-template-areas:
       "name   status"
-      "empno  empno"
       "role   date"
       "action action";
     column-gap: 12px;
@@ -1792,13 +1790,6 @@ html[data-theme="light"] .mobile-nav-toggle {
   .table-wrap[data-mobile-cards] td[data-label="Status"] .badge {
     font-size: 11.5px;
     padding: 5px 12px;
-  }
-
-  .table-wrap[data-mobile-cards] td[data-label="Employee No"] {
-    grid-area: empno;
-    font-size: 13px;
-    color: var(--muted);
-    letter-spacing: 0.2px;
   }
 
   .table-wrap[data-mobile-cards] td[data-label="Requested Role"] {

@@ -176,7 +176,7 @@ if (!$hasActiveWorkspace && $popupMessage === '') {
 
 $pageTitle = $isOwner ? 'Owner Dashboard' : 'Employee Dashboard';
 $pageSubtitle = $isOwner
-    ? 'Manage inventory levels and view sales analytics.'
+    ? 'Run your business workspace, manage your team, and keep key decisions in view.'
     : 'Manage inventory and record daily sales.';
 ?>
 <!DOCTYPE html>
@@ -205,7 +205,7 @@ $pageSubtitle = $isOwner
     </div>
 <?php endif; ?>
 
-<div class="dashboard-page">
+<div class="dashboard-page<?php echo $isOwner ? ' owner-dashboard' : ''; ?>">
 
     <?php include __DIR__ . '/header.php'; ?>
 
@@ -228,8 +228,8 @@ $pageSubtitle = $isOwner
         <section class="hero-section modern-hero-section" id="home-section">
             <div class="modern-hero-shell" id="heroShell">
                 <div class="modern-hero-badge">
-                    <i class="bi bi-stars"></i>
-                    <span><?php echo $isOwner ? 'Owner Workspace' : 'Employee Workspace'; ?></span>
+                    <i class="bi <?php echo $isOwner ? 'bi-buildings' : 'bi-stars'; ?>"></i>
+                    <span><?php echo $isOwner ? 'Business command center' : 'Employee Workspace'; ?></span>
                 </div>
 
                 <div class="modern-hero-text">
@@ -266,6 +266,32 @@ $pageSubtitle = $isOwner
             </div>
 
             <div class="modern-module-grid">
+                <?php if ($isOwner): ?>
+                <a href="<?php echo e(nxAppUrl('manage_employees.php')); ?>" class="modern-module-card module-reveal">
+                    <div class="module-card-glow"></div>
+                    <div class="module-card-icon">
+                        <i class="bi bi-person-check-fill"></i>
+                    </div>
+                    <div class="module-card-content">
+                        <h3>Manage Employees</h3>
+                        <p>Review employee access requests and confirm each application is assigned to the right business branch.</p>
+                        <span class="module-card-link">Review Requests <i class="bi bi-arrow-right"></i></span>
+                    </div>
+                </a>
+
+                <a href="<?php echo e(nxAppUrl('owner_audit_logs.php')); ?>" class="modern-module-card module-reveal">
+                    <div class="module-card-glow"></div>
+                    <div class="module-card-icon">
+                        <i class="bi bi-shield-check"></i>
+                    </div>
+                    <div class="module-card-content">
+                        <h3>Audit Logs</h3>
+                        <p>See a clear, verifiable record of employee request decisions made from your owner account.</p>
+                        <span class="module-card-link">View Activity <i class="bi bi-arrow-right"></i></span>
+                    </div>
+                </a>
+                <?php endif; ?>
+
                 <?php if ($canInventory): ?>
                 <a href="<?php echo e(nxAppUrl('inventory_management.php')); ?>" class="modern-module-card module-reveal">
                     <div class="module-card-glow"></div>

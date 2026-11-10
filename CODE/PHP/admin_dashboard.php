@@ -60,14 +60,16 @@ $pendingAccountRequests = adminDashboardCount(
     $conn,
     "SELECT COUNT(*) AS total
      FROM registration_requests
-     WHERE request_status = '{$accountQueueStatus}'"
+     WHERE requested_role = 'owner'
+       AND request_status = 'pending'"
 );
 
 $resubmitAccountRequests = adminDashboardCount(
     $conn,
     "SELECT COUNT(*) AS total
      FROM registration_requests
-     WHERE request_status = 'resubmit'"
+     WHERE requested_role = 'owner'
+       AND request_status = 'resubmit'"
 );
 
 $workspaceRequestsReady = false;
@@ -94,7 +96,7 @@ $managedUsers = adminDashboardCount(
     $conn,
     "SELECT COUNT(*) AS total
      FROM users
-     WHERE role IN ('owner', 'employee')"
+     WHERE role = 'owner'"
 );
 
 /* An enabled account is recently active when its latest successful login or
@@ -103,7 +105,7 @@ $recentlyActiveUsers = adminDashboardCount(
     $conn,
     "SELECT COUNT(*) AS total
      FROM users
-     WHERE role IN ('owner', 'employee')
+     WHERE role = 'owner'
        AND account_status = 'active'
        AND COALESCE(last_login_at, approved_at, created_at) IS NOT NULL
        AND COALESCE(last_login_at, approved_at, created_at) > DATE_SUB(NOW(), INTERVAL 7 DAY)"
@@ -113,7 +115,7 @@ $lockedUsers = adminDashboardCount(
     $conn,
     "SELECT COUNT(*) AS total
      FROM users
-     WHERE role IN ('owner', 'employee')
+     WHERE role = 'owner'
        AND locked_until IS NOT NULL
        AND locked_until > NOW()"
 );
@@ -235,34 +237,26 @@ try {
                 business_name, business_type, business_type_other, business_code, branch_code,
                 possible_duplicate, created_at
          FROM registration_requests
-         WHERE request_status IN ('pending', 'resubmit')
+         WHERE requested_role = 'owner'
+           AND request_status IN ('pending', 'resubmit')
          ORDER BY created_at DESC
          LIMIT 10"
     );
 
     if ($accountResult) {
         while ($request = $accountResult->fetch_assoc()) {
-            $isOwner = ($request['requested_role'] ?? '') === 'owner';
-            $codeSummary = trim(
-                (string)($request['business_code'] ?? '') . ' / ' .
-                (string)($request['branch_code'] ?? ''),
-                " /\t\n\r\0\x0B"
-            );
-
             $reviewQueue[] = [
                 'id' => (int)$request['id'],
                 'source' => 'account',
                 'source_label' => 'Account Request',
-                'request_label' => $isOwner ? 'SME Owner' : 'Employee / Staff',
+                'request_label' => 'SME Owner',
                 'requester_name' => (string)$request['full_name'],
                 'username' => (string)$request['username'],
                 'workspace_name' => (string)($request['business_name'] ?? ''),
-                'workspace_detail' => $isOwner
-                    ? nxBusinessTypeLabel(
-                        (string)($request['business_type'] ?? 'New owner business'),
-                        (string)($request['business_type_other'] ?? '')
-                    )
-                    : ($codeSummary !== '' ? $codeSummary : 'Branch assignment pending'),
+                'workspace_detail' => nxBusinessTypeLabel(
+                    (string)($request['business_type'] ?? 'New owner business'),
+                    (string)($request['business_type_other'] ?? '')
+                ),
                 'integrity_label' => !empty($request['possible_duplicate'])
                     ? 'Review duplicate'
                     : 'No match found',

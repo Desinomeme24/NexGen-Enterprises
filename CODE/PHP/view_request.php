@@ -1,17 +1,41 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/tenant_helper.php';
 
-if (!isset($_SESSION['user_id'])) {
-    header('Location: ' . NEXGEN_ADMIN_LOGIN_PATH);
-    exit();
-}
-
-if (!nxIsAdminRole((string)($_SESSION['role'] ?? ''))) {
+$actorRole = (string)($_SESSION['role'] ?? '');
+$isOwnerReview = $actorRole === 'owner';
+if (
+    !isset($_SESSION['user_id'])
+    || (!$isOwnerReview && !nxIsAdminRole($actorRole))
+) {
     header('Location: ' . nxAppUrl('dashboard.php'));
     exit();
 }
 
 enforceSessionTimeout();
+
+if ($isOwnerReview) {
+    $ownerStmt = $conn->prepare(
+        "SELECT id
+         FROM users
+         WHERE id = ? AND role = 'owner' AND account_status = 'active'
+         LIMIT 1"
+    );
+    if (!$ownerStmt) {
+        error_log('NexGen owner request reviewer verification failed: ' . $conn->error);
+        http_response_code(503);
+        exit('The registration request is temporarily unavailable.');
+    }
+    $ownerId = (int)$_SESSION['user_id'];
+    $ownerStmt->bind_param('i', $ownerId);
+    $ownerStmt->execute();
+    $activeOwner = (bool)$ownerStmt->get_result()->fetch_assoc();
+    $ownerStmt->close();
+    if (!$activeOwner) {
+        header('Location: ' . nxAppUrl('dashboard.php'));
+        exit();
+    }
+}
 
 if (!function_exists('e')) {
     function e($str) {
@@ -20,8 +44,11 @@ if (!function_exists('e')) {
 }
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$requestListUrl = $isOwnerReview
+    ? nxAppUrl('manage_employees.php')
+    : nxAppUrl('pending_requests.php');
 if ($id <= 0) {
-    header("Location: pending_requests.php");
+    header('Location: ' . $requestListUrl);
     exit();
 }
 
@@ -42,7 +69,7 @@ $stmt = $conn->prepare(
 );
 if (!$stmt) {
     $_SESSION['flash'] = ['type' => 'notice-error', 'message' => 'Unable to load the registration request safely.'];
-    header("Location: pending_requests.php");
+    header('Location: ' . $requestListUrl);
     exit();
 }
 $stmt->bind_param("i", $id);
@@ -53,13 +80,36 @@ $stmt->close();
 
 if (!$request) {
     $_SESSION['flash'] = ['type' => 'notice-error', 'message' => 'Registration request not found.'];
-    header("Location: pending_requests.php");
+    header('Location: ' . $requestListUrl);
     exit();
+}
+
+$requestRole = (string)($request['requested_role'] ?? '');
+$ownerCanReviewRequest = false;
+if ($isOwnerReview) {
+    try {
+        $ownerCanReviewRequest = nxOwnerCanReviewEmployeeRequest(
+            $conn,
+            (int)$_SESSION['user_id'],
+            $request
+        );
+    } catch (Throwable $error) {
+        error_log('NexGen owner request authorization failed: ' . $error->getMessage());
+        http_response_code(503);
+        exit('The registration request is temporarily unavailable.');
+    }
+}
+if (
+    ($isOwnerReview && ($requestRole !== 'employee' || !$ownerCanReviewRequest))
+    || (!$isOwnerReview && $requestRole !== 'owner')
+) {
+    http_response_code(403);
+    exit('You are not authorized to review this registration request.');
 }
 
 $currentStatus = strtolower((string)($request['request_status'] ?? 'pending'));
 if (!in_array($currentStatus, ['pending', 'resubmit'], true)) {
-    header('Location: ' . nxAppUrl('pending_requests.php'));
+    header('Location: ' . $requestListUrl);
     exit();
 }
 
@@ -129,6 +179,10 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
         })();
     </script>
     <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/admin_module.css')); ?>">
+    <?php if ($isOwnerReview): ?>
+        <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/header.css')); ?>">
+        <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/owner_modules.css')); ?>">
+    <?php endif; ?>
     <link rel="stylesheet" href="<?php echo e(nxCodeUrl('STYLE/document_preview_modal.css')); ?>">
         
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -757,13 +811,47 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                 min-height: 44px;
             }
         }
+
+        .owner-review-body {
+            background: var(--bg-page);
+        }
+
+        .owner-review-content {
+            width: min(1220px, 100%);
+            margin: 0 auto;
+            padding: 112px 28px 48px;
+            box-sizing: border-box;
+        }
+
+        .owner-review-content > .topbar {
+            position: static;
+            width: 100%;
+            height: auto;
+            min-height: 0;
+            padding: 0 0 22px;
+            color: var(--text-heading);
+        }
+
+        .owner-review-content .page-title h1 {
+            color: var(--text-heading);
+        }
+
+        @media (max-width: 700px) {
+            .owner-review-content {
+                padding: 100px 16px 32px;
+            }
+        }
     </style>
 </head>
-<body<?php echo $isEmbeddedView ? ' class="embedded-request-view"' : ''; ?>>
-<div class="admin-shell">
-         <?php if (!$isEmbeddedView) include 'admin_sidebar.php'; ?>
+<body class="<?php echo $isOwnerReview ? 'owner-review-body' : ($isEmbeddedView ? 'embedded-request-view' : ''); ?>">
+<div class="<?php echo $isOwnerReview ? 'owner-module-shell' : 'admin-shell'; ?>">
+         <?php if ($isOwnerReview): ?>
+             <?php include __DIR__ . '/header.php'; ?>
+         <?php elseif (!$isEmbeddedView): ?>
+             <?php include __DIR__ . '/admin_sidebar.php'; ?>
+         <?php endif; ?>
 
-    <main class="admin-content">
+    <main class="admin-content<?php echo $isOwnerReview ? ' owner-review-content' : ''; ?>">
         <div class="topbar">
             <div class="page-title">
                 <h1>Registration Request</h1>
@@ -783,7 +871,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                     <h2>Applicant Information</h2>
                     <span class="request-code-inline"><?php echo e($request['request_code']); ?></span>
                 </div>
-                <a class="btn btn-silver" id="requestViewBackButton" href="pending_requests.php">Back</a>
+                <a class="btn btn-silver" id="requestViewBackButton" href="<?php echo e($requestListUrl); ?>">Back</a>
             </div>
             <div class="panel-body">
                 <div class="kv-grid">
@@ -793,7 +881,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                     <div class="kv-item"><label>Phone</label><div class="value"><?php echo e($request['phone']); ?></div></div>
                     <div class="kv-item"><label>Address</label><div class="value"><?php echo e($request['address']); ?></div></div>
                     <div class="kv-item"><label>Requested Role</label><div class="value"><?php echo e(ucwords(str_replace('_', ' ', $request['requested_role']))); ?></div></div>
-                    <div class="kv-item"><label>Status</label><div class="value"><span class="badge badge-<?php echo e($request['request_status']); ?>"><?php echo e($request['request_status'] === 'pending' ? 'Awaiting BPLO decision' : ucfirst($request['request_status'])); ?></span></div></div>
+                    <div class="kv-item"><label>Status</label><div class="value"><span class="badge badge-<?php echo e($request['request_status']); ?>"><?php echo e($request['request_status'] === 'pending' ? ($isOwnerReview ? 'Awaiting owner review' : 'Awaiting BPLO decision') : ucfirst($request['request_status'])); ?></span></div></div>
                     <div class="kv-item"><label>Submitted At</label><div class="value"><?php echo e(date('M d, Y h:i A', strtotime($request['created_at']))); ?></div></div>
                     <div class="kv-item" style="grid-column: 1 / -1;">
                         <label>Valid ID</label>
@@ -883,7 +971,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
 
         <section class="panel admin-actions-panel">
             <div class="panel-header">
-                <h2>BPLO Administrator Actions</h2>
+                <h2><?php echo $isOwnerReview ? 'Business Owner Actions' : 'BPLO Administrator Actions'; ?></h2>
             </div>
             <div class="panel-body">
                 <?php if ($isFinalized): ?>
@@ -892,7 +980,9 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                     </div>
                 <?php elseif ($canFinalReview): ?>
                     <p class="notice">
-                        Verify the applicant and business permit against BPLO records before approving this small-enterprise account.
+                        <?php echo $isOwnerReview
+                            ? 'Review the employee information and submitted business and branch codes before granting workspace access.'
+                            : 'Verify the applicant and business permit against BPLO records before approving this small-enterprise account.'; ?>
                     </p>
                     <div class="notice request-action-feedback" id="requestActionFeedback" role="status"></div>
 
@@ -902,7 +992,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                         </span>
                         <span class="request-action-processing-copy">
                             <strong id="requestActionProcessingText">Processing request...</strong>
-                            <small>Please keep this request open while the administrator action is being saved.</small>
+                            <small>Please keep this request open while the action is being saved.</small>
                         </span>
                     </div>
 
@@ -923,7 +1013,17 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                                 <select name="action_type" id="actionSelect" required>
                                     <option value="" disabled selected>Choose an action</option>
                                     <option value="approve" <?php echo !$branchIntegrityOk ? 'disabled' : ''; ?>>
-                                        <?php echo !$branchIntegrityOk && $isEmployeeRequest ? 'Approve Request (branch unresolved)' : 'Approve Request'; ?>
+                                        <?php
+                                        if ($isOwnerReview) {
+                                            echo !$branchIntegrityOk
+                                                ? 'Accept Request (branch unresolved)'
+                                                : 'Accept Employee Request';
+                                        } else {
+                                            echo !$branchIntegrityOk && $isEmployeeRequest
+                                                ? 'Approve Request (branch unresolved)'
+                                                : 'Approve Request';
+                                        }
+                                        ?>
                                     </option>
                                     <option value="reject">Reject Request</option>
                                     <?php if (in_array($currentStatus, ['pending', 'resubmit'], true)): ?>
@@ -936,12 +1036,14 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                             </div>
                         </div>
 
+                        <?php if (!$isOwnerReview): ?>
                         <div class="modern-field">
                             <label>
                                 <input type="checkbox" name="small_enterprise_confirmed" value="1" id="smallEnterpriseConfirmed">
                                 I verified this business qualifies as a small enterprise.
                             </label>
                         </div>
+                        <?php endif; ?>
 
                         <div class="correction-editor" id="correctionEditor" aria-hidden="true">
                             <div class="correction-editor-header">
@@ -1064,6 +1166,9 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
     </div>
 </div>
 
+<?php if ($isOwnerReview): ?>
+    <script src="<?php echo e(nxCodeUrl('JS/header.js')); ?>" defer></script>
+<?php endif; ?>
 <script src="<?php echo e(nxCodeUrl('JS/admin_module.js')); ?>"></script>
 <script>
 <?php if ($isEmbeddedView): ?>
@@ -1109,12 +1214,12 @@ function showCustomConfirm(message, onConfirm) {
 const ADMIN_ACTION_CONFIG = {
     approve: {
         endpoint: 'approve_request.php',
-        remarksLabel: 'Approval Remarks',
+        remarksLabel: <?php echo json_encode($isOwnerReview ? 'Acceptance Remarks' : 'Approval Remarks'); ?>,
         remarksPlaceholder: 'Optional remarks for approval',
         remarksRequired: false,
-        confirmMessage: 'Approve this registration request?',
-        buttonText: 'Approve Request',
-        processingText: 'Approving request...',
+        confirmMessage: <?php echo json_encode($isOwnerReview ? 'Accept this employee access request?' : 'Approve this registration request?'); ?>,
+        buttonText: <?php echo json_encode($isOwnerReview ? 'Accept Employee Request' : 'Approve Request'); ?>,
+        processingText: <?php echo json_encode($isOwnerReview ? 'Accepting employee request...' : 'Approving request...'); ?>,
         buttonClass: 'is-success',
         showCorrections: false,
         actionMode: 'approve'
@@ -1278,7 +1383,7 @@ function submitAdminRequestAction(form) {
         }
 
         window.setTimeout(function() {
-            window.location.href = 'pending_requests.php';
+            window.location.href = <?php echo json_encode($requestListUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
         }, 900);
     })
     .catch(function(error) {

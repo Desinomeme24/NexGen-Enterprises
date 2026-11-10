@@ -103,36 +103,30 @@ $profileImageExpr = $hasProfileImage
     ? "NULLIF(TRIM(u.profile_image), '')"
     : "NULL";
 
-$where = " WHERE u.role IN ('owner', 'employee') ";
+$where = " WHERE u.role = 'owner' ";
 $params = [];
 $types = "";
 
 if ($search !== '') {
     $where .= " AND (
-        u.employee_no LIKE ?
-        OR u.full_name LIKE ?
+        u.full_name LIKE ?
         OR u.email LIKE ?
         OR u.phone LIKE ?
         OR u.role LIKE ?
     ) ";
     $like = "%{$search}%";
-    $params = [$like, $like, $like, $like, $like];
-    $types = "sssss";
+    $params = [$like, $like, $like, $like];
+    $types = "ssss";
 }
 
 $sql = "
     SELECT
         u.id,
-        u.employee_no,
         u.full_name,
         u.email,
         u.phone,
         {$profileImageExpr} AS profile_image,
-        CASE
-            WHEN u.role = 'owner' THEN 'Owner'
-            WHEN u.role = 'employee' THEN 'Employee'
-            ELSE u.role
-        END AS position,
+        'Owner' AS position,
         CASE
             WHEN u.account_status IN ('disabled', 'rejected') THEN 'terminated'
             WHEN {$activityExpr} < DATE_SUB(NOW(), INTERVAL 15 DAY) THEN 'inactive'
@@ -611,7 +605,7 @@ if (
                     type="text"
                     name="search"
                     id="accountsSearchInput"
-                    placeholder="Search fullname, email, phone, or position..."
+                    placeholder="Search owner name, email, or phone..."
                     value="<?php echo e($search); ?>"
                     autocomplete="off"
                 >

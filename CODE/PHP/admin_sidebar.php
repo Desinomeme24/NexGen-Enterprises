@@ -18,7 +18,8 @@ if (isset($conn) && $conn instanceof mysqli) {
     $accountCountResult = $conn->query(
         "SELECT COUNT(*) AS total
          FROM registration_requests
-         WHERE request_status IN ('pending', 'resubmit')"
+         WHERE requested_role = 'owner'
+           AND request_status IN ('pending', 'resubmit')"
     );
     if ($accountCountResult instanceof mysqli_result) {
         $pendingRequestCount += (int)($accountCountResult->fetch_assoc()['total'] ?? 0);

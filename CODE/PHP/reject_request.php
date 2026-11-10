@@ -2,6 +2,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/resend_config.php';
 require_once __DIR__ . '/document_upload_security.php';
+require_once __DIR__ . '/tenant_helper.php';
 
 function nxRejectRequestWantsJson(): bool
 {
@@ -36,17 +37,28 @@ function nxRejectRequestRespond(
         'type' => $success ? 'notice-success' : 'notice-error',
         'message' => $message,
     ];
-    header('Location: ' . ($redirect !== '' ? $redirect : nxAppUrl('pending_requests.php')));
+    $defaultRedirect = (string)($_SESSION['role'] ?? '') === 'owner'
+        ? nxAppUrl('manage_employees.php')
+        : nxAppUrl('pending_requests.php');
+    header('Location: ' . ($redirect !== '' ? $redirect : $defaultRedirect));
     exit;
 }
 
-if (!isset($_SESSION['user_id']) || !nxIsAdminRole((string)($_SESSION['role'] ?? ''))) {
+if (
+    !isset($_SESSION['user_id'])
+    || (
+        (string)($_SESSION['role'] ?? '') !== 'owner'
+        && !nxIsAdminRole((string)($_SESSION['role'] ?? ''))
+    )
+) {
     nxRejectRequestRespond(
         false,
-        'Your administrator session is no longer valid. Please log in again.',
+        'Your reviewer session is no longer valid. Please log in again.',
         0,
         401,
-        NEXGEN_ADMIN_LOGIN_PATH
+        (string)($_SESSION['role'] ?? '') === 'owner'
+            ? NEXGEN_CLIENT_LOGIN_PATH
+            : NEXGEN_ADMIN_LOGIN_PATH
     );
 }
 
@@ -63,6 +75,7 @@ if (!validateCsrfToken('admin_request_action', $_POST['csrf_token'] ?? null)) {
 $requestId = isset($_POST['request_id']) ? (int)$_POST['request_id'] : 0;
 $remarks = trim((string)($_POST['remarks'] ?? ''));
 $adminId = (int)$_SESSION['user_id'];
+$isOwnerReviewer = (string)$_SESSION['role'] === 'owner';
 
 if ($requestId <= 0) {
     nxRejectRequestRespond(false, 'Invalid registration request ID.', 0, 422);
@@ -83,14 +96,12 @@ if (
 $requestData = null;
 
 try {
-    $adminStmt = $conn->prepare(
-        "SELECT id
-         FROM users
-         WHERE id = ? AND role IN ('system_admin', 'super_admin') AND account_status = 'active'
-         LIMIT 1"
-    );
+    $reviewerSql = $isOwnerReviewer
+        ? "SELECT id FROM users WHERE id = ? AND role = 'owner' AND account_status = 'active' LIMIT 1"
+        : "SELECT id FROM users WHERE id = ? AND role IN ('system_admin', 'super_admin') AND account_status = 'active' LIMIT 1";
+    $adminStmt = $conn->prepare($reviewerSql);
     if (!$adminStmt) {
-        throw new RuntimeException('Unable to verify the administrator account.');
+        throw new RuntimeException('Unable to verify the reviewer account.');
     }
     $adminStmt->bind_param('i', $adminId);
     $adminStmt->execute();
@@ -100,10 +111,10 @@ try {
     if (!$adminIsActive) {
         nxRejectRequestRespond(
             false,
-            'Your administrator account is no longer active.',
+            'Your reviewer account is no longer active.',
             $requestId,
             403,
-            NEXGEN_ADMIN_LOGIN_PATH
+            $isOwnerReviewer ? NEXGEN_CLIENT_LOGIN_PATH : NEXGEN_ADMIN_LOGIN_PATH
         );
     }
 
@@ -111,6 +122,7 @@ try {
 
     $stmt = $conn->prepare(
         "SELECT id, request_code, full_name, email, request_status,
+                requested_role, business_id, business_entity_id, business_code, branch_code,
                 valid_id_path, business_permit_path
          FROM registration_requests
          WHERE id = ?
@@ -131,6 +143,12 @@ try {
 
     if (!in_array((string)$requestData['request_status'], ['pending', 'resubmit'], true)) {
         throw new RuntimeException('This request is already finalized and can no longer be rejected.');
+    }
+    if (
+        ($isOwnerReviewer && !nxOwnerCanReviewEmployeeRequest($conn, $adminId, $requestData))
+        || (!$isOwnerReviewer && (string)$requestData['requested_role'] !== 'owner')
+    ) {
+        throw new RuntimeException('This reviewer is not authorized to reject the requested account.');
     }
 
     $reviewedAt = date('Y-m-d H:i:s');
@@ -164,7 +182,7 @@ try {
         $requestId,
         $description
     )) {
-        throw new RuntimeException('Unable to record the administrator action.');
+        throw new RuntimeException('Unable to record the reviewer action.');
     }
 
     $conn->commit();
@@ -238,9 +256,10 @@ try {
 try {
     $emailBody =
         "Hello,\n\n" .
-        "Your NexGen account registration was rejected by the administrator.\n\n" .
+        "Your NexGen account registration was rejected by the " .
+        ($isOwnerReviewer ? 'business owner' : 'administrator') . ".\n\n" .
         "Reason:\n{$remarks}\n\n" .
-        "If you need assistance, please contact the administrator.\n\n" .
+        "If you need assistance, please contact the reviewer.\n\n" .
         "Thank you.\n— NexGen System";
 
     nxSendResendEmail(

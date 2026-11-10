@@ -80,7 +80,7 @@ if ($result->num_rows !== 1) {
     /* Registration status belongs only to the client portal. The isolated
        administrator endpoint never exposes signup/request information. */
     if ($loginPortal === 'client') {
-        $requestSql = "SELECT username, request_status, admin_remarks, full_name
+        $requestSql = "SELECT username, request_status, admin_remarks, full_name, requested_role
                        FROM registration_requests
                        WHERE username = ?
                        ORDER BY id DESC
@@ -98,26 +98,30 @@ if ($result->num_rows !== 1) {
             if ($requestData) {
                 $requestStatus = strtolower(trim((string)($requestData['request_status'] ?? '')));
                 $remarks = trim((string)($requestData['admin_remarks'] ?? ''));
+                $isEmployeeRequest = (string)($requestData['requested_role'] ?? '') === 'employee';
+                $reviewerLabel = $isEmployeeRequest ? 'business owner' : 'administrator';
 
                 switch ($requestStatus) {
                     case 'pending':
-                        $_SESSION['error'] = "Your account request is pending BPLO administrator review.";
+                        $_SESSION['error'] = $isEmployeeRequest
+                            ? 'Your employee account request is pending business owner review.'
+                            : 'Your account request is pending administrator review.';
                         $_SESSION['form_type'] = 'login';
                         header('Location: ' . $loginPage);
                         exit();
 
                     case 'rejected':
                         $_SESSION['error'] = $remarks !== ''
-                            ? "Your account request has been rejected. Reason: " . $remarks
-                            : "Your account request has been rejected by the admin. Please contact the administrator for more details.";
+                            ? "Your account request has been rejected by the {$reviewerLabel}. Reason: " . $remarks
+                            : "Your account request has been rejected by the {$reviewerLabel}. Please contact them for more details.";
                         $_SESSION['form_type'] = 'login';
                         header('Location: ' . $loginPage);
                         exit();
 
                     case 'resubmit':
                         $_SESSION['error'] = $remarks !== ''
-                            ? "Your account request needs resubmission. Please update the following: " . $remarks
-                            : "Your account request needs to be resubmitted. Please review your submitted information and try again.";
+                            ? "Your account request needs corrections. Please contact the {$reviewerLabel}: " . $remarks
+                            : "Your account request needs corrections. Please contact the {$reviewerLabel} for instructions.";
                         $_SESSION['form_type'] = 'login';
                         header('Location: ' . $loginPage);
                         exit();

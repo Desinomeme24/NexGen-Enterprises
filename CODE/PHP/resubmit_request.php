@@ -37,7 +37,10 @@ function nxResubmitRequestRespond(
         'type' => $success ? 'notice-success' : 'notice-error',
         'message' => $message,
     ];
-    header('Location: ' . ($redirect !== '' ? $redirect : nxAppUrl('pending_requests.php')));
+    $defaultRedirect = (string)($_SESSION['role'] ?? '') === 'owner'
+        ? nxAppUrl('manage_employees.php')
+        : nxAppUrl('pending_requests.php');
+    header('Location: ' . ($redirect !== '' ? $redirect : $defaultRedirect));
     exit;
 }
 
@@ -85,13 +88,21 @@ function nxResubmitDeleteDocument(string $reference, string $slot, int $adminId,
     }
 }
 
-if (!isset($_SESSION['user_id']) || !nxIsAdminRole((string)($_SESSION['role'] ?? ''))) {
+if (
+    !isset($_SESSION['user_id'])
+    || (
+        (string)($_SESSION['role'] ?? '') !== 'owner'
+        && !nxIsAdminRole((string)($_SESSION['role'] ?? ''))
+    )
+) {
     nxResubmitRequestRespond(
         false,
-        'Your administrator session is no longer valid. Please log in again.',
+        'Your reviewer session is no longer valid. Please log in again.',
         0,
         401,
-        NEXGEN_ADMIN_LOGIN_PATH
+        (string)($_SESSION['role'] ?? '') === 'owner'
+            ? NEXGEN_CLIENT_LOGIN_PATH
+            : NEXGEN_ADMIN_LOGIN_PATH
     );
 }
 
@@ -107,6 +118,7 @@ if (!validateCsrfToken('admin_request_action', $_POST['csrf_token'] ?? null)) {
 
 $requestId = isset($_POST['request_id']) ? (int)$_POST['request_id'] : 0;
 $adminId = (int)$_SESSION['user_id'];
+$isOwnerReviewer = (string)$_SESSION['role'] === 'owner';
 $remarks = trim((string)($_POST['remarks'] ?? ''));
 
 $fullName = trim((string)($_POST['full_name'] ?? ''));
@@ -158,14 +170,12 @@ if (!nxResubmitLengthBetween($address, 5, 500) || nxResubmitHasControlCharacters
     nxResubmitRequestRespond(false, 'Personal address must be 5 to 500 valid characters.', $requestId, 422);
 }
 
-$adminStmt = $conn->prepare(
-    "SELECT id
-     FROM users
-     WHERE id = ? AND role IN ('system_admin', 'super_admin') AND account_status = 'active'
-     LIMIT 1"
-);
+$reviewerSql = $isOwnerReviewer
+    ? "SELECT id FROM users WHERE id = ? AND role = 'owner' AND account_status = 'active' LIMIT 1"
+    : "SELECT id FROM users WHERE id = ? AND role IN ('system_admin', 'super_admin') AND account_status = 'active' LIMIT 1";
+$adminStmt = $conn->prepare($reviewerSql);
 if (!$adminStmt) {
-    nxResubmitRequestRespond(false, 'Unable to verify the administrator account.', $requestId, 500);
+    nxResubmitRequestRespond(false, 'Unable to verify the reviewer account.', $requestId, 500);
 }
 $adminStmt->bind_param('i', $adminId);
 $adminStmt->execute();
@@ -174,10 +184,10 @@ $adminStmt->close();
 if (!$adminIsActive) {
     nxResubmitRequestRespond(
         false,
-        'Your administrator account is no longer active.',
+        'Your reviewer account is no longer active.',
         $requestId,
         403,
-        NEXGEN_ADMIN_LOGIN_PATH
+        $isOwnerReviewer ? NEXGEN_CLIENT_LOGIN_PATH : NEXGEN_ADMIN_LOGIN_PATH
     );
 }
 
@@ -192,7 +202,8 @@ $stagedBusinessPermit = null;
 
 try {
     $requestLookup = $conn->prepare(
-        "SELECT requested_role, valid_id_path, business_permit_path
+        "SELECT requested_role, business_id, business_entity_id, business_code, branch_code,
+                valid_id_path, business_permit_path
          FROM registration_requests
          WHERE id = ? AND request_status IN ('pending', 'resubmit')
          LIMIT 1"
@@ -206,6 +217,12 @@ try {
     $requestLookup->close();
     if (!$documentRequest) {
         throw new NxDocumentUploadRejected('Registration request is unavailable.');
+    }
+    if (
+        ($isOwnerReviewer && !nxOwnerCanReviewEmployeeRequest($conn, $adminId, $documentRequest))
+        || (!$isOwnerReviewer && (string)$documentRequest['requested_role'] !== 'owner')
+    ) {
+        throw new NxDocumentUploadRejected('You are not authorized to update this registration request.');
     }
 
     $isOwnerRequest = ($documentRequest['requested_role'] ?? '') === 'owner';
@@ -337,14 +354,12 @@ $request = null;
 $changedFields = [];
 
 try {
-    $adminStmt = $conn->prepare(
-        "SELECT id
-         FROM users
-         WHERE id = ? AND role IN ('system_admin', 'super_admin') AND account_status = 'active'
-         LIMIT 1"
-    );
+    $reviewerSql = $isOwnerReviewer
+        ? "SELECT id FROM users WHERE id = ? AND role = 'owner' AND account_status = 'active' LIMIT 1"
+        : "SELECT id FROM users WHERE id = ? AND role IN ('system_admin', 'super_admin') AND account_status = 'active' LIMIT 1";
+    $adminStmt = $conn->prepare($reviewerSql);
     if (!$adminStmt) {
-        throw new RuntimeException('Unable to verify the administrator account.');
+        throw new RuntimeException('Unable to verify the reviewer account.');
     }
     $adminStmt->bind_param('i', $adminId);
     $adminStmt->execute();
@@ -354,10 +369,10 @@ try {
     if (!$adminIsActive) {
         nxResubmitRequestRespond(
             false,
-            'Your administrator account is no longer active.',
+            'Your reviewer account is no longer active.',
             $requestId,
             403,
-            NEXGEN_ADMIN_LOGIN_PATH
+            $isOwnerReviewer ? NEXGEN_CLIENT_LOGIN_PATH : NEXGEN_ADMIN_LOGIN_PATH
         );
     }
 
@@ -389,6 +404,12 @@ try {
     $role = (string)$request['requested_role'];
     if (!in_array($role, ['owner', 'employee'], true)) {
         throw new RuntimeException('The request contains an invalid account role.');
+    }
+    if (
+        ($isOwnerReviewer && ($role !== 'employee' || !nxOwnerCanReviewEmployeeRequest($conn, $adminId, $request)))
+        || (!$isOwnerReviewer && $role !== 'owner')
+    ) {
+        throw new RuntimeException('This reviewer is not authorized to update the requested account.');
     }
 
     $uniqueStmt = $conn->prepare(
@@ -540,6 +561,12 @@ try {
 
         $businessId = (int)$workspace['id'];
         $businessEntityId = (int)$workspace['business_entity_id'];
+        if (
+            $isOwnerReviewer
+            && !in_array($businessEntityId, nxGetOwnedBusinessEntityIds($conn, $adminId), true)
+        ) {
+            throw new RuntimeException('The corrected branch must belong to a business you own.');
+        }
         $businessName = (string)$workspace['business_name'];
         $businessType = (string)$workspace['business_type'];
         $businessTypeOther = (string)($workspace['business_type_other'] ?? '');
@@ -660,7 +687,7 @@ try {
         $requestId,
         $description
     )) {
-        throw new RuntimeException('Unable to record the administrator action.');
+        throw new RuntimeException('Unable to record the reviewer action.');
     }
 
     $conn->commit();
@@ -726,7 +753,9 @@ try {
         'The resubmission update could not be completed. Please try again.',
         $requestId,
         422,
-        nxAppUrl('view_request.php') . '?id=' . $requestId
+        nxAppUrl('view_request.php') . '?'
+            . ($isOwnerReviewer ? 'owner_review=1&' : '')
+            . 'id=' . $requestId
     );
 }
 
@@ -735,8 +764,9 @@ try {
     $emailBody =
         "Hello,\n\n" .
         "Your NexGen registration requires corrections before it can be approved.\n\n" .
-        "Administrator instructions:\n{$remarks}\n\n" .
-        "If any corrected information is inaccurate, please contact the administrator.\n\n" .
+        ($isOwnerReviewer ? "Business owner instructions:\n" : "Administrator instructions:\n") .
+        "{$remarks}\n\n" .
+        "If any corrected information is inaccurate, please contact the reviewer.\n\n" .
         "Thank you.\n— NexGen System";
 
     nxSendResendEmail(

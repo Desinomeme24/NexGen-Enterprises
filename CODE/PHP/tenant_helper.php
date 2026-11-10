@@ -443,6 +443,117 @@ if (!function_exists('nxApplyWorkspaceToSession')) {
     }
 }
 
+if (!function_exists('nxGetOwnedBusinessEntityIds')) {
+    function nxGetOwnedBusinessEntityIds(mysqli $conn, int $ownerId): array
+    {
+        if ($ownerId <= 0) {
+            return [];
+        }
+
+        if (nxWorkspaceSchemaReady($conn)) {
+            $stmt = $conn->prepare(
+                "SELECT DISTINCT uba.business_entity_id
+                 FROM user_business_assignments uba
+                 INNER JOIN users u ON u.id = uba.user_id AND u.role = 'owner'
+                 WHERE uba.user_id = ?
+                   AND uba.assignment_role = 'owner'
+                   AND uba.status = 'active'
+                 UNION
+                 SELECT b.business_entity_id
+                 FROM users u
+                 INNER JOIN businesses b ON b.id = u.business_id
+                 WHERE u.id = ?
+                   AND u.role = 'owner'
+                   AND NOT EXISTS (
+                       SELECT 1
+                       FROM user_business_assignments uba
+                       WHERE uba.user_id = u.id
+                   )"
+            );
+            if (!$stmt) {
+                throw new RuntimeException('Unable to verify business ownership.');
+            }
+
+            $stmt->bind_param('ii', $ownerId, $ownerId);
+        } else {
+            return [];
+        }
+
+        if (!$stmt->execute()) {
+            $stmt->close();
+            throw new RuntimeException('Unable to verify business ownership.');
+        }
+
+        $result = $stmt->get_result();
+        $entityIds = [];
+        while ($row = $result->fetch_assoc()) {
+            $entityId = (int)($row['business_entity_id'] ?? 0);
+            if ($entityId > 0) {
+                $entityIds[$entityId] = $entityId;
+            }
+        }
+        $stmt->close();
+
+        return array_values($entityIds);
+    }
+}
+
+if (!function_exists('nxOwnerCanReviewEmployeeRequest')) {
+    function nxOwnerCanReviewEmployeeRequest(mysqli $conn, int $ownerId, array $request): bool
+    {
+        if (
+            $ownerId <= 0
+            || (string)($request['requested_role'] ?? '') !== 'employee'
+            || (int)($request['business_id'] ?? 0) <= 0
+            || !nxWorkspaceSchemaReady($conn)
+        ) {
+            return false;
+        }
+
+        $businessCode = strtoupper(trim((string)($request['business_code'] ?? '')));
+        $branchCode = strtoupper(trim((string)($request['branch_code'] ?? '')));
+        if ($businessCode === '' || $branchCode === '') {
+            return false;
+        }
+
+        $stmt = $conn->prepare(
+            "SELECT b.business_entity_id, be.business_code, b.branch_code
+             FROM businesses b
+             INNER JOIN business_entities be ON be.id = b.business_entity_id
+             WHERE b.id = ?
+             LIMIT 1"
+        );
+        if (!$stmt) {
+            throw new RuntimeException('Unable to verify the employee request workspace.');
+        }
+
+        $businessId = (int)$request['business_id'];
+        $stmt->bind_param('i', $businessId);
+        if (!$stmt->execute()) {
+            $stmt->close();
+            throw new RuntimeException('Unable to verify the employee request workspace.');
+        }
+
+        $workspace = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if (!$workspace) {
+            return false;
+        }
+
+        $entityId = (int)$workspace['business_entity_id'];
+        $requestEntityId = (int)($request['business_entity_id'] ?? 0);
+        if (
+            ($requestEntityId > 0 && $requestEntityId !== $entityId)
+            || !hash_equals(strtoupper((string)$workspace['business_code']), $businessCode)
+            || !hash_equals(strtoupper((string)$workspace['branch_code']), $branchCode)
+        ) {
+            return false;
+        }
+
+        return in_array($entityId, nxGetOwnedBusinessEntityIds($conn, $ownerId), true);
+    }
+}
+
 if (!function_exists('nxInitializeUserWorkspace')) {
     function nxInitializeUserWorkspace(mysqli $conn, bool $forceDefault = false): array
     {

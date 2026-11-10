@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/document_upload_security.php';
+require_once __DIR__ . '/tenant_helper.php';
 
 function nxDocumentDeliveryFail(int $status, int $adminId = 0, int $requestId = 0, string $slot = 'unknown'): void
 {
@@ -17,7 +18,11 @@ function nxDocumentDeliveryFail(int $status, int $adminId = 0, int $requestId = 
 }
 
 $adminId = (int)($_SESSION['user_id'] ?? 0);
-if ($adminId <= 0 || !nxIsAdminRole((string)($_SESSION['role'] ?? ''))) {
+$isOwnerReviewer = (string)($_SESSION['role'] ?? '') === 'owner';
+if (
+    $adminId <= 0
+    || (!$isOwnerReviewer && !nxIsAdminRole((string)($_SESSION['role'] ?? '')))
+) {
     nxDocumentDeliveryFail(403, $adminId);
 }
 
@@ -40,19 +45,17 @@ if (
     nxDocumentDeliveryFail(404, $adminId, is_int($requestId) ? $requestId : 0, $slot);
 }
 $isSuperAdmin = nxIsSuperAdminRole((string)$_SESSION['role']);
-if ($source === 'workspace' && $isSuperAdmin) {
+if (($source === 'workspace' && ($isSuperAdmin || $isOwnerReviewer)) || ($isOwnerReviewer && $slot !== 'valid_id')) {
     nxDocumentDeliveryFail(403, $adminId, $requestId, $slot);
 }
 
 try {
-    $adminStmt = $conn->prepare(
-        "SELECT id
-         FROM users
-         WHERE id = ? AND role IN ('system_admin', 'super_admin') AND account_status = 'active'
-         LIMIT 1"
-    );
+    $reviewerSql = $isOwnerReviewer
+        ? "SELECT id FROM users WHERE id = ? AND role = 'owner' AND account_status = 'active' LIMIT 1"
+        : "SELECT id FROM users WHERE id = ? AND role IN ('system_admin', 'super_admin') AND account_status = 'active' LIMIT 1";
+    $adminStmt = $conn->prepare($reviewerSql);
     if (!$adminStmt) {
-        throw new RuntimeException('Administrator authorization lookup failed.');
+        throw new RuntimeException('Reviewer authorization lookup failed.');
     }
     $adminStmt->bind_param('i', $adminId);
     $adminStmt->execute();
@@ -64,8 +67,11 @@ try {
 
     $documentColumn = $slot === 'valid_id' ? 'valid_id_path' : 'business_permit_path';
     $requestTable = $source === 'workspace' ? 'workspace_requests' : 'registration_requests';
+    $ownerRequestFields = $isOwnerReviewer && $source === 'registration'
+        ? ', requested_role, business_id, business_entity_id, business_code, branch_code'
+        : '';
     $stmt = $conn->prepare(
-        "SELECT {$documentColumn} AS document_reference, request_status
+        "SELECT {$documentColumn} AS document_reference, request_status{$ownerRequestFields}
          FROM {$requestTable}
          WHERE id = ?
          LIMIT 1"
@@ -77,6 +83,14 @@ try {
     $stmt->execute();
     $request = $stmt->get_result()->fetch_assoc();
     $stmt->close();
+    if (
+        $isOwnerReviewer
+        && $source === 'registration'
+        && $request
+        && !nxOwnerCanReviewEmployeeRequest($conn, $adminId, $request)
+    ) {
+        nxDocumentDeliveryFail(404, $adminId, $requestId, $slot);
+    }
 } catch (Throwable $error) {
     error_log('NexGen private document lookup failed: ' . $error->getMessage());
     nxDocumentDeliveryFail(404, $adminId, $requestId, $slot);
@@ -85,8 +99,12 @@ try {
 if (
     !$request
     || ($source === 'registration' && (string)$request['request_status'] === 'rejected')
+    || ($isOwnerReviewer && (
+        $source !== 'registration'
+        || !in_array((string)$request['request_status'], ['pending', 'resubmit'], true)
+    ))
     || ($source === 'registration' && $isSuperAdmin && (string)$request['request_status'] !== 'pending')
-    || ($source === 'registration' && !$isSuperAdmin && (string)$request['request_status'] === 'pending')
+    || ($source === 'registration' && !$isOwnerReviewer && !$isSuperAdmin && (string)$request['request_status'] === 'pending')
     || empty($request['document_reference'])
 ) {
     nxDocumentDeliveryFail(404, $adminId, $requestId, $slot);

@@ -34,7 +34,7 @@ function signupNeutralRedirect(): void
     }
 
     signupRedirect(
-        'Your registration information has been processed. If it is eligible for a new account, it will be submitted for administrator review. Use Sign In or Forgot Password if you may already have an account.',
+        'Your registration information has been processed. If it is eligible for a new account, it will be sent to the appropriate reviewer. Use Sign In or Forgot Password if you may already have an account.',
         'success'
     );
 }

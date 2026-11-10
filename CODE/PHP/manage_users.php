@@ -93,8 +93,6 @@ function getDefaultModulePermissions(string $role): array
     switch ($role) {
         case 'owner':
             return [1, 1, 1, 1];
-        case 'employee':
-            return [1, 1, 0, 1];
         default:
             return [0, 0, 0, 0];
     }
@@ -144,7 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_
                 can_sales_analytics = ?,
                 can_accounts_receivable = ?
             WHERE id = ?
-              AND role IN ('owner', 'employee')
+              AND role = 'owner'
         ");
         if (!$updateStmt) {
             throw new Exception('Failed to prepare selected user update: ' . $conn->error);
@@ -163,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_
                 continue;
             }
 
-            if (!in_array($user['role'], ['owner', 'employee'], true)) {
+            if ($user['role'] !== 'owner') {
                 continue;
             }
 
@@ -243,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unloc
             throw new Exception('Invalid user ID.');
         }
 
-        $stmt = $conn->prepare("SELECT id, username, role FROM users WHERE id = ? AND role IN ('owner', 'employee') LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, username, role FROM users WHERE id = ? AND role = 'owner' LIMIT 1");
         if (!$stmt) {
             throw new Exception('Failed to prepare user lookup: ' . $conn->error);
         }
@@ -264,7 +262,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unloc
                 locked_until = NULL,
                 last_failed_login_at = NULL
             WHERE id = ?
-              AND role IN ('owner', 'employee')
+              AND role = 'owner'
         ");
         if (!$stmt) {
             throw new Exception('Failed to prepare unlock update: ' . $conn->error);
@@ -331,7 +329,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
             throw new Exception('Please enter a valid email address.');
         }
 
-        $allowedRoles = ['owner', 'employee'];
+        $allowedRoles = ['owner'];
         if (!in_array($role, $allowedRoles, true)) {
             throw new Exception('Invalid role selected.');
         }
@@ -358,8 +356,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
             throw new Exception('User not found.');
         }
 
-        if (!in_array($currentUser['role'], ['owner', 'employee'], true)) {
-            throw new Exception('Only owner and employee accounts can be modified from Manage Users.');
+        if ($currentUser['role'] !== 'owner') {
+            throw new Exception('Only owner accounts can be modified from Manage Users.');
         }
 
         $stmt = $conn->prepare("SELECT id FROM users WHERE (username = ? OR email = ?) AND id <> ? LIMIT 1");
@@ -393,7 +391,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
                 can_sales_analytics = ?,
                 can_accounts_receivable = ?
             WHERE id = ?
-              AND role IN ('owner', 'employee')
+              AND role = 'owner'
         ");
 
         if (!$stmt) {
@@ -422,21 +420,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
         }
         $stmt->close();
 
-        /* BUSINESS INTEGRITY: Manage Users may update the account role and
-           permissions, but it must never move an account to another business
-           or branch. Existing assignment rows are preserved exactly. Only
-           their role label is synchronized when Owner/Employee is changed. */
+        /* BUSINESS INTEGRITY: Manage Users may update owner permissions, but
+           must never move an account to another business or branch. */
         if (nxWorkspaceSchemaReady($conn)) {
-            $assignmentRole = $role === 'owner' ? 'owner' : 'employee';
             $assignmentStmt = $conn->prepare(
                 "UPDATE user_business_assignments
-                 SET assignment_role = ?
+                 SET assignment_role = 'owner'
                  WHERE user_id = ? AND status = 'active'"
             );
             if (!$assignmentStmt) {
                 throw new Exception('Failed to synchronize the existing business assignment role.');
             }
-            $assignmentStmt->bind_param('si', $assignmentRole, $userId);
+            $assignmentStmt->bind_param('i', $userId);
             if (!$assignmentStmt->execute()) {
                 throw new Exception('Failed to synchronize the existing business assignment role.');
             }
@@ -493,7 +488,7 @@ $roles = [];
 $statusSet = ['inactive' => true];
 $statuses = [];
 
-$roleResult = $conn->query("SELECT DISTINCT role FROM users WHERE role IN ('owner', 'employee') ORDER BY role ASC");
+$roleResult = $conn->query("SELECT DISTINCT role FROM users WHERE role = 'owner' ORDER BY role ASC");
 if ($roleResult) {
     while ($row = $roleResult->fetch_assoc()) {
         $roles[] = $row['role'];
@@ -521,7 +516,7 @@ foreach (array_keys($statusSet) as $status) {
     $statuses[] = $status;
 }
 
-$where = " WHERE u.role IN ('owner', 'employee') ";
+$where = " WHERE u.role = 'owner' ";
 $params = [];
 $types = "";
 
@@ -610,7 +605,7 @@ $sql = "
             SELECT u.id, b.business_entity_id
             FROM users u
             INNER JOIN businesses b ON b.id = u.business_id
-            WHERE u.role IN ('owner', 'employee')
+            WHERE u.role = 'owner'
               AND NOT EXISTS (
                   SELECT 1
                   FROM user_business_assignments existing_uba
@@ -664,7 +659,7 @@ $businessEntitiesStmt = $conn->prepare(
          SELECT u.id, b.business_entity_id
          FROM users u
          INNER JOIN businesses b ON b.id = u.business_id
-         WHERE u.role IN ('owner', 'employee')
+         WHERE u.role = 'owner'
            AND NOT EXISTS (
                SELECT 1
                FROM user_business_assignments existing_uba
@@ -714,7 +709,7 @@ if ($editId > 0) {
         LEFT JOIN businesses b ON b.id = u.business_id
         LEFT JOIN business_entities be ON be.id = b.business_entity_id
         WHERE u.id = ?
-          AND u.role IN ('owner', 'employee')
+          AND u.role = 'owner'
         LIMIT 1
     ");
     if ($stmt) {
@@ -2183,7 +2178,6 @@ $csrfManageUsers = generateCsrfToken('manage_users_action');
                             <label for="role">Role</label>
                             <select id="role" name="role" required onchange="handleRoleChange()">
                                 <option value="owner" <?php echo $editUser['role'] === 'owner' ? 'selected' : ''; ?>>Owner</option>
-                                <option value="employee" <?php echo $editUser['role'] === 'employee' ? 'selected' : ''; ?>>Employee</option>
                             </select>
                         </div>
 
@@ -2385,7 +2379,7 @@ function updateRoleNote() {
         .map(function(module) {
             return module[1];
         });
-    const roleLabel = role.value === 'owner' ? 'Owner' : 'Employee';
+    const roleLabel = 'Owner';
 
     roleNote.textContent = selectedModules.length > 0
         ? roleLabel + ' currently has access to: ' + selectedModules.join(', ') + '.'

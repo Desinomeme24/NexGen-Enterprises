@@ -55,7 +55,7 @@ if (!in_array($status, $allowedStatuses, true)) {
     $status = 'pending';
 }
 
-$accountWhere = " WHERE request_status IN ('pending', 'resubmit') ";
+$accountWhere = " WHERE requested_role = 'owner' AND request_status IN ('pending', 'resubmit') ";
 $accountParams = [];
 $accountTypes = "";
 
@@ -85,9 +85,7 @@ if ($stmt) {
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
         $row['request_source'] = 'account';
-        $row['source_label'] = $row['requested_role'] === 'owner'
-            ? 'Owner Account'
-            : 'Employee Account';
+        $row['source_label'] = 'Owner Account';
         $requests[] = $row;
     }
     $stmt->close();
@@ -185,8 +183,6 @@ function renderPendingRequestsTable(array $requests): void
                             <small>
                                 <?php if ($row['request_source'] === 'workspace'): ?>
                                     <?php echo e($row['branch_name'] . ' — ' . $row['business_address']); ?>
-                                <?php elseif ($row['requested_role'] === 'employee'): ?>
-                                    <?php echo e(($row['business_code'] ?: 'No business code') . ' / ' . ($row['branch_code'] ?: 'No branch code')); ?>
                                 <?php else: ?>
                                     <?php echo e(nxBusinessTypeLabel($row['business_type'] ?? '', $row['business_type_other'] ?? '') . ' — ' . $row['business_address']); ?>
                                 <?php endif; ?>
