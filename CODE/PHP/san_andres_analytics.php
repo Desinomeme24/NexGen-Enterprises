@@ -458,6 +458,10 @@ function nxAnalyticsMoney(float $amount): string
             cursor: pointer;
         }
         .analytics-modal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 20px 0 0; }
+        .analytics-financial-grid { grid-template-columns: minmax(0, 360px); }
+        .analytics-financial-grid .analytics-detail-card { min-height: 100px; }
+        .analytics-financial-grid .analytics-detail-card h3 { color: var(--muted); font-size: .82rem; }
+        .analytics-financial-grid .analytics-detail-card p { color: var(--text); font-size: 1.3rem; font-weight: 750; font-variant-numeric: tabular-nums; }
         .analytics-detail-card,
         .analytics-quarter-card {
             min-width: 0;
@@ -649,8 +653,6 @@ function nxAnalyticsMoney(float $amount): string
                                     'business_name' => (string)$business['business_name'],
                                     'owner_names' => (string)$business['owner_names'],
                                     'locations' => $locationsByEntity[$entityId] ?? [],
-                                    'gross_revenue' => $revenue,
-                                    'cost_of_goods_sold' => (float)$business['cost_of_goods_sold'],
                                     'net_profit' => (float)$business['net_profit'],
                                     'permit_status' => (string)$business['permit_payment_status'],
                                     'permit_unpaid_since' => $business['permit_unpaid_since'],
@@ -712,7 +714,7 @@ function nxAnalyticsMoney(float $amount): string
             </div>
             <button type="button" class="analytics-modal-close" id="businessDetailsClose" aria-label="Close business details">&times;</button>
         </div>
-        <div class="analytics-modal-grid" id="businessDetailsFinancials"></div>
+        <div class="analytics-modal-grid analytics-financial-grid" id="businessDetailsFinancials"></div>
         <section class="analytics-modal-section">
             <div class="analytics-modal-section-heading">
                 <div><h3>Business locations</h3><p>Active branches registered to this business.</p></div>
@@ -796,8 +798,6 @@ function nxAnalyticsMoney(float $amount): string
             );
             permitBadge.textContent = permitStatus === 'paid' ? 'Permit paid' : (permitStatus === 'unpaid' ? 'Permit unpaid' : 'Status not set');
             financials.replaceChildren();
-            addCard(financials, 'Gross revenue', money(data.gross_revenue));
-            addCard(financials, 'Cost of goods sold', money(data.cost_of_goods_sold));
             addCard(financials, 'Net profit', money(data.net_profit));
             locations.replaceChildren();
             if (!data.locations.length) {
