@@ -2,6 +2,7 @@
 session_start();
 require_once("config.php");
 require_once("tenant_helper.php");
+require_once __DIR__ . '/inventory_date_helper.php';
 
 if (!isset($_SESSION['user_id'])) { header("Location: /NexGen/CODE/PHP/index.php"); exit(); }
 if ((int)($_SESSION['can_inventory'] ?? 0) !== 1) { $_SESSION['inventory_error']='Unauthorized access.'; header("Location: /NexGen/CODE/PHP/dashboard.php"); exit(); }
@@ -12,9 +13,14 @@ $btStmt=$conn->prepare('SELECT business_type FROM businesses WHERE id=? LIMIT 1'
 $isBatchTracked=nxIsBatchTrackedType($businessTypeRow['business_type']??null);
 $product_code=trim($_POST['product_code']??''); $product_name=trim($_POST['product_name']??''); $category_id=(int)($_POST['category_id']??0);
 $brand=trim($_POST['brand']??''); $unit=trim($_POST['unit']??''); $cost_price=(float)($_POST['cost_price']??0); $selling_price=(float)($_POST['selling_price']??0);
-$discount_percent=max(0,min(100,(float)($_POST['discount_percent']??0)));
 $stock_quantity=(float)($_POST['stock_quantity']??0); $reorder_level=$isOwner?(float)($_POST['reorder_level']??5):5; $on_order_level=$isOwner?(float)($_POST['on_order_level']??0):0;
 $expiry_date=!empty($_POST['expiry_date'])?$_POST['expiry_date']:null; $description=trim($_POST['description']??''); $is_active=(int)($_POST['is_active']??1);
+try {
+ $manufacturing_date=nxValidateManufacturingDate($_POST['manufacturing_date']??'');
+} catch (InvalidArgumentException $exception) {
+ $_SESSION['inventory_error']=$exception->getMessage(); header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit();
+}
+if ($manufacturing_date!==null && $expiry_date!==null && $manufacturing_date>$expiry_date) { $_SESSION['inventory_error']='Manufacturing date cannot be after the expiry date.'; header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit(); }
 $batch_number=$isBatchTracked?nxGenerateBatchNumber():'';
 if ($product_code===''||$product_name===''||$category_id<=0||$unit==='') { $_SESSION['inventory_error']='Please fill in all required fields.'; header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit(); }
 if ($isBatchTracked && $stock_quantity<=0) { $_SESSION['inventory_error']='A positive initial quantity is required for this business type. Expiry date is optional.'; header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit(); }
@@ -29,13 +35,13 @@ try{
  // Batch-tracked businesses start the product at 0 stock and no product-level
  // expiry - the initial batch inserted below sets the real stock via the
  // product_batches triggers, and each batch carries its own expiry date.
- $initialStock=$isBatchTracked?0:$stock_quantity; $initialExpiry=$isBatchTracked?null:$expiry_date;
- $stmt=$conn->prepare('INSERT INTO products (business_id,product_code,product_name,category_id,brand,unit,cost_price,selling_price,discount_percent,stock_quantity,reorder_level,on_order_level,expiry_date,product_image,description,is_active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
- $stmt->bind_param('ississddddddsssi',$businessId,$product_code,$product_name,$category_id,$brand,$unit,$cost_price,$selling_price,$discount_percent,$initialStock,$reorder_level,$on_order_level,$initialExpiry,$imagePath,$description,$is_active);
+ $initialStock=$isBatchTracked?0:$stock_quantity; $initialExpiry=$isBatchTracked?null:$expiry_date; $initialManufacturingDate=$isBatchTracked?null:$manufacturing_date;
+ $stmt=$conn->prepare('INSERT INTO products (business_id,product_code,product_name,category_id,brand,unit,cost_price,selling_price,stock_quantity,reorder_level,on_order_level,manufacturing_date,expiry_date,product_image,description,is_active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+ $stmt->bind_param('ississdddddssssi',$businessId,$product_code,$product_name,$category_id,$brand,$unit,$cost_price,$selling_price,$initialStock,$reorder_level,$on_order_level,$initialManufacturingDate,$initialExpiry,$imagePath,$description,$is_active);
  if(!$stmt->execute())throw new Exception('Failed to save product: '.$stmt->error); $newProductId=$conn->insert_id; $stmt->close();
  if($isBatchTracked){
-  $batchStmt=$conn->prepare('INSERT INTO product_batches (business_id,product_id,batch_number,expiry_date,quantity) VALUES (?,?,?,?,?)');
-  $batchStmt->bind_param('iissd',$businessId,$newProductId,$batch_number,$expiry_date,$stock_quantity);
+  $batchStmt=$conn->prepare('INSERT INTO product_batches (business_id,product_id,batch_number,manufacturing_date,expiry_date,quantity) VALUES (?,?,?,?,?,?)');
+  $batchStmt->bind_param('iisssd',$businessId,$newProductId,$batch_number,$manufacturing_date,$expiry_date,$stock_quantity);
   if(!$batchStmt->execute())throw new Exception('Failed to save initial batch: '.$batchStmt->error); $batchStmt->close();
  }
  $conn->commit(); $_SESSION['inventory_success']='Product added successfully.';

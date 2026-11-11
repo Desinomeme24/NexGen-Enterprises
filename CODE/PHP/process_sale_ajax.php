@@ -4,6 +4,7 @@ header('Content-Type: application/json; charset=UTF-8');
 require_once("config.php");
 require_once __DIR__ . '/tenant_helper.php';
 require_once __DIR__ . '/ar_helper.php';
+require_once __DIR__ . '/sale_discount_helper.php';
 
 if (!isset($_SESSION['user_id'])) {
     echo json_encode([
@@ -224,7 +225,7 @@ try {
     ksort($requiredByProduct);
 
     $productCheckStmt = $conn->prepare("
-        SELECT id, product_name, discount_percent, stock_quantity
+        SELECT id, product_name, selling_price, stock_quantity
         FROM products
         WHERE id = ? AND business_id = ? AND is_active = 1
         FOR UPDATE
@@ -235,8 +236,7 @@ try {
     }
 
     $productNames = [];
-    $productDiscounts = [];
-
+    $productPrices = [];
     foreach ($requiredByProduct as $product_id => $requiredQty) {
         $productCheckStmt->bind_param("ii", $product_id, $businessId);
         $productCheckStmt->execute();
@@ -249,7 +249,7 @@ try {
         $product = $productResult->fetch_assoc();
         $availableStock = (float) $product['stock_quantity'];
         $productNames[$product_id] = $product['product_name'];
-        $productDiscounts[$product_id] = max(0, min(100, (float) $product['discount_percent']));
+        $productPrices[$product_id] = (float)$product['selling_price'];
 
         if ($requiredQty > $availableStock) {
             throw new Exception('Insufficient stock for one of the selected products.');
@@ -278,13 +278,29 @@ try {
     $productCheckStmt->close();
 
     foreach ($items as $index => $item) {
-        $discountPercent = $productDiscounts[$item['product_id']] ?? 0;
-        $subtotal = $item['quantity'] * $item['unit_price'] * (1 - $discountPercent / 100);
+        $items[$index]['unit_price'] = $productPrices[$item['product_id']];
+    }
 
+    $discountTypeInput = $_POST['discount_type'] ?? 'none';
+    if (!is_string($discountTypeInput)) {
+        throw new InvalidArgumentException('Choose a valid sale discount.');
+    }
+    $discountTotals = nxPrepareSaleDiscountTotals(
+        $items,
+        trim($discountTypeInput),
+        $_POST['discount_value'] ?? null
+    );
+    $items = $discountTotals['items'];
+    $total_amount = $discountTotals['total_amount'];
+    if ($discountTotals['subtotal_amount'] <= 0) {
+        throw new Exception('Sale subtotal must be greater than zero.');
+    }
+    if ($total_amount <= 0 && $payment_status !== 'Paid') {
+        throw new Exception('A fully discounted sale must be marked Paid.');
+    }
+
+    foreach ($items as $index => $item) {
         $items[$index]['product_name'] = $productNames[$item['product_id']] ?? 'Product';
-        $items[$index]['discount_percent'] = $discountPercent;
-        $items[$index]['subtotal'] = $subtotal;
-        $total_amount += $subtotal;
     }
 
     if ($payment_status === 'Paid') {
@@ -327,11 +343,15 @@ try {
             sales_no,
             salesperson_id,
             customer_id,
+            subtotal_amount,
+            discount_type,
+            discount_value,
+            discount_amount,
             total_amount,
             payment_status,
             payment_method,
             order_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     if (!$saleStmt) {
@@ -339,11 +359,15 @@ try {
     }
 
     $saleStmt->bind_param(
-        "isiidsss",
+        "isiidsdddsss",
         $businessId,
         $sales_no,
         $user_id,
         $customerParam,
+        $discountTotals['subtotal_amount'],
+        $discountTotals['discount_type'],
+        $discountTotals['discount_value'],
+        $discountTotals['discount_amount'],
         $total_amount,
         $payment_status,
         $payment_method,

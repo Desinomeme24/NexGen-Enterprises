@@ -16,6 +16,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const orderStatus = document.getElementById("orderStatus");
   const amountPaidGroup = document.getElementById("amountPaidGroup");
   const amountPaidInput = document.getElementById("amountPaidInput");
+  const saleDiscountType = document.getElementById("saleDiscountType");
+  const saleDiscountValue = document.getElementById("saleDiscountValue");
+  const saleDiscountValueWrap = document.getElementById("saleDiscountValueWrap");
+  const saleDiscountValueLabel = document.getElementById("saleDiscountValueLabel");
   const checkoutSummaryGrid = document.querySelector(".checkout-summary-grid");
 
   const salesAccess = window.salesAccess || {};
@@ -428,10 +432,6 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   const searchableProducts = products.map((product) => {
-    const discount = Math.min(
-      Math.max(safeNumber(product.discount_percent), 0),
-      100,
-    );
     const basePrice = safeNumber(product.selling_price);
 
     return {
@@ -442,8 +442,6 @@ document.addEventListener("DOMContentLoaded", function () {
         safeText(product.image_url) || "../../IMAGES/default-product.svg",
       stock: safeNumber(product.stock_quantity),
       basePrice,
-      discount,
-      netPrice: Number((basePrice * (1 - discount / 100)).toFixed(2)),
     };
   });
 
@@ -505,10 +503,6 @@ document.addEventListener("DOMContentLoaded", function () {
       productSearchResults.innerHTML = visibleSearchProducts
         .map((product) => {
           const unavailable = product.stock <= 0;
-          const discountPill =
-            product.discount > 0
-              ? `<span class="product-result-discount">-${escapeHtml(product.discount)}%</span>`
-              : "";
           return `
             <button
               type="button"
@@ -523,8 +517,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 <small>${escapeHtml(product.code || "No product code")} &bull; Stock: ${escapeHtml(product.stock)}</small>
               </span>
               <span class="product-result-price">
-                ${discountPill}
-                <strong>₱${formatMoney(product.netPrice)}</strong>
+                <strong>₱${formatMoney(product.basePrice)}</strong>
               </span>
             </button>`;
         })
@@ -638,13 +631,9 @@ document.addEventListener("DOMContentLoaded", function () {
     row.dataset.productCode = product.code;
     row.dataset.productImage = product.imageUrl;
     row.dataset.basePrice = String(product.basePrice);
-    row.dataset.discount = String(product.discount);
     row.dataset.stock = String(product.stock);
 
-    const discountNote =
-      product.discount > 0
-        ? `<small class="item-discount-note">-${escapeHtml(product.discount)}% product discount applied</small>`
-        : `<small class="item-stock-note">Stock: ${escapeHtml(product.stock)}</small>`;
+    const discountNote = `<small class="item-stock-note">Stock: ${escapeHtml(product.stock)}</small>`;
 
     row.innerHTML = `
       <div class="item-product-cell" data-label="Product">
@@ -668,8 +657,6 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="item-remove-cell" data-label="Remove">
         <button type="button" class="row-remove" aria-label="Remove ${escapeHtml(product.name)}"><i class="bi bi-trash3"></i></button>
       </div>
-      <input type="hidden" name="discount_percent[]" class="discount-percent-input" value="${escapeHtml(product.discount)}">
-      <input type="hidden" name="line_subtotal[]" class="line-subtotal-input" value="0.00">
     `;
 
     const image = row.querySelector(".item-product-image");
@@ -747,11 +734,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const qty = parseFloat(row.querySelector(".qty-input").value) || 0;
     const price = parseFloat(row.querySelector(".price-input").value) || 0;
     const stock = safeNumber(row.dataset.stock);
-    const discount = Math.min(
-      Math.max(safeNumber(row.dataset.discount), 0),
-      100,
-    );
-    const subtotal = qty * price * (1 - discount / 100);
+    const subtotal = Math.round(qty * price * 100) / 100;
 
     row.classList.toggle("has-stock-error", qty > stock || qty <= 0);
     row
@@ -762,21 +745,35 @@ document.addEventListener("DOMContentLoaded", function () {
       );
 
     row.querySelector(".subtotal-input").value = formatMoney(subtotal);
-    const discountInput = row.querySelector(".discount-percent-input");
-    const lineSubtotalInput = row.querySelector(".line-subtotal-input");
-    if (discountInput) {
-      discountInput.value = String(discount);
-    }
-    if (lineSubtotalInput) {
-      lineSubtotalInput.value = formatMoney(subtotal);
-    }
 
-    const discountNote = row.querySelector(".item-discount-note");
-    if (discountNote) {
-      discountNote.textContent =
-        discount > 0 ? `-${discount}% discount applied` : "";
-    }
+    calculateGrandTotal();
+  }
 
+  function getDiscountLabel() {
+    const labels = {
+      none: "Sale Discount",
+      senior: "Senior Citizen Discount (20%)",
+      pwd: "PWD Discount (20%)",
+      custom_percent: `Custom Discount (${safeNumber(saleDiscountValue?.value)}%)`,
+      custom_amount: "Custom Discount",
+    };
+    return labels[saleDiscountType?.value || "none"] || "Sale Discount";
+  }
+
+  function syncDiscountControls() {
+    const type = saleDiscountType?.value || "none";
+    const needsValue = ["custom_percent", "custom_amount"].includes(type);
+    if (saleDiscountValueWrap) {
+      saleDiscountValueWrap.hidden = !needsValue;
+    }
+    if (saleDiscountValue) {
+      saleDiscountValue.disabled = !needsValue;
+      saleDiscountValue.max = type === "custom_percent" ? "100" : "";
+    }
+    if (saleDiscountValueLabel) {
+      saleDiscountValueLabel.textContent =
+        type === "custom_percent" ? "Discount percentage" : "Discount amount (₱)";
+    }
     calculateGrandTotal();
   }
 
@@ -798,21 +795,31 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function getSaleTotals() {
-    let subtotal = 0;
-    let total = 0;
+    let subtotalCents = 0;
 
     document.querySelectorAll(".item-row").forEach((row) => {
       const qty = safeNumber(row.querySelector(".qty-input")?.value);
-      const basePrice = safeNumber(row.dataset.basePrice);
-      const lineTotal = safeNumber(row.querySelector(".subtotal-input")?.value);
-      subtotal += qty * basePrice;
-      total += lineTotal;
+      const price = safeNumber(row.querySelector(".price-input")?.value);
+      subtotalCents += Math.round(qty * price * 100);
     });
 
+    const type = saleDiscountType?.value || "none";
+    const rawValue = safeNumber(saleDiscountValue?.value);
+    let discountCents = 0;
+    if (type === "senior" || type === "pwd") {
+      discountCents = Math.round(subtotalCents * 0.2);
+    } else if (type === "custom_percent") {
+      discountCents = Math.round(subtotalCents * Math.min(Math.max(rawValue, 0), 100) / 100);
+    } else if (type === "custom_amount") {
+      discountCents = Math.round(Math.max(rawValue, 0) * 100);
+    }
+    discountCents = Math.min(discountCents, subtotalCents);
+    const subtotal = subtotalCents / 100;
+    const discount = discountCents / 100;
     return {
       subtotal,
-      discount: Math.max(subtotal - total, 0),
-      total,
+      discount,
+      total: (subtotalCents - discountCents) / 100,
     };
   }
 
@@ -863,16 +870,11 @@ document.addEventListener("DOMContentLoaded", function () {
       const qtyInput = row.querySelector(".qty-input");
       const subtotalInput = row.querySelector(".subtotal-input");
       const name = row.dataset.productName || "Item";
-      const discount = safeNumber(row.dataset.discount);
       const qty = qtyInput ? qtyInput.value : "1";
       itemCount += safeNumber(qty);
       const subtotal = subtotalInput ? parseFloat(subtotalInput.value) || 0 : 0;
-      const discountBadge =
-        discount > 0
-          ? `<small class="receipt-line-discount">-${escapeHtml(discount)}%</small>`
-          : "";
 
-      html += `<div class="receipt-line"><span>${escapeHtml(name)} &times; ${escapeHtml(qty)} ${discountBadge}</span><span>₱${formatMoney(subtotal)}</span></div>`;
+      html += `<div class="receipt-line"><span>${escapeHtml(name)} &times; ${escapeHtml(qty)}</span><span>₱${formatMoney(subtotal)}</span></div>`;
     });
 
     receiptLines.innerHTML =
@@ -890,6 +892,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     if (receiptDiscountEl) {
       receiptDiscountEl.textContent = formatMoney(totals.discount);
+    }
+    const receiptDiscountLabel = document.getElementById("receiptDiscountLabel");
+    const reviewDiscountLabel = document.getElementById("reviewDiscountLabel");
+    if (receiptDiscountLabel) {
+      receiptDiscountLabel.textContent = getDiscountLabel();
+    }
+    if (reviewDiscountLabel) {
+      reviewDiscountLabel.textContent = getDiscountLabel();
     }
     if (receiptTotalEl) {
       receiptTotalEl.textContent = formatMoney(totals.total);
@@ -918,6 +928,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     clearProductSelection();
+    syncDiscountControls();
 
     if (grandTotalEl) {
       grandTotalEl.textContent = "0.00";
@@ -1007,17 +1018,52 @@ document.addEventListener("DOMContentLoaded", function () {
     const payment = paymentStatus ? paymentStatus.value : "Paid";
     const total = getGrandTotalValue();
     const amountPaid = parseFloat(amountPaidInput?.value || "0") || 0;
+    const discountType = saleDiscountType?.value || "none";
+    const discountValue = saleDiscountValue?.value.trim() || "";
+    const subtotal = getSaleTotals().subtotal;
+
+    if (["custom_percent", "custom_amount"].includes(discountType)) {
+      const parsedDiscount = Number(discountValue);
+      if (
+        !/^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/.test(discountValue)
+        || !Number.isFinite(parsedDiscount)
+        || parsedDiscount < 0
+      ) {
+        showToast("Enter a valid sale discount value.", "warning");
+        goToWizardStep(2);
+        saleDiscountValue?.focus();
+        return false;
+      }
+      if (discountType === "custom_percent" && parsedDiscount > 100) {
+        showToast("Percentage discount cannot exceed 100%.", "warning");
+        goToWizardStep(2);
+        saleDiscountValue?.focus();
+        return false;
+      }
+      if (discountType === "custom_amount" && parsedDiscount > subtotal) {
+        showToast("Fixed discount cannot exceed the sale subtotal.", "warning");
+        goToWizardStep(2);
+        saleDiscountValue?.focus();
+        return false;
+      }
+    }
 
     if (!validateCustomerDetails()) {
       goToWizardStep(1);
       return false;
     }
 
-    if (total <= 0) {
+    if (subtotal <= 0) {
       showToast(
         "Please add at least one product with a valid amount.",
         "warning",
       );
+      return false;
+    }
+    if (total <= 0 && payment !== "Paid") {
+      showToast("A fully discounted sale must be marked Paid.", "warning");
+      goToWizardStep(1);
+      paymentStatus?.focus();
       return false;
     }
 
@@ -1361,6 +1407,9 @@ document.addEventListener("DOMContentLoaded", function () {
       updateChangeDue();
     });
   }
+
+  saleDiscountType?.addEventListener("change", syncDiscountControls);
+  saleDiscountValue?.addEventListener("input", calculateGrandTotal);
 
   if (amountPaidInput) {
     amountPaidInput.addEventListener("input", function () {
@@ -1898,10 +1947,6 @@ document.addEventListener("DOMContentLoaded", function () {
         row.dataset.productImage || "../../IMAGES/default-product.svg";
       const qty = safeNumber(row.querySelector(".qty-input")?.value);
       const price = safeNumber(row.querySelector(".price-input")?.value);
-      const discount = Math.min(
-        Math.max(safeNumber(row.dataset.discount), 0),
-        100,
-      );
       const lineTotal = safeNumber(row.querySelector(".subtotal-input")?.value);
 
       reviewItemsHtml += `
@@ -1912,7 +1957,6 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
           <span data-label="Qty">${escapeHtml(qty)}</span>
           <span data-label="Unit Price">₱${formatMoney(price)}</span>
-          <span data-label="Discount" class="review-item-discount">${discount > 0 ? `-${escapeHtml(discount)}%` : "—"}</span>
           <span data-label="Subtotal">₱${formatMoney(lineTotal)}</span>
         </div>`;
     });
@@ -2018,6 +2062,7 @@ document.addEventListener("DOMContentLoaded", function () {
   syncOrderStatusWithPayment();
   togglePaymentFields();
   syncCustomerSection();
+  syncDiscountControls();
   renderLiveReceipt();
   goToWizardStep(1);
 

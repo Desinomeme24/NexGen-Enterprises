@@ -81,18 +81,6 @@ window.NEXGEN_PATHS = <?php echo json_encode([
             <span>About Us</span>
         </a>
 
-        <?php if ($isOwner): ?>
-        <a href="<?php echo e(nxAppUrl('manage_employees.php')); ?>" class="menu-item <?php echo $currentPage === 'manage_employees.php' || ($currentPage === 'view_request.php' && ($_GET['owner_review'] ?? '') === '1') ? 'active' : ''; ?>">
-            <i class="bi bi-person-check-fill"></i>
-            <span>Manage Employees</span>
-        </a>
-
-        <a href="<?php echo e(nxAppUrl('owner_audit_logs.php')); ?>" class="menu-item <?php echo $currentPage === 'owner_audit_logs.php' ? 'active' : ''; ?>">
-            <i class="bi bi-shield-check"></i>
-            <span>Audit Logs</span>
-        </a>
-        <?php endif; ?>
-
         <?php if ($hasAnyBusinessModule): ?>
         <div class="dropdown-section">
             <button class="dropdown-btn <?php echo $showCategoryOpen ? 'active-btn' : ''; ?>" id="categoryToggle" type="button" aria-controls="categoryMenu" aria-expanded="<?php echo $showCategoryOpen ? 'true' : 'false'; ?>">
@@ -133,6 +121,18 @@ window.NEXGEN_PATHS = <?php echo json_encode([
                 <?php endif; ?>
             </div>
         </div>
+        <?php endif; ?>
+
+        <?php if ($isOwner): ?>
+        <a href="<?php echo e(nxAppUrl('manage_employees.php')); ?>" class="menu-item <?php echo $currentPage === 'manage_employees.php' || ($currentPage === 'view_request.php' && ($_GET['owner_review'] ?? '') === '1') ? 'active' : ''; ?>">
+            <i class="bi bi-person-check-fill"></i>
+            <span>Manage Employees</span>
+        </a>
+
+        <a href="<?php echo e(nxAppUrl('owner_audit_logs.php')); ?>" class="menu-item <?php echo $currentPage === 'owner_audit_logs.php' ? 'active' : ''; ?>">
+            <i class="bi bi-shield-check"></i>
+            <span>Audit Logs</span>
+        </a>
         <?php endif; ?>
 
         <a href="<?php echo e(nxAppUrl('settings.php')); ?>" class="menu-item <?php echo $currentPage === 'settings.php' ? 'active' : ''; ?>">

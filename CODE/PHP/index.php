@@ -2312,10 +2312,13 @@ if (session_status() === PHP_SESSION_ACTIVE) {
         }
 
         .captcha-popup-box {
+            display: flex;
+            flex-direction: column;
             width: 100%;
             max-width: min(620px, 100%);
+            max-height: calc(100vh - 40px);
             max-height: calc(100dvh - 40px);
-            overflow-y: auto;
+            overflow: hidden;
             background: linear-gradient(180deg, var(--captcha-box-grad-1) 0%, var(--captcha-box-grad-2) 100%);
             border-radius: 22px;
             padding: 0;
@@ -2371,9 +2374,13 @@ if (session_status() === PHP_SESSION_ACTIVE) {
 
         .captcha-popup-grid {
             display: grid;
+            flex: 1 1 auto;
             grid-template-columns: repeat(3, minmax(0, 1fr));
+            min-height: 0;
             gap: 8px;
             padding: 10px 22px 18px;
+            overflow-y: auto;
+            overscroll-behavior: contain;
         }
 
         .captcha-popup-item {
@@ -2467,11 +2474,13 @@ if (session_status() === PHP_SESSION_ACTIVE) {
 
         .captcha-popup-actions {
             display: flex;
+            flex: 0 0 auto;
             justify-content: flex-end;
             gap: 10px;
             flex-wrap: wrap;
             padding: 16px 22px 22px;
             border-top: 1px solid var(--captcha-box-border);
+            background: linear-gradient(180deg, var(--captcha-box-grad-1) 0%, var(--captcha-box-grad-2) 100%);
         }
 
         .captcha-btn-cancel,
@@ -4895,8 +4904,8 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
     <div class="marquee-item"><span class="dot"></span> Inventory Management</div>
     <div class="marquee-item"><span class="dot"></span> Sales Pipeline</div>
     <div class="marquee-item"><span class="dot"></span> Real-time Analytics</div>
-    <div class="marquee-item"><span class="dot"></span> Accounts Receivable</div>
-    <div class="marquee-item"><span class="dot"></span> Smart Dashboards</div>
+    <div class="marquee-item"><span class="dot"></span> Chatbot</div>
+    <div class="marquee-item"><span class="dot"></span> Dashboards</div>
     <div class="marquee-item"><span class="dot"></span> Automated Reports</div>
     <div class="marquee-item"><span class="dot"></span> Cloud Connected</div>
     <div class="marquee-item"><span class="dot"></span> Enterprise Ready</div>
@@ -4904,8 +4913,8 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
     <div class="marquee-item"><span class="dot"></span> Inventory Management</div>
     <div class="marquee-item"><span class="dot"></span> Sales Pipeline</div>
     <div class="marquee-item"><span class="dot"></span> Real-time Analytics</div>
-    <div class="marquee-item"><span class="dot"></span> Accounts Receivable</div>
-    <div class="marquee-item"><span class="dot"></span> Smart Dashboards</div>
+    <div class="marquee-item"><span class="dot"></span> Chatbot</div>
+    <div class="marquee-item"><span class="dot"></span> Dashboards</div>
     <div class="marquee-item"><span class="dot"></span> Automated Reports</div>
     <div class="marquee-item"><span class="dot"></span> Cloud Connected</div>
     <div class="marquee-item"><span class="dot"></span> Enterprise Ready</div>

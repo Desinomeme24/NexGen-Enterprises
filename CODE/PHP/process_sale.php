@@ -15,6 +15,7 @@ if ((int)($_SESSION['can_sales'] ?? 0) !== 1) {
 include 'config.php';
 require_once __DIR__ . '/tenant_helper.php';
 require_once __DIR__ . '/ar_helper.php';
+require_once __DIR__ . '/sale_discount_helper.php';
 $businessId = nxRequireBusinessId($conn);
 
 
@@ -55,7 +56,15 @@ $allowedPaymentStatus = ['Paid', 'Unpaid', 'Partially Paid'];
 $allowedPaymentMethod = ['Cash', 'GCash', 'Gcash', 'Maya', 'Bank Transfer'];
 $allowedOrderStatus = ['Fulfilled', 'Pending'];
 
-if ($sales_no === '' || empty($product_ids)) {
+if (
+    $sales_no === ''
+    || !is_array($product_ids)
+    || !is_array($quantities)
+    || !is_array($unit_prices)
+    || count($product_ids) === 0
+    || count($product_ids) !== count($quantities)
+    || count($product_ids) !== count($unit_prices)
+) {
     $_SESSION['error'] = 'Invalid sale data.';
     header("Location: /NexGen/CODE/PHP/sales_recording.php");
     exit();
@@ -137,14 +146,10 @@ try {
             throw new Exception("Invalid product, quantity, or unit price.");
         }
 
-        $subtotal = $qty * $price;
-        $total_amount += $subtotal;
-
         $items[] = [
             'product_id' => $product_id,
             'quantity' => $qty,
-            'unit_price' => $price,
-            'subtotal' => $subtotal
+            'unit_price' => $price
         ];
 
         if (!isset($requiredByProduct[$product_id])) {
@@ -158,7 +163,7 @@ try {
     ksort($requiredByProduct);
 
     $checkStmt = $conn->prepare("
-        SELECT id, product_name, stock_quantity
+        SELECT id, product_name, selling_price, stock_quantity
         FROM products
         WHERE id = ? AND business_id = ?
         FOR UPDATE
@@ -168,6 +173,7 @@ try {
         throw new Exception("Failed to prepare product lock query.");
     }
 
+    $productPrices = [];
     foreach ($requiredByProduct as $product_id => $requiredQty) {
         $checkStmt->bind_param("ii", $product_id, $businessId);
         $checkStmt->execute();
@@ -178,6 +184,7 @@ try {
         }
 
         $product = $checkResult->fetch_assoc();
+        $productPrices[$product_id] = (float)$product['selling_price'];
 
         if ((float)$product['stock_quantity'] < $requiredQty) {
             throw new Exception("Not enough stock for " . $product['product_name']);
@@ -185,6 +192,28 @@ try {
     }
 
     $checkStmt->close();
+
+    foreach ($items as $index => $item) {
+        $items[$index]['unit_price'] = $productPrices[$item['product_id']];
+    }
+
+    $discountTypeInput = $_POST['discount_type'] ?? 'none';
+    if (!is_string($discountTypeInput)) {
+        throw new InvalidArgumentException('Choose a valid sale discount.');
+    }
+    $discountTotals = nxPrepareSaleDiscountTotals(
+        $items,
+        trim($discountTypeInput),
+        $_POST['discount_value'] ?? null
+    );
+    $items = $discountTotals['items'];
+    $total_amount = $discountTotals['total_amount'];
+    if ($discountTotals['subtotal_amount'] <= 0) {
+        throw new Exception('Sale subtotal must be greater than zero.');
+    }
+    if ($total_amount <= 0 && $payment_status !== 'Paid') {
+        throw new Exception('A fully discounted sale must be marked Paid.');
+    }
 
     if ($payment_status === 'Paid') {
         $amount_paid_input = $total_amount;
@@ -226,15 +255,29 @@ try {
 
     $saleStmt = $conn->prepare("
         INSERT INTO sales (
-            business_id, sales_no, salesperson_id, customer_id, total_amount, payment_status, payment_method, order_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            business_id, sales_no, salesperson_id, customer_id, subtotal_amount, discount_type, discount_value, discount_amount, total_amount, payment_status, payment_method, order_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     if (!$saleStmt) {
         throw new Exception("Failed to prepare sales insert query.");
     }
 
-    $saleStmt->bind_param("isiidsss", $businessId, $sales_no, $user_id, $customerParam, $total_amount, $payment_status, $payment_method, $order_status);
+    $saleStmt->bind_param(
+        "isiidsdddsss",
+        $businessId,
+        $sales_no,
+        $user_id,
+        $customerParam,
+        $discountTotals['subtotal_amount'],
+        $discountTotals['discount_type'],
+        $discountTotals['discount_value'],
+        $discountTotals['discount_amount'],
+        $total_amount,
+        $payment_status,
+        $payment_method,
+        $order_status
+    );
 
     if (!$saleStmt->execute()) {
         throw new Exception("Failed to save sale record.");
@@ -257,15 +300,23 @@ try {
 
     foreach ($items as $item) {
         $itemStmt = $conn->prepare("
-            INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, discount_percent, subtotal)
+            VALUES (?, ?, ?, ?, ?, ?)
         ");
 
         if (!$itemStmt) {
             throw new Exception("Failed to prepare sale item query.");
         }
 
-        $itemStmt->bind_param("iiddd", $sale_id, $item['product_id'], $item['quantity'], $item['unit_price'], $item['subtotal']);
+        $itemStmt->bind_param(
+            "iidddd",
+            $sale_id,
+            $item['product_id'],
+            $item['quantity'],
+            $item['unit_price'],
+            $item['discount_percent'],
+            $item['subtotal']
+        );
 
         if (!$itemStmt->execute()) {
             throw new Exception("Failed to save sale item.");

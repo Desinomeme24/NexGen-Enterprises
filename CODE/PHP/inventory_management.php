@@ -995,6 +995,9 @@ if ($currentStatusForTab === '') {
                                             <?php if (!empty($product['brand'])): ?>
                                                 &nbsp;&bull;&nbsp;<?php echo htmlspecialchars($product['brand']); ?>
                                             <?php endif; ?>
+                                            <?php if (!$isBatchTracked && !empty($product['manufacturing_date'])): ?>
+                                                &nbsp;&bull;&nbsp;Mfg: <?php echo htmlspecialchars(date('M d, Y', strtotime($product['manufacturing_date']))); ?>
+                                            <?php endif; ?>
                                         </div>
                                         <div class="stock-line-row">
                                             <span class="stock-qty-number"><?php echo formatQty($product['stock_quantity']); ?></span>
@@ -1033,11 +1036,11 @@ if ($currentStatusForTab === '') {
                                                     data-unit="<?php echo htmlspecialchars($product['unit']); ?>"
                                                     data-cost="<?php echo htmlspecialchars($product['cost_price']); ?>"
                                                     data-selling="<?php echo htmlspecialchars($product['selling_price']); ?>"
-                                                    data-discount="<?php echo htmlspecialchars($product['discount_percent'] ?? 0); ?>"
                                                     data-stock="<?php echo htmlspecialchars($product['stock_quantity']); ?>"
                                                     data-reorder="<?php echo htmlspecialchars($product['reorder_level']); ?>"
                                                     data-onorder="<?php echo htmlspecialchars($product['on_order_level'] ?? 0); ?>"
                                                     data-expiry="<?php echo htmlspecialchars($product['expiry_date'] ?? ''); ?>"
+                                                    data-manufacturing="<?php echo htmlspecialchars($product['manufacturing_date'] ?? ''); ?>"
                                                     data-description="<?php echo htmlspecialchars($product['description'] ?? ''); ?>"
                                                     data-active="<?php echo (int)$product['is_active']; ?>"
                                                     data-version="<?php echo (int)$product['version']; ?>"
@@ -1238,13 +1241,14 @@ if ($currentStatusForTab === '') {
                         <tr>
                             <th>Batch #</th>
                             <th>Quantity</th>
+                            <th>Manufacturing Date</th>
                             <th>Expiry Date</th>
                             <th>Status</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody id="batchesModalBody">
-                        <tr><td colspan="5" class="batches-empty-state">Loading...</td></tr>
+                        <tr><td colspan="6" class="batches-empty-state">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1354,17 +1358,12 @@ if ($currentStatusForTab === '') {
 
                         <div class="form-group">
                             <label>Cost Price</label>
-                            <input type="number" step="0.01" min="0" name="cost_price" required>
+                            <input type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00" name="cost_price" required>
                         </div>
 
                         <div class="form-group">
                             <label>Selling Price</label>
-                            <input type="number" step="0.01" min="0" name="selling_price" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Discount %</label>
-                            <input type="number" step="0.01" min="0" max="100" name="discount_percent" value="0">
+                            <input type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00" name="selling_price" required>
                         </div>
                     </div>
                 </div>
@@ -1381,6 +1380,10 @@ if ($currentStatusForTab === '') {
                                 <input type="number" min="0.001" step="0.001" name="stock_quantity" required>
                             </div>
                             <div class="form-group">
+                                <label>Manufacturing Date <span class="field-optional">(optional)</span></label>
+                                <input type="date" name="manufacturing_date">
+                            </div>
+                            <div class="form-group">
                                 <label>Expiry Date <span class="field-optional">(optional)</span></label>
                                 <input type="date" name="expiry_date">
                             </div>
@@ -1388,6 +1391,11 @@ if ($currentStatusForTab === '') {
                             <div class="form-group">
                                 <label>Stock Quantity</label>
                                 <input type="number" min="0" step="0.001" name="stock_quantity" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Manufacturing Date <span class="field-optional">(optional)</span></label>
+                                <input type="date" name="manufacturing_date">
                             </div>
 
                             <div class="form-group">
@@ -1531,17 +1539,12 @@ if ($currentStatusForTab === '') {
 
                         <div class="form-group">
                             <label>Cost Price</label>
-                            <input type="number" step="0.01" min="0" name="cost_price" id="edit_cost_price" required>
+                            <input type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00" name="cost_price" id="edit_cost_price" required>
                         </div>
 
                         <div class="form-group">
                             <label>Selling Price</label>
-                            <input type="number" step="0.01" min="0" name="selling_price" id="edit_selling_price" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Discount %</label>
-                            <input type="number" step="0.01" min="0" max="100" name="discount_percent" id="edit_discount_percent" value="0">
+                            <input type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00" name="selling_price" id="edit_selling_price" required>
                         </div>
                     </div>
                 </div>
@@ -1561,6 +1564,11 @@ if ($currentStatusForTab === '') {
                             <div class="form-group">
                                 <label>Stock Quantity</label>
                                 <input type="number" min="0" step="0.001" name="stock_quantity" id="edit_stock_quantity" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Manufacturing Date <span class="field-optional">(optional)</span></label>
+                                <input type="date" name="manufacturing_date" id="edit_manufacturing_date">
                             </div>
 
                             <div class="form-group">
@@ -1655,6 +1663,12 @@ if ($currentStatusForTab === '') {
                 <div class="form-group full-width" id="stockBatchFieldsWrap">
                     <label class="field-help">This business tracks stock per batch. For <strong>Stock In</strong>, a new batch is created automatically below (batch number is system-generated) - a Stock Out is drawn automatically from the soonest-expiring batch first.</label>
                 </div>
+                <?php endif; ?>
+                <div class="form-group" id="stockManufacturingDateWrap">
+                    <label>Manufacturing Date <span class="field-optional">(optional)</span></label>
+                    <input type="date" name="manufacturing_date" id="stock_manufacturing_date">
+                </div>
+                <?php if ($isBatchTracked): ?>
                 <div class="form-group">
                     <label>Expiry Date <span class="field-optional">(optional)</span></label>
                     <input type="date" name="batch_expiry_date" id="stock_batch_expiry_date">
@@ -1755,6 +1769,11 @@ if ($currentStatusForTab === '') {
                 <div class="form-group">
                     <label>Quantity Received</label>
                     <input type="number" name="quantity" id="receive_quantity" min="0.001" step="0.001" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Manufacturing Date <span class="field-optional">(optional)</span></label>
+                    <input type="date" name="manufacturing_date" id="receive_manufacturing_date">
                 </div>
 
                 <?php if ($isBatchTracked): ?>

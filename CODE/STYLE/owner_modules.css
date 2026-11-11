@@ -1,3 +1,10 @@
+.owner-module-shell,
+.owner-module-shell *,
+.owner-module-shell *::before,
+.owner-module-shell *::after {
+  box-sizing: border-box;
+}
+
 .owner-module-shell {
   --owner-admin-glass: linear-gradient(
     180deg,

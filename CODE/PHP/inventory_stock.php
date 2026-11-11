@@ -2,6 +2,7 @@
 session_start();
 require_once("config.php");
 require_once("tenant_helper.php");
+require_once __DIR__ . '/inventory_date_helper.php';
 
 
 
@@ -163,6 +164,16 @@ $receiveShipment = isset($_POST['receive_shipment']) && $_POST['receive_shipment
 $movement_type = $receiveShipment ? 'stock_in' : trim($_POST['movement_type'] ?? '');
 $quantity = (float)($_POST['quantity'] ?? 0);
 $remarks = trim($_POST['remarks'] ?? '');
+$manufacturingDate = null;
+if ($movement_type === 'stock_in') {
+    try {
+        $manufacturingDate = nxValidateManufacturingDate($_POST['manufacturing_date'] ?? '');
+    } catch (InvalidArgumentException $exception) {
+        $_SESSION['inventory_error'] = $exception->getMessage();
+        header("Location: /NexGen/CODE/PHP/inventory_management.php");
+        exit();
+    }
+}
 
 // Placing a NEW purchase order is handled above (place_order branch), so by
 // the time we get here, on_order_level can only move via deduction below.
@@ -189,7 +200,7 @@ try {
 
     
     $productStmt = $conn->prepare("
-        SELECT id, product_name, stock_quantity, on_order_level, is_active, version
+        SELECT id, product_name, stock_quantity, on_order_level, expiry_date, is_active, version
         FROM products
         WHERE id = ? AND business_id = ?
         FOR UPDATE
@@ -226,6 +237,9 @@ try {
             $batchNumber = nxGenerateBatchNumber();
             $batchExpiryDate = trim($_POST['batch_expiry_date'] ?? '');
             $batchExpiryParam = $batchExpiryDate === '' ? null : $batchExpiryDate;
+            if ($manufacturingDate !== null && $batchExpiryParam !== null && $manufacturingDate > $batchExpiryParam) {
+                throw new Exception('Manufacturing date cannot be after the expiry date.');
+            }
 
             $newOnOrder += $on_order_add;
 
@@ -240,15 +254,15 @@ try {
             }
 
             $batchInsertStmt = $conn->prepare("
-                INSERT INTO product_batches (business_id, product_id, batch_number, expiry_date, quantity)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO product_batches (business_id, product_id, batch_number, manufacturing_date, expiry_date, quantity)
+                VALUES (?, ?, ?, ?, ?, ?)
             ");
 
             if (!$batchInsertStmt) {
                 throw new Exception("Failed to prepare batch insert query.");
             }
 
-            $batchInsertStmt->bind_param("iissd", $businessId, $product_id, $batchNumber, $batchExpiryParam, $quantity);
+            $batchInsertStmt->bind_param("iisssd", $businessId, $product_id, $batchNumber, $manufacturingDate, $batchExpiryParam, $quantity);
 
             if (!$batchInsertStmt->execute()) {
                 throw new Exception("Failed to save new batch.");
@@ -302,17 +316,32 @@ try {
             $newOnOrder += $on_order_add;
         }
 
-        $updateStmt = $conn->prepare("
-            UPDATE products
-            SET stock_quantity = ?, on_order_level = ?
-            WHERE id = ? AND business_id = ?
-        ");
+        if ($movement_type === 'stock_in') {
+            if ($manufacturingDate !== null && !empty($product['expiry_date']) && $manufacturingDate > $product['expiry_date']) {
+                throw new Exception('Manufacturing date cannot be after the expiry date.');
+            }
+            $updateStmt = $conn->prepare("
+                UPDATE products
+                SET stock_quantity = ?, on_order_level = ?, manufacturing_date = COALESCE(?, manufacturing_date)
+                WHERE id = ? AND business_id = ?
+            ");
+        } else {
+            $updateStmt = $conn->prepare("
+                UPDATE products
+                SET stock_quantity = ?, on_order_level = ?
+                WHERE id = ? AND business_id = ?
+            ");
+        }
 
         if (!$updateStmt) {
             throw new Exception("Failed to prepare stock update query.");
         }
 
-        $updateStmt->bind_param("ddii", $newStock, $newOnOrder, $product_id, $businessId);
+        if ($movement_type === 'stock_in') {
+            $updateStmt->bind_param("ddsii", $newStock, $newOnOrder, $manufacturingDate, $product_id, $businessId);
+        } else {
+            $updateStmt->bind_param("ddii", $newStock, $newOnOrder, $product_id, $businessId);
+        }
 
         if (!$updateStmt->execute()) {
             throw new Exception("Failed to update product stock.");

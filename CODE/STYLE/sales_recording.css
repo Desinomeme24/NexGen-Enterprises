@@ -4226,10 +4226,10 @@ html[data-theme="light"] .sale-card-actions .btn-quickview {
 .review-items-head,
 .review-item-row {
   display: grid;
-  grid-template-columns: minmax(220px, 2fr) 0.55fr 0.85fr 0.75fr 0.9fr;
+  grid-template-columns: minmax(220px, 2fr) 0.55fr 0.85fr 0.9fr;
   align-items: center;
   gap: 12px;
-  min-width: 760px;
+  min-width: 680px;
   padding: 13px 16px;
 }
 
@@ -7283,7 +7283,7 @@ html[data-theme="light"] #saleModal .locked-payment-status i {
 
 #saleModal .review-items-head,
 #saleModal .review-item-row {
-  grid-template-columns: minmax(180px, 2fr) repeat(4, minmax(80px, 0.8fr));
+  grid-template-columns: minmax(180px, 2fr) repeat(3, minmax(80px, 0.8fr));
   gap: 9px;
 }
 
@@ -8073,6 +8073,57 @@ html[data-theme="light"] #saleModal #productSearchInput,
 html[data-theme="light"] #saleModal #productEntryQty,
 html[data-theme="light"] #saleModal .verified-field input,
 html[data-theme="light"] #saleModal .locked-payment-status input {
+  background: #f8fbff;
+  color: #142a5f;
+}
+
+#saleModal .sale-discount-control {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--sale-app-border);
+  border-radius: 15px;
+  background: rgba(3, 18, 72, 0.28);
+}
+
+#saleModal .sale-discount-control label {
+  color: var(--sale-app-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+#saleModal .sale-discount-control select,
+#saleModal .sale-discount-control input {
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--sale-app-border);
+  border-radius: 12px;
+  background: rgba(3, 18, 72, 0.56);
+  color: var(--sale-app-text);
+}
+
+#saleModal .sale-discount-control > div {
+  display: grid;
+  gap: 7px;
+}
+
+#saleModal .sale-discount-control > div[hidden] {
+  display: none !important;
+}
+
+html[data-theme="light"] #saleModal .sale-discount-control {
+  background: rgba(241, 247, 255, 0.9);
+}
+
+html[data-theme="light"] #saleModal .sale-discount-control label {
+  color: #324c7f;
+}
+
+html[data-theme="light"] #saleModal .sale-discount-control select,
+html[data-theme="light"] #saleModal .sale-discount-control input {
   background: #f8fbff;
   color: #142a5f;
 }

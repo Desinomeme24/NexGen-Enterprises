@@ -66,6 +66,7 @@ const editPreviewImage = document.getElementById("editPreviewImage");
 const stockMovementType = document.getElementById("stock_movement_type");
 const onOrderOwnerFields = document.getElementById("onOrderOwnerFields");
 const deductOnOrderWrap = document.getElementById("deductOnOrderWrap");
+const stockManufacturingDateWrap = document.getElementById("stockManufacturingDateWrap");
 
 const filterToggleBtn = document.getElementById("toggleFilterTool");
 const floatingFilterBox = document.getElementById("floatingFilterBox");
@@ -371,6 +372,11 @@ function toggleStockOrderFields() {
     deductOnOrderWrap.style.display =
       movement === "stock_in" ? "block" : "none";
   }
+
+  if (stockManufacturingDateWrap) {
+    stockManufacturingDateWrap.style.display =
+      movement === "stock_in" ? "block" : "none";
+  }
 }
 
 function showDynamicLoading() {
@@ -607,7 +613,7 @@ function renderBatchesTable(batches, productVersion) {
 
   if (!batches.length) {
     batchesModalBody.innerHTML =
-      '<tr><td colspan="5" class="batches-empty-state">No batches recorded for this product yet.</td></tr>';
+      '<tr><td colspan="6" class="batches-empty-state">No batches recorded for this product yet.</td></tr>';
     return;
   }
 
@@ -629,6 +635,12 @@ function renderBatchesTable(batches, productVersion) {
             { year: "numeric", month: "short", day: "numeric" },
           )
         : "No expiry";
+      const manufacturingText = batch.manufacturing_date
+        ? new Date(batch.manufacturing_date + "T00:00:00").toLocaleDateString(
+            "en-US",
+            { year: "numeric", month: "short", day: "numeric" },
+          )
+        : "Not recorded";
 
       const safeBatchNumber = escapeHtml(batch.batch_number);
       const dropCell = batch.can_drop
@@ -638,6 +650,7 @@ function renderBatchesTable(batches, productVersion) {
       return `<tr>
         <td>${safeBatchNumber}</td>
         <td>${escapeHtml(batch.quantity)}</td>
+        <td>${manufacturingText}</td>
         <td>${expiryText}</td>
         <td><span class="batch-status-pill ${statusClass}">${statusLabel}</span></td>
         <td>${dropCell}</td>
@@ -651,7 +664,7 @@ function openBatchesModal(productId, productName, productVersion) {
     {batchesProductName.textContent = productName || "Product";}
   if (batchesModalBody) {
     batchesModalBody.innerHTML =
-      '<tr><td colspan="5" class="batches-empty-state">Loading...</td></tr>';
+      '<tr><td colspan="6" class="batches-empty-state">Loading...</td></tr>';
   }
   closeAllMenus();
   openModal(batchesModal);
@@ -669,7 +682,7 @@ function openBatchesModal(productId, productName, productVersion) {
     .then((data) => {
       if (!data.success) {
         if (batchesModalBody) {
-          batchesModalBody.innerHTML = `<tr><td colspan="5" class="batches-empty-state">${data.message || "Failed to load batches."}</td></tr>`;
+          batchesModalBody.innerHTML = `<tr><td colspan="6" class="batches-empty-state">${data.message || "Failed to load batches."}</td></tr>`;
         }
         return;
       }
@@ -893,11 +906,11 @@ document.addEventListener("click", (event) => {
     setValue("edit_unit", editButton.dataset.unit);
     setValue("edit_cost_price", editButton.dataset.cost);
     setValue("edit_selling_price", editButton.dataset.selling);
-    setValue("edit_discount_percent", editButton.dataset.discount);
     setValue("edit_stock_quantity", editButton.dataset.stock);
     setValue("edit_reorder_level", editButton.dataset.reorder);
     setValue("edit_on_order_level", editButton.dataset.onorder);
     setValue("edit_expiry_date", editButton.dataset.expiry);
+    setValue("edit_manufacturing_date", editButton.dataset.manufacturing);
     setValue("edit_description", editButton.dataset.description);
     setValue("edit_is_active", editButton.dataset.active);
     setValue("edit_old_image", editButton.dataset.image);
@@ -930,6 +943,7 @@ document.addEventListener("click", (event) => {
       {currentOnOrder.value = stockButton.dataset.currentOnorder || "0";}
     if (onOrderAdd) {onOrderAdd.value = "0";}
     if (deductCheckbox) {deductCheckbox.checked = false;}
+    setValue("stock_manufacturing_date", "");
 
     toggleStockOrderFields();
     closeAllMenus();
@@ -977,6 +991,7 @@ document.addEventListener("click", (event) => {
     // partial or over-shipment can still be recorded accurately.
     if (quantity) {quantity.value = onOrderQty;}
     if (remarks) {remarks.value = "";}
+    setValue("receive_manufacturing_date", "");
 
     closeAllMenus();
     openModal(receiveShipmentModal);
@@ -1122,6 +1137,17 @@ if (stockMovementType) {
   stockMovementType.addEventListener("change", toggleStockOrderFields);
   toggleStockOrderFields();
 }
+
+document
+  .querySelectorAll('input[name="cost_price"], input[name="selling_price"]')
+  .forEach((input) => {
+    input.addEventListener("blur", () => {
+      const value = Number(input.value);
+      if (input.value !== "" && Number.isFinite(value)) {
+        input.value = value.toFixed(2);
+      }
+    });
+  });
 
 /* Close action menus on scroll/resize so a fixed-position menu
    never ends up detached from the button that opened it. */

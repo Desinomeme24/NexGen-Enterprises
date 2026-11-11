@@ -203,7 +203,6 @@ $productStmt = $conn->prepare("
         p.product_name,
         p.product_image,
         p.selling_price,
-        p.discount_percent,
         p.stock_quantity,
         COALESCE(SUM(CASE WHEN s.business_id = ? THEN si.quantity ELSE 0 END), 0) AS total_sold
     FROM products p
@@ -216,7 +215,6 @@ $productStmt = $conn->prepare("
         p.product_name,
         p.product_image,
         p.selling_price,
-        p.discount_percent,
         p.stock_quantity
     ORDER BY total_sold DESC, p.id ASC
 ");
@@ -1123,12 +1121,35 @@ unset($_SESSION['success'], $_SESSION['error']);
                             <div class="receipt-lines" id="receiptLines">
                                 <p class="receipt-empty">No items yet — add a product to see it here.</p>
                             </div>
+                            <div class="sale-discount-control">
+                                <label for="saleDiscountType">Sale discount</label>
+                                <select name="discount_type" id="saleDiscountType">
+                                    <option value="none">None</option>
+                                    <option value="senior">Senior Citizen (20%)</option>
+                                    <option value="pwd">PWD (20%)</option>
+                                    <option value="custom_percent">Custom percentage</option>
+                                    <option value="custom_amount">Custom amount (₱)</option>
+                                </select>
+                                <div id="saleDiscountValueWrap" hidden>
+                                    <label for="saleDiscountValue" id="saleDiscountValueLabel">Discount value</label>
+                                    <input
+                                        type="number"
+                                        name="discount_value"
+                                        id="saleDiscountValue"
+                                        min="0"
+                                        step="0.01"
+                                        inputmode="decimal"
+                                        value=""
+                                        disabled
+                                    >
+                                </div>
+                            </div>
                             <div class="receipt-summary-row">
                                 <span>Subtotal</span>
                                 <strong>₱<span id="receiptSubtotal">0.00</span></strong>
                             </div>
                             <div class="receipt-summary-row receipt-discount-row">
-                                <span>Product Discounts</span>
+                                <span id="receiptDiscountLabel">Sale Discount</span>
                                 <strong>-₱<span id="receiptDiscount">0.00</span></strong>
                             </div>
                             <div class="receipt-total">
@@ -1244,13 +1265,13 @@ unset($_SESSION['success'], $_SESSION['error']);
                     <div class="review-items-title"><i class="bi bi-box-seam"></i> Items Summary</div>
                     <div class="review-items-table">
                         <div class="review-items-head">
-                            <span>Product</span><span>Qty</span><span>Unit Price</span><span>Discount</span><span>Subtotal</span>
+                            <span>Product</span><span>Qty</span><span>Unit Price</span><span>Subtotal</span>
                         </div>
                         <div id="reviewItemsBody"></div>
                     </div>
                     <div class="review-breakdown">
                         <div><span>Subtotal</span><strong>₱<span id="reviewSubtotal">0.00</span></strong></div>
-                        <div><span>Product Discounts</span><strong class="review-discount-value">-₱<span id="reviewDiscount">0.00</span></strong></div>
+                        <div><span id="reviewDiscountLabel">Sale Discount</span><strong class="review-discount-value">-₱<span id="reviewDiscount">0.00</span></strong></div>
                     </div>
                 </section>
 

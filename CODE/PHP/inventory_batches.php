@@ -39,7 +39,7 @@ if (!$product) {
 }
 
 $batchStmt = $conn->prepare("
-    SELECT id, batch_number, quantity, expiry_date, status
+    SELECT id, batch_number, quantity, manufacturing_date, expiry_date, status
     FROM product_batches
     WHERE product_id = ? AND business_id = ?
     ORDER BY (expiry_date IS NULL), expiry_date ASC, id ASC
@@ -55,6 +55,7 @@ while ($row = $result->fetch_assoc()) {
         'id' => (int)$row['id'],
         'batch_number' => $row['batch_number'],
         'quantity' => formatQty($row['quantity']),
+        'manufacturing_date' => $row['manufacturing_date'],
         'expiry_date' => $row['expiry_date'],
         'status' => $row['status'],
         'is_expired' => $isExpired,

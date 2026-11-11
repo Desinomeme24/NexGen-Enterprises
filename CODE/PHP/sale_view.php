@@ -225,6 +225,17 @@ if ($saleResult->num_rows === 0) {
 }
 
 $sale = $saleResult->fetch_assoc();
+$saleSubtotal = $sale['subtotal_amount'] !== null
+    ? (float)$sale['subtotal_amount']
+    : (float)$sale['total_amount'] + (float)($sale['discount_amount'] ?? 0);
+$saleDiscountAmount = (float)($sale['discount_amount'] ?? 0);
+$saleDiscountLabel = match ($sale['discount_type'] ?? 'none') {
+    'senior' => 'Senior Citizen (20%)',
+    'pwd' => 'PWD (20%)',
+    'custom_percent' => 'Custom percentage (' . number_format((float)($sale['discount_value'] ?? 0), 2) . '%)',
+    'custom_amount' => 'Custom amount',
+    default => 'None',
+};
 $receiptPath = nxSaleReceiptPath($sale_id);
 
 /* Customer details are sensitive AR data. Only retrieve them for a user who
@@ -562,6 +573,22 @@ unset($_SESSION['success'], $_SESSION['error']);
             font-size: 30px;
             color: #ffffff;
         }
+        .sale-total-breakdown { display: grid; gap: 8px; min-width: 280px; }
+        .sale-total-breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            color: #dbeafe;
+            font-size: 13px;
+        }
+        .sale-total-breakdown-row strong { color: #ffffff; }
+        .sale-total-breakdown-row.final {
+            margin-top: 5px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(148, 163, 184, .24);
+            font-size: 15px;
+            font-weight: 800;
+        }
 
         .payment-form {
             display: grid;
@@ -897,6 +924,15 @@ unset($_SESSION['success'], $_SESSION['error']);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
+        }
+
+        html[data-theme="light"] .sale-total-breakdown-row {
+            color: #314e83;
+        }
+
+        html[data-theme="light"] .sale-total-breakdown-row strong {
+            background: none;
+            color: #0b1f73;
         }
 
         html[data-theme="light"] .form-group label {
@@ -1360,12 +1396,22 @@ unset($_SESSION['success'], $_SESSION['error']);
                     </tbody>
                 </table>
 
-                <div class="total-panel">
-                    <div class="total-card">
-                        <small>Total Amount</small>
-                        <strong>₱<?php echo number_format($sale['total_amount'], 2); ?></strong>
+                    <div class="total-panel">
+                        <div class="total-card sale-total-breakdown">
+                            <div class="sale-total-breakdown-row">
+                                <span>Subtotal</span>
+                                <strong>₱<?php echo number_format($saleSubtotal, 2); ?></strong>
+                            </div>
+                            <div class="sale-total-breakdown-row">
+                                <span><?php echo htmlspecialchars($saleDiscountLabel, ENT_QUOTES, 'UTF-8'); ?></span>
+                                <strong>-₱<?php echo number_format($saleDiscountAmount, 2); ?></strong>
+                            </div>
+                            <div class="sale-total-breakdown-row final">
+                                <span>Total Amount</span>
+                                <strong>₱<?php echo number_format((float)$sale['total_amount'], 2); ?></strong>
+                            </div>
+                        </div>
                     </div>
-                </div>
             </div>
         </div>
     </div>
