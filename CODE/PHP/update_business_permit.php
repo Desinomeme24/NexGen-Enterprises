@@ -249,7 +249,7 @@ try {
         ) {
             $graceDeadline = nxBusinessPermitQuarterGraceDeadline($permitYear, $quarter)->format('M d, Y');
             throw new RuntimeException(
-                "Quarter {$quarter} cannot be marked unpaid before its 30-day grace period ends on {$graceDeadline}."
+                "Quarter {$quarter} cannot be marked unpaid before its 20-day grace period ends on {$graceDeadline}."
             );
         }
         if ($paymentStatus === 'paid') {

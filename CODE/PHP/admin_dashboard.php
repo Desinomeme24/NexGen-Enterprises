@@ -127,7 +127,7 @@ $activeBusinesses = adminDashboardCount(
      WHERE status = 'active'
        AND (permit_payment_status = 'paid'
             OR (permit_payment_status = 'unpaid'
-                AND permit_unpaid_since > DATE_SUB(NOW(), INTERVAL 30 DAY)))"
+                AND permit_unpaid_since > DATE_SUB(NOW(), INTERVAL 20 DAY)))"
 );
 
 $activeBranches = adminDashboardCount(
@@ -139,7 +139,7 @@ $activeBranches = adminDashboardCount(
        AND be.status = 'active'
        AND (be.permit_payment_status = 'paid'
             OR (be.permit_payment_status = 'unpaid'
-                AND be.permit_unpaid_since > DATE_SUB(NOW(), INTERVAL 30 DAY)))"
+                AND be.permit_unpaid_since > DATE_SUB(NOW(), INTERVAL 20 DAY)))"
 );
 
 $adminLogEntries = adminDashboardCount(

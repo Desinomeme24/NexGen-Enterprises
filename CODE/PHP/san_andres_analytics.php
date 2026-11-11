@@ -338,6 +338,14 @@ $permitTrackingReady = (int)($permitSchema['table_count'] ?? 0) === 2
 $permitByEntity = [];
 if ($permitTrackingReady) {
     $permitYear = (int)date('Y');
+    try {
+        nxAutoMarkExpiredBusinessPermitQuarters($conn, $permitYear, (int)$_SESSION['user_id']);
+    } catch (Throwable $error) {
+        error_log('NexGen San Andres automatic permit status update failed: ' . $error->getMessage());
+        http_response_code(503);
+        exit('Expired permit payments could not be updated. Please try again later.');
+    }
+
     $permitStmt = $conn->prepare(
         "SELECT a.id AS assessment_id, a.business_entity_id, a.permit_year, a.annual_fee,
                 p.quarter_number, p.assessed_amount, p.payment_status, p.paid_at
@@ -634,6 +642,7 @@ function nxAnalyticsMoney(float $amount): string
             outline: 3px solid color-mix(in srgb, var(--gold, #eab75e) 20%, transparent);
         }
         .analytics-table-wrap {
+            max-height: 600px;
             overflow: auto;
             border: 1px solid var(--line);
             border-radius: 14px;
@@ -669,7 +678,7 @@ function nxAnalyticsMoney(float $amount): string
             vertical-align: middle;
         }
         .analytics-table tbody tr:last-child td { border-bottom: 0; }
-        .analytics-business-row { transition: background .16s ease; }
+        .analytics-business-row { height: 88px; transition: background .16s ease; }
         .analytics-business-row:hover { background: color-mix(in srgb, var(--gold, #eab75e) 7%, var(--panel, var(--card))); }
         .analytics-business { min-width: 230px; }
         .analytics-business-name { display: block; font-weight: 750; color: var(--text); }
@@ -1387,7 +1396,7 @@ function nxAnalyticsMoney(float $amount): string
                     ? 'Current status: Unpaid'
                     : quarter && quarter.unpaid_eligible
                         ? 'Current status: Pending'
-                        : 'Pending · within 30-day grace';
+                        : 'Pending · within 20-day grace';
             select.appendChild(currentOption);
             var paidOption = document.createElement('option');
             paidOption.value = 'paid';
@@ -1662,7 +1671,7 @@ function nxAnalyticsMoney(float $amount): string
             } else {
                 var unpaidDate = data.permit_unpaid_since ? new Date(data.permit_unpaid_since.replace(' ', 'T')) : null;
                 var graceDeadline = unpaidDate && !Number.isNaN(unpaidDate.getTime())
-                    ? new Date(unpaidDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+                    ? new Date(unpaidDate.getTime() + 20 * 24 * 60 * 60 * 1000)
                     : null;
                 var withinGrace = graceDeadline && graceDeadline.getTime() > Date.now();
                 accessSummary.className = 'analytics-permit-access ' + (withinGrace ? 'is-active' : 'is-inactive');
@@ -1698,7 +1707,7 @@ function nxAnalyticsMoney(float $amount): string
                     var emptyHeading = document.createElement('h4');
                     emptyHeading.textContent = 'Annual assessment needed';
                     var emptyCopy = document.createElement('p');
-                    emptyCopy.textContent = 'Set this year’s annual permit fee to create four Pending quarter records. Each quarter becomes eligible to mark unpaid 30 days after it starts.';
+                    emptyCopy.textContent = 'Set this year’s annual permit fee to create four Pending quarter records. Each quarter is automatically marked unpaid after its 20-day grace period.';
                     emptyAssessment.append(emptyHeading, emptyCopy);
                     quarters.appendChild(emptyAssessment);
                 } else {
@@ -1713,10 +1722,10 @@ function nxAnalyticsMoney(float $amount): string
                         var quarterStart = new Date(year, (quarterNumber - 1) * 3, 1);
                         var unpaidAfter = quarter && quarter.unpaid_after
                             ? new Date(quarter.unpaid_after + 'T00:00:00+08:00')
-                            : new Date(year, (quarterNumber - 1) * 3, 1 + 30);
+                            : new Date(year, (quarterNumber - 1) * 3, 1 + 20);
                         dueDate.textContent = 'Quarter starts: ' +
                             quarterStart.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) +
-                            ' · Mark unpaid after: ' +
+                            ' · Auto-mark unpaid after: ' +
                             unpaidAfter.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
                         var amount = document.createElement('p');
                         amount.textContent = 'Amount: ' + money(quarter ? quarter.assessed_amount : 0);

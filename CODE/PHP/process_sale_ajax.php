@@ -62,7 +62,7 @@ if (empty($permitAccess['found'])) {
 
 if (!empty($permitAccess['grace_expired'])) {
     $_SESSION['business_permit_access_blocked'] = true;
-    $_SESSION['business_permit_notice'] = 'Business access is temporarily suspended because the permit has remained unpaid beyond the 30-day grace period. Contact the business administrator after payment.';
+    $_SESSION['business_permit_notice'] = 'Business access is temporarily suspended because the permit has remained unpaid beyond the 20-day grace period. Contact the business administrator after payment.';
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => $_SESSION['business_permit_notice']]);
     exit();

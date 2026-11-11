@@ -627,7 +627,7 @@ if (!function_exists('nxSetActiveWorkspace')) {
 
         if (!empty($permit['grace_expired'])) {
             throw new RuntimeException(
-                'This business is unavailable because its permit is unpaid beyond the 30-day grace period. Please coordinate with BPLO to activate your account.'
+                'This business is unavailable because its permit is unpaid beyond the 20-day grace period. Please coordinate with BPLO to activate your account.'
             );
         }
 
@@ -824,7 +824,7 @@ if (!function_exists('nxGetBusinessPermitAccess')) {
         $unpaidSince = trim((string)($permit['permit_unpaid_since'] ?? ''));
         $unpaidTimestamp = $unpaidSince !== '' ? strtotime($unpaidSince) : false;
         $graceExpired = $status !== 'paid'
-            && ($status !== 'unpaid' || $unpaidTimestamp === false || $unpaidTimestamp + (30 * 24 * 60 * 60) <= time());
+            && ($status !== 'unpaid' || $unpaidTimestamp === false || $unpaidTimestamp + (20 * 24 * 60 * 60) <= time());
 
         return [
             'found' => true,
@@ -849,7 +849,7 @@ if (!function_exists('nxBusinessPermitQuarterGraceDeadline')) {
             $timezone
         );
 
-        return $quarterStart->modify('+30 days');
+        return $quarterStart->modify('+20 days');
     }
 }
 
@@ -863,6 +863,141 @@ if (!function_exists('nxBusinessPermitQuarterGraceExpired')) {
         $now = $now ? $now->setTimezone($timezone) : new DateTimeImmutable('now', $timezone);
 
         return $now >= nxBusinessPermitQuarterGraceDeadline($permitYear, $quarter);
+    }
+}
+
+if (!function_exists('nxAutoMarkExpiredBusinessPermitQuarters')) {
+    function nxAutoMarkExpiredBusinessPermitQuarters(mysqli $conn, int $permitYear, int $adminId): int
+    {
+        if ($permitYear < 2000 || $permitYear > 2100 || $adminId <= 0) {
+            throw new InvalidArgumentException('A valid permit year and administrator are required.');
+        }
+
+        if (!$conn->begin_transaction()) {
+            throw new RuntimeException('Unable to begin automatic permit status updates.');
+        }
+
+        try {
+            $pendingStmt = $conn->prepare(
+                "SELECT a.id AS assessment_id, a.business_entity_id, p.quarter_number
+                 FROM business_permit_assessments a
+                 INNER JOIN business_permit_quarterly_payments p ON p.assessment_id = a.id
+                 WHERE a.permit_year = ? AND p.payment_status = 'pending'
+                 ORDER BY a.business_entity_id, p.quarter_number"
+            );
+            if (!$pendingStmt) {
+                throw new RuntimeException('Unable to load pending permit quarters: ' . $conn->error);
+            }
+            $pendingStmt->bind_param('i', $permitYear);
+            if (!$pendingStmt->execute()) {
+                throw new RuntimeException('Unable to load pending permit quarters: ' . $pendingStmt->error);
+            }
+
+            $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Manila'));
+            $expiredQuarters = [];
+            $pendingResult = $pendingStmt->get_result();
+            while ($quarterRow = $pendingResult->fetch_assoc()) {
+                $quarterNumber = (int)$quarterRow['quarter_number'];
+                if (nxBusinessPermitQuarterGraceExpired($permitYear, $quarterNumber, $now)) {
+                    $entityId = (int)$quarterRow['business_entity_id'];
+                    $assessmentId = (int)$quarterRow['assessment_id'];
+                    $expiredQuarters[$entityId]['assessment_id'] = $assessmentId;
+                    $expiredQuarters[$entityId]['quarters'][] = $quarterNumber;
+                }
+            }
+            $pendingStmt->close();
+
+            if ($expiredQuarters === []) {
+                if (!$conn->commit()) {
+                    throw new RuntimeException('Unable to finish automatic permit status updates.');
+                }
+                return 0;
+            }
+
+            $markStmt = $conn->prepare(
+                "UPDATE business_permit_quarterly_payments
+                 SET payment_status = 'unpaid', paid_at = NULL, paid_by = NULL
+                 WHERE assessment_id = ? AND quarter_number = ? AND payment_status = 'pending'"
+            );
+            $unpaidSinceStmt = $conn->prepare(
+                "SELECT quarter_number
+                 FROM business_permit_quarterly_payments
+                 WHERE assessment_id = ? AND payment_status = 'unpaid'
+                 ORDER BY quarter_number
+                 LIMIT 1"
+            );
+            $entityStmt = $conn->prepare(
+                "UPDATE business_entities
+                 SET permit_payment_status = 'unpaid', permit_unpaid_since = ?
+                 WHERE id = ?"
+            );
+            if (!$markStmt || !$unpaidSinceStmt || !$entityStmt) {
+                throw new RuntimeException('Unable to prepare automatic permit status updates: ' . $conn->error);
+            }
+
+            $updatedQuarters = 0;
+            foreach ($expiredQuarters as $entityId => $entityData) {
+                $changedQuarters = [];
+                foreach (array_unique($entityData['quarters']) as $quarterNumber) {
+                    $assessmentId = $entityData['assessment_id'];
+                    $markStmt->bind_param('ii', $assessmentId, $quarterNumber);
+                    if (!$markStmt->execute()) {
+                        throw new RuntimeException('Unable to mark an expired permit quarter unpaid: ' . $markStmt->error);
+                    }
+                    if ($markStmt->affected_rows > 0) {
+                        $updatedQuarters++;
+                        $changedQuarters[] = $quarterNumber;
+                    }
+                }
+
+                if ($changedQuarters === []) {
+                    continue;
+                }
+
+                $assessmentId = $entityData['assessment_id'];
+                $unpaidSinceStmt->bind_param('i', $assessmentId);
+                if (!$unpaidSinceStmt->execute()) {
+                    throw new RuntimeException('Unable to determine the unpaid permit start date: ' . $unpaidSinceStmt->error);
+                }
+                $firstUnpaid = $unpaidSinceStmt->get_result()->fetch_assoc();
+                if (!$firstUnpaid) {
+                    throw new RuntimeException('An automatically unpaid permit quarter could not be verified.');
+                }
+
+                $firstUnpaidMonth = (((int)$firstUnpaid['quarter_number'] - 1) * 3) + 1;
+                $unpaidSince = sprintf('%04d-%02d-01 00:00:00', $permitYear, $firstUnpaidMonth);
+                $entityStmt->bind_param('si', $unpaidSince, $entityId);
+                if (!$entityStmt->execute()) {
+                    throw new RuntimeException('Unable to synchronize the business permit status: ' . $entityStmt->error);
+                }
+
+                sort($changedQuarters);
+                $quarterList = implode(', ', $changedQuarters);
+                $description = "Automatically marked permit quarter(s) {$quarterList} for {$permitYear} as unpaid after the 20-day grace period.";
+                if (!logAdminActivitySecure(
+                    $conn,
+                    $adminId,
+                    'auto_mark_business_permit_unpaid',
+                    'business_entity',
+                    (int)$entityId,
+                    $description
+                )) {
+                    throw new RuntimeException('Unable to record the automatic permit status change.');
+                }
+            }
+
+            $markStmt->close();
+            $unpaidSinceStmt->close();
+            $entityStmt->close();
+            if (!$conn->commit()) {
+                throw new RuntimeException('Unable to commit automatic permit status updates.');
+            }
+
+            return $updatedQuarters;
+        } catch (Throwable $error) {
+            $conn->rollback();
+            throw $error;
+        }
     }
 }
 
@@ -903,7 +1038,7 @@ if (!function_exists('nxRequireBusinessId')) {
 
         if (!empty($permit['grace_expired'])) {
             $_SESSION['business_permit_access_blocked'] = true;
-            $_SESSION['business_permit_notice'] = 'Business access is temporarily suspended because the permit has remained unpaid beyond the 30-day grace period. Contact the business administrator after payment.';
+            $_SESSION['business_permit_notice'] = 'Business access is temporarily suspended because the permit has remained unpaid beyond the 20-day grace period. Contact the business administrator after payment.';
             header('Location: ' . nxAppUrl('dashboard.php'));
             exit();
         }
