@@ -4181,3 +4181,71 @@ html[data-theme="light"] #inventoryConfirmModal .drop-batch-cancel-btn {
     color: var(--ink) !important;
   }
 }
+
+.field-required {
+  color: #ff968d;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: none;
+}
+
+.inventory-expiry-policy {
+  min-width: 245px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 7px 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 16px;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.inventory-expiry-policy label {
+  grid-column: 1 / -1;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.inventory-expiry-policy select {
+  min-width: 0;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--ink);
+}
+
+.inventory-expiry-policy .ghost-btn {
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+html[data-theme="light"] .field-required {
+  color: #a11b14;
+}
+
+html[data-theme="light"] .inventory-expiry-policy {
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(96, 158, 234, 0.34);
+}
+
+@media (max-width: 768px) {
+  .inventory-expiry-policy {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .header-actions .inventory-expiry-policy .ghost-btn {
+    flex-direction: row;
+    padding: 8px 14px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+}

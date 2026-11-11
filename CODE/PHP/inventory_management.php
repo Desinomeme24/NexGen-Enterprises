@@ -2,6 +2,7 @@
 session_start();
 require_once("config.php");
 require_once("tenant_helper.php");
+require_once __DIR__ . '/inventory_date_helper.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: /NexGen/CODE/PHP/index.php");
@@ -15,11 +16,61 @@ if ((int)($_SESSION['can_inventory'] ?? 0) !== 1) {
 }
 
 $businessId = nxRequireBusinessId($conn);
-$businessTypeStmt = $conn->prepare("SELECT business_type FROM businesses WHERE id = ? LIMIT 1");
+$isOwner = ($_SESSION['role'] ?? '') === 'owner';
+$businessTypeStmt = $conn->prepare("
+    SELECT b.business_type, b.business_entity_id, be.expiry_date_required
+    FROM businesses b
+    INNER JOIN business_entities be ON be.id = b.business_entity_id
+    WHERE b.id = ?
+    LIMIT 1
+");
 $businessTypeStmt->bind_param("i", $businessId);
 $businessTypeStmt->execute();
-$businessType = $businessTypeStmt->get_result()->fetch_assoc()['business_type'] ?? null;
+$businessSettings = $businessTypeStmt->get_result()->fetch_assoc() ?: [];
 $businessTypeStmt->close();
+$businessType = $businessSettings['business_type'] ?? null;
+$businessEntityId = (int)($businessSettings['business_entity_id'] ?? 0);
+$isOtherBusinessType = in_array($businessType, ['Other', 'Others'], true);
+$otherExpiryRequired = (int)($businessSettings['expiry_date_required'] ?? 0) === 1;
+$requiresExpiryDate = nxRequiresExpiryDate($businessType, $otherExpiryRequired);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_expiry_policy') {
+    if (!$isOwner || !$isOtherBusinessType) {
+        http_response_code(403);
+        $_SESSION['inventory_error'] = 'Only the business owner can change this expiry-date policy.';
+    } elseif (!validateCsrfToken('inventory_expiry_policy', $_POST['csrf_token'] ?? null)) {
+        $_SESSION['inventory_error'] = 'Your session expired. Please try again.';
+    } elseif (
+        !isset($_POST['expiry_date_required'])
+        || !is_scalar($_POST['expiry_date_required'])
+        || !in_array((string)$_POST['expiry_date_required'], ['0', '1'], true)
+    ) {
+        $_SESSION['inventory_error'] = 'Choose whether expiry dates are required.';
+    } else {
+        $expiryDateRequiredValue = (int)$_POST['expiry_date_required'];
+        $policyStmt = $conn->prepare('UPDATE business_entities SET expiry_date_required = ? WHERE id = ? AND business_type IN (?, ?)');
+        if (!$policyStmt) {
+            error_log('Inventory expiry policy update prepare failed: ' . $conn->error);
+            $_SESSION['inventory_error'] = 'Unable to update the expiry-date policy.';
+        } else {
+            $otherTypeOne = 'Other';
+            $otherTypeTwo = 'Others';
+            $policyStmt->bind_param('iiss', $expiryDateRequiredValue, $businessEntityId, $otherTypeOne, $otherTypeTwo);
+            if ($policyStmt->execute()) {
+                $_SESSION['inventory_success'] = 'Expiry-date policy updated.';
+            } else {
+                error_log('Inventory expiry policy update failed: ' . $policyStmt->error);
+                $_SESSION['inventory_error'] = 'Unable to update the expiry-date policy.';
+            }
+            $policyStmt->close();
+        }
+    }
+
+    header('Location: /NexGen/CODE/PHP/inventory_management.php');
+    exit();
+}
+
+$csrfExpiryPolicy = generateCsrfToken('inventory_expiry_policy');
 $isBatchTracked = nxIsBatchTrackedType($businessType);
 $blocksExpiredBatches = nxBlocksExpiredBatches($businessType);
 
@@ -771,6 +822,18 @@ if ($currentStatusForTab === '') {
             </div>
 
             <div class="header-actions">
+                <?php if ($isOwner && $isOtherBusinessType): ?>
+                    <form method="POST" class="inventory-expiry-policy">
+                        <input type="hidden" name="action" value="update_expiry_policy">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfExpiryPolicy); ?>">
+                        <label for="otherExpiryPolicy">“Other” inventory expiry</label>
+                        <select name="expiry_date_required" id="otherExpiryPolicy">
+                            <option value="0" <?php echo $otherExpiryRequired ? '' : 'selected'; ?>>Optional</option>
+                            <option value="1" <?php echo $otherExpiryRequired ? 'selected' : ''; ?>>Required</option>
+                        </select>
+                        <button type="submit" class="ghost-btn">Save</button>
+                    </form>
+                <?php endif; ?>
                 <?php if ($isOwner): ?>
                     <a href="/NexGen/CODE/PHP/inventory_export.php" class="ghost-btn">
                         <i class="bi bi-box-arrow-up-right"></i>
@@ -1380,12 +1443,12 @@ if ($currentStatusForTab === '') {
                                 <input type="number" min="0.001" step="0.001" name="stock_quantity" required>
                             </div>
                             <div class="form-group">
-                                <label>Manufacturing Date <span class="field-optional">(optional)</span></label>
-                                <input type="date" name="manufacturing_date">
+                                <label>Manufacturing Date <span class="field-required">(required)</span></label>
+                                <input type="date" name="manufacturing_date" required>
                             </div>
                             <div class="form-group">
-                                <label>Expiry Date <span class="field-optional">(optional)</span></label>
-                                <input type="date" name="expiry_date">
+                                <label>Expiry Date <span class="<?php echo $requiresExpiryDate ? 'field-required' : 'field-optional'; ?>"><?php echo $requiresExpiryDate ? '(required)' : '(optional)'; ?></span></label>
+                                <input type="date" name="expiry_date" <?php echo $requiresExpiryDate ? 'required' : ''; ?>>
                             </div>
                         <?php else: ?>
                             <div class="form-group">
@@ -1394,13 +1457,13 @@ if ($currentStatusForTab === '') {
                             </div>
 
                             <div class="form-group">
-                                <label>Manufacturing Date <span class="field-optional">(optional)</span></label>
-                                <input type="date" name="manufacturing_date">
+                                <label>Manufacturing Date <span class="field-required">(required)</span></label>
+                                <input type="date" name="manufacturing_date" required>
                             </div>
 
                             <div class="form-group">
-                                <label>Expiry Date</label>
-                                <input type="date" name="expiry_date">
+                                <label>Expiry Date <span class="<?php echo $requiresExpiryDate ? 'field-required' : 'field-optional'; ?>"><?php echo $requiresExpiryDate ? '(required)' : '(optional)'; ?></span></label>
+                                <input type="date" name="expiry_date" <?php echo $requiresExpiryDate ? 'required' : ''; ?>>
                             </div>
                         <?php endif; ?>
 
@@ -1567,13 +1630,13 @@ if ($currentStatusForTab === '') {
                             </div>
 
                             <div class="form-group">
-                                <label>Manufacturing Date <span class="field-optional">(optional)</span></label>
-                                <input type="date" name="manufacturing_date" id="edit_manufacturing_date">
+                                <label>Manufacturing Date <span class="field-required">(required)</span></label>
+                                <input type="date" name="manufacturing_date" id="edit_manufacturing_date" required>
                             </div>
 
                             <div class="form-group">
-                                <label>Expiry Date</label>
-                                <input type="date" name="expiry_date" id="edit_expiry_date">
+                                <label>Expiry Date <span class="<?php echo $requiresExpiryDate ? 'field-required' : 'field-optional'; ?>"><?php echo $requiresExpiryDate ? '(required)' : '(optional)'; ?></span></label>
+                                <input type="date" name="expiry_date" id="edit_expiry_date" <?php echo $requiresExpiryDate ? 'required' : ''; ?>>
                             </div>
                         <?php endif; ?>
 
@@ -1665,15 +1728,13 @@ if ($currentStatusForTab === '') {
                 </div>
                 <?php endif; ?>
                 <div class="form-group" id="stockManufacturingDateWrap">
-                    <label>Manufacturing Date <span class="field-optional">(optional)</span></label>
-                    <input type="date" name="manufacturing_date" id="stock_manufacturing_date">
+                    <label>Manufacturing Date <span class="field-required">(required for stock-in)</span></label>
+                    <input type="date" name="manufacturing_date" id="stock_manufacturing_date" data-required-on-stock-in="1" required>
                 </div>
-                <?php if ($isBatchTracked): ?>
-                <div class="form-group">
-                    <label>Expiry Date <span class="field-optional">(optional)</span></label>
-                    <input type="date" name="batch_expiry_date" id="stock_batch_expiry_date">
+                <div class="form-group" id="stockExpiryDateWrap">
+                    <label>Expiry Date <span class="<?php echo $requiresExpiryDate ? 'field-required' : 'field-optional'; ?>"><?php echo $requiresExpiryDate ? '(required for stock-in)' : '(optional)'; ?></span></label>
+                    <input type="date" name="<?php echo $isBatchTracked ? 'batch_expiry_date' : 'expiry_date'; ?>" id="stock_expiry_date" data-required-on-stock-in="<?php echo $requiresExpiryDate ? '1' : '0'; ?>" <?php echo $requiresExpiryDate ? 'required' : ''; ?>>
                 </div>
-                <?php endif; ?>
 
                 <div class="form-group">
                     <label>Current On Order</label>
@@ -1772,16 +1833,14 @@ if ($currentStatusForTab === '') {
                 </div>
 
                 <div class="form-group">
-                    <label>Manufacturing Date <span class="field-optional">(optional)</span></label>
-                    <input type="date" name="manufacturing_date" id="receive_manufacturing_date">
+                    <label>Manufacturing Date <span class="field-required">(required)</span></label>
+                    <input type="date" name="manufacturing_date" id="receive_manufacturing_date" required>
                 </div>
 
-                <?php if ($isBatchTracked): ?>
                 <div class="form-group">
-                    <label>Expiry Date <span class="field-optional">(optional)</span></label>
-                    <input type="date" name="batch_expiry_date" id="receive_batch_expiry_date">
+                    <label>Expiry Date <span class="<?php echo $requiresExpiryDate ? 'field-required' : 'field-optional'; ?>"><?php echo $requiresExpiryDate ? '(required)' : '(optional)'; ?></span></label>
+                    <input type="date" name="<?php echo $isBatchTracked ? 'batch_expiry_date' : 'expiry_date'; ?>" id="receive_expiry_date" <?php echo $requiresExpiryDate ? 'required' : ''; ?>>
                 </div>
-                <?php endif; ?>
 
                 <div class="form-group full-width">
                     <label>Remarks</label>

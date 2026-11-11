@@ -67,6 +67,9 @@ const stockMovementType = document.getElementById("stock_movement_type");
 const onOrderOwnerFields = document.getElementById("onOrderOwnerFields");
 const deductOnOrderWrap = document.getElementById("deductOnOrderWrap");
 const stockManufacturingDateWrap = document.getElementById("stockManufacturingDateWrap");
+const stockExpiryDateWrap = document.getElementById("stockExpiryDateWrap");
+const stockManufacturingDateInput = document.getElementById("stock_manufacturing_date");
+const stockExpiryDateInput = document.getElementById("stock_expiry_date");
 
 const filterToggleBtn = document.getElementById("toggleFilterTool");
 const floatingFilterBox = document.getElementById("floatingFilterBox");
@@ -376,6 +379,21 @@ function toggleStockOrderFields() {
   if (stockManufacturingDateWrap) {
     stockManufacturingDateWrap.style.display =
       movement === "stock_in" ? "block" : "none";
+  }
+
+  if (stockExpiryDateWrap) {
+    stockExpiryDateWrap.style.display =
+      movement === "stock_in" ? "block" : "none";
+  }
+
+  if (stockManufacturingDateInput) {
+    stockManufacturingDateInput.required = movement === "stock_in";
+  }
+
+  if (stockExpiryDateInput) {
+    stockExpiryDateInput.required =
+      movement === "stock_in" &&
+      stockExpiryDateInput.dataset.requiredOnStockIn === "1";
   }
 }
 
@@ -944,6 +962,7 @@ document.addEventListener("click", (event) => {
     if (onOrderAdd) {onOrderAdd.value = "0";}
     if (deductCheckbox) {deductCheckbox.checked = false;}
     setValue("stock_manufacturing_date", "");
+    setValue("stock_expiry_date", "");
 
     toggleStockOrderFields();
     closeAllMenus();
@@ -992,6 +1011,7 @@ document.addEventListener("click", (event) => {
     if (quantity) {quantity.value = onOrderQty;}
     if (remarks) {remarks.value = "";}
     setValue("receive_manufacturing_date", "");
+    setValue("receive_expiry_date", "");
 
     closeAllMenus();
     openModal(receiveShipmentModal);

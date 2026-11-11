@@ -33,12 +33,20 @@ $isOwner = ($role === 'owner');
 $user_id = (int)($_SESSION['user_id'] ?? 0);
 $businessId = nxRequireBusinessId($conn);
 
-$businessTypeStmt = $conn->prepare("SELECT business_type FROM businesses WHERE id = ? LIMIT 1");
+$businessTypeStmt = $conn->prepare("
+    SELECT b.business_type, be.expiry_date_required
+    FROM businesses b
+    INNER JOIN business_entities be ON be.id = b.business_entity_id
+    WHERE b.id = ?
+    LIMIT 1
+");
 $businessTypeStmt->bind_param("i", $businessId);
 $businessTypeStmt->execute();
-$businessType = $businessTypeStmt->get_result()->fetch_assoc()['business_type'] ?? null;
+$businessSettings = $businessTypeStmt->get_result()->fetch_assoc() ?: [];
+$businessType = $businessSettings['business_type'] ?? null;
 $businessTypeStmt->close();
 $isBatchTracked = nxIsBatchTrackedType($businessType);
+$requiresExpiryDate = nxRequiresExpiryDate($businessType, (int)($businessSettings['expiry_date_required'] ?? 0) === 1);
 
 $product_id = intval($_POST['product_id'] ?? 0);
 $expectedVersion = (int)($_POST['version'] ?? 0);
@@ -165,11 +173,22 @@ $movement_type = $receiveShipment ? 'stock_in' : trim($_POST['movement_type'] ??
 $quantity = (float)($_POST['quantity'] ?? 0);
 $remarks = trim($_POST['remarks'] ?? '');
 $manufacturingDate = null;
+$expiryDate = null;
 if ($movement_type === 'stock_in') {
     try {
         $manufacturingDate = nxValidateManufacturingDate($_POST['manufacturing_date'] ?? '');
+        if ($manufacturingDate === null) {
+            throw new InvalidArgumentException('Manufacturing date is required for every stock-in.');
+        }
+        $expiryDateField = $isBatchTracked ? 'batch_expiry_date' : 'expiry_date';
+        $expiryDate = nxValidateExpiryDate($_POST[$expiryDateField] ?? '', $requiresExpiryDate);
     } catch (InvalidArgumentException $exception) {
         $_SESSION['inventory_error'] = $exception->getMessage();
+        header("Location: /NexGen/CODE/PHP/inventory_management.php");
+        exit();
+    }
+    if ($manufacturingDate !== null && $expiryDate !== null && $manufacturingDate > $expiryDate) {
+        $_SESSION['inventory_error'] = 'Manufacturing date cannot be after the expiry date.';
         header("Location: /NexGen/CODE/PHP/inventory_management.php");
         exit();
     }
@@ -235,12 +254,6 @@ try {
         // automatically, so stock itself is never written here directly.
         if ($movement_type === 'stock_in') {
             $batchNumber = nxGenerateBatchNumber();
-            $batchExpiryDate = trim($_POST['batch_expiry_date'] ?? '');
-            $batchExpiryParam = $batchExpiryDate === '' ? null : $batchExpiryDate;
-            if ($manufacturingDate !== null && $batchExpiryParam !== null && $manufacturingDate > $batchExpiryParam) {
-                throw new Exception('Manufacturing date cannot be after the expiry date.');
-            }
-
             $newOnOrder += $on_order_add;
 
             if ($deduct_from_on_order) {
@@ -262,7 +275,7 @@ try {
                 throw new Exception("Failed to prepare batch insert query.");
             }
 
-            $batchInsertStmt->bind_param("iisssd", $businessId, $product_id, $batchNumber, $manufacturingDate, $batchExpiryParam, $quantity);
+            $batchInsertStmt->bind_param("iisssd", $businessId, $product_id, $batchNumber, $manufacturingDate, $expiryDate, $quantity);
 
             if (!$batchInsertStmt->execute()) {
                 throw new Exception("Failed to save new batch.");
@@ -317,12 +330,14 @@ try {
         }
 
         if ($movement_type === 'stock_in') {
-            if ($manufacturingDate !== null && !empty($product['expiry_date']) && $manufacturingDate > $product['expiry_date']) {
+            $effectiveExpiryDate = $expiryDate ?? ($product['expiry_date'] ?? null);
+            if ($manufacturingDate !== null && $effectiveExpiryDate !== null && $manufacturingDate > $effectiveExpiryDate) {
                 throw new Exception('Manufacturing date cannot be after the expiry date.');
             }
             $updateStmt = $conn->prepare("
                 UPDATE products
-                SET stock_quantity = ?, on_order_level = ?, manufacturing_date = COALESCE(?, manufacturing_date)
+                SET stock_quantity = ?, on_order_level = ?, manufacturing_date = COALESCE(?, manufacturing_date),
+                    expiry_date = COALESCE(?, expiry_date)
                 WHERE id = ? AND business_id = ?
             ");
         } else {
@@ -338,7 +353,7 @@ try {
         }
 
         if ($movement_type === 'stock_in') {
-            $updateStmt->bind_param("ddsii", $newStock, $newOnOrder, $manufacturingDate, $product_id, $businessId);
+            $updateStmt->bind_param("ddssii", $newStock, $newOnOrder, $manufacturingDate, $expiryDate, $product_id, $businessId);
         } else {
             $updateStmt->bind_param("ddii", $newStock, $newOnOrder, $product_id, $businessId);
         }

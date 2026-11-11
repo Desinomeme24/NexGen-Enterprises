@@ -9,21 +9,24 @@ if ((int)($_SESSION['can_inventory'] ?? 0) !== 1) { $_SESSION['inventory_error']
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit(); }
 if (!validateCsrfToken('inventory_add_product', $_POST['csrf_token'] ?? null)) { $_SESSION['inventory_error']='Your session expired. Please try again.'; header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit(); }
 $businessId=nxRequireBusinessId($conn); $role=$_SESSION['role']??'employee'; $isOwner=$role==='owner';
-$btStmt=$conn->prepare('SELECT business_type FROM businesses WHERE id=? LIMIT 1'); $btStmt->bind_param('i',$businessId); $btStmt->execute(); $businessTypeRow=$btStmt->get_result()->fetch_assoc(); $btStmt->close();
+$btStmt=$conn->prepare('SELECT b.business_type, be.expiry_date_required FROM businesses b INNER JOIN business_entities be ON be.id=b.business_entity_id WHERE b.id=? LIMIT 1'); $btStmt->bind_param('i',$businessId); $btStmt->execute(); $businessTypeRow=$btStmt->get_result()->fetch_assoc(); $btStmt->close();
 $isBatchTracked=nxIsBatchTrackedType($businessTypeRow['business_type']??null);
+$requiresExpiryDate=nxRequiresExpiryDate($businessTypeRow['business_type']??null,(int)($businessTypeRow['expiry_date_required']??0)===1);
 $product_code=trim($_POST['product_code']??''); $product_name=trim($_POST['product_name']??''); $category_id=(int)($_POST['category_id']??0);
 $brand=trim($_POST['brand']??''); $unit=trim($_POST['unit']??''); $cost_price=(float)($_POST['cost_price']??0); $selling_price=(float)($_POST['selling_price']??0);
 $stock_quantity=(float)($_POST['stock_quantity']??0); $reorder_level=$isOwner?(float)($_POST['reorder_level']??5):5; $on_order_level=$isOwner?(float)($_POST['on_order_level']??0):0;
-$expiry_date=!empty($_POST['expiry_date'])?$_POST['expiry_date']:null; $description=trim($_POST['description']??''); $is_active=(int)($_POST['is_active']??1);
+$description=trim($_POST['description']??''); $is_active=(int)($_POST['is_active']??1);
 try {
  $manufacturing_date=nxValidateManufacturingDate($_POST['manufacturing_date']??'');
+ if($manufacturing_date===null)throw new InvalidArgumentException('Manufacturing date is required for every product.');
+ $expiry_date=nxValidateExpiryDate($_POST['expiry_date']??'',$requiresExpiryDate);
 } catch (InvalidArgumentException $exception) {
  $_SESSION['inventory_error']=$exception->getMessage(); header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit();
 }
-if ($manufacturing_date!==null && $expiry_date!==null && $manufacturing_date>$expiry_date) { $_SESSION['inventory_error']='Manufacturing date cannot be after the expiry date.'; header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit(); }
+if ($expiry_date!==null && $manufacturing_date>$expiry_date) { $_SESSION['inventory_error']='Manufacturing date cannot be after the expiry date.'; header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit(); }
 $batch_number=$isBatchTracked?nxGenerateBatchNumber():'';
 if ($product_code===''||$product_name===''||$category_id<=0||$unit==='') { $_SESSION['inventory_error']='Please fill in all required fields.'; header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit(); }
-if ($isBatchTracked && $stock_quantity<=0) { $_SESSION['inventory_error']='A positive initial quantity is required for this business type. Expiry date is optional.'; header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit(); }
+if ($isBatchTracked && $stock_quantity<=0) { $_SESSION['inventory_error']='A positive initial quantity is required for this business type.'; header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit(); }
 if (min($cost_price,$selling_price,$stock_quantity,$reorder_level,$on_order_level)<0) { $_SESSION['inventory_error']='Numeric values must not be negative.'; header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit(); }
 $cat=$conn->prepare('SELECT id FROM categories WHERE id=? AND business_id=?'); $cat->bind_param('ii',$category_id,$businessId); $cat->execute(); $catOk=$cat->get_result()->fetch_assoc(); $cat->close();
 if(!$catOk){$_SESSION['inventory_error']='Invalid category for this business.';header("Location: /NexGen/CODE/PHP/inventory_management.php");exit();}
