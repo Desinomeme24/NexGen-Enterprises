@@ -474,6 +474,12 @@ function nxAnalyticsMoney(float $amount): string
             gap: 18px;
             margin-bottom: 26px;
         }
+        .analytics-permit-metrics {
+            display: grid;
+            grid-column: 1 / -1;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 18px;
+        }
         .analytics-metric {
             position: relative;
             min-width: 0;
@@ -998,8 +1004,40 @@ function nxAnalyticsMoney(float $amount): string
             cursor: not-allowed;
             opacity: .58;
         }
+        .analytics-confirm-dialog {
+            width: min(440px, calc(100% - 32px));
+            padding: 0;
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            color: var(--text);
+            background: var(--card);
+            box-shadow: 0 28px 90px rgba(0, 0, 0, .48);
+        }
+        .analytics-confirm-dialog::backdrop { background: rgba(5, 11, 36, .72); backdrop-filter: blur(3px); }
+        .analytics-confirm-content { padding: 24px; }
+        .analytics-confirm-content h2 { margin: 0 0 10px; font-size: 1.2rem; }
+        .analytics-confirm-content p { margin: 0; color: var(--muted); line-height: 1.55; }
+        .analytics-confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+        .analytics-confirm-actions button {
+            min-height: 40px;
+            padding: 9px 14px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            color: var(--text);
+            background: var(--card);
+            font: inherit;
+            font-weight: 650;
+            cursor: pointer;
+        }
+        .analytics-confirm-actions .analytics-confirm-submit {
+            border-color: transparent;
+            color: #eef5ff;
+            background: #183a91;
+        }
+        html[data-theme="light"] .analytics-confirm-actions .analytics-confirm-submit { color: #fff; background: #183a91; }
         @media (max-width: 900px) {
             .analytics-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .analytics-permit-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .analytics-panel-header { align-items: flex-start; flex-direction: column; }
             .analytics-search { width: 100%; flex-basis: auto; }
             .analytics-quarter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1010,6 +1048,7 @@ function nxAnalyticsMoney(float $amount): string
         }
         @media (max-width: 560px) {
             .analytics-summary { grid-template-columns: 1fr; }
+            .analytics-permit-metrics { grid-template-columns: 1fr; }
             .analytics-metric { min-height: 118px; padding: 19px; }
             .analytics-panel-header { padding: 18px 16px; }
             .analytics-panel-body { padding: 0 12px 14px; }
@@ -1073,25 +1112,24 @@ function nxAnalyticsMoney(float $amount): string
                 <strong id="annualProfitTotal"><?php echo e(nxAnalyticsMoney($annualProfit)); ?></strong>
                 <span class="analytics-month-status" id="annualProfitStatus" role="status" aria-live="polite"></span>
             </article>
-            <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="all" aria-pressed="true" aria-controls="analyticsBusinessRows">
-                <span>Registered businesses</span>
-                <strong><?php echo number_format($businessCount); ?></strong>
-               
-            </button>
-            <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="paid" aria-pressed="false" aria-controls="analyticsBusinessRows">
-                <span>Paid business permits</span>
-                <strong><?php echo number_format($paidPermitCount); ?></strong>
-              
-            </button>
-            <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="unpaid" aria-pressed="false" aria-controls="analyticsBusinessRows">
-                <span>Unpaid business permits</span>
-                <strong><?php echo number_format($unpaidPermitCount); ?></strong>
-                
-            </button>
-            <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="pending" aria-pressed="false" aria-controls="analyticsBusinessRows">
-                <span>Pending business permits</span>
-                <strong><?php echo number_format($pendingPermitCount); ?></strong>
-            </button>
+            <div class="analytics-permit-metrics" role="group" aria-label="Business permit totals">
+                <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="all" aria-pressed="true" aria-controls="analyticsBusinessRows">
+                    <span>Registered businesses</span>
+                    <strong><?php echo number_format($businessCount); ?></strong>
+                </button>
+                <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="paid" aria-pressed="false" aria-controls="analyticsBusinessRows">
+                    <span>Paid business permits</span>
+                    <strong><?php echo number_format($paidPermitCount); ?></strong>
+                </button>
+                <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="unpaid" aria-pressed="false" aria-controls="analyticsBusinessRows">
+                    <span>Unpaid business permits</span>
+                    <strong><?php echo number_format($unpaidPermitCount); ?></strong>
+                </button>
+                <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="pending" aria-pressed="false" aria-controls="analyticsBusinessRows">
+                    <span>Pending business permits</span>
+                    <strong><?php echo number_format($pendingPermitCount); ?></strong>
+                </button>
+            </div>
         </section>
 
         <section class="panel" aria-labelledby="analyticsBusinessesHeading">
@@ -1249,6 +1287,16 @@ function nxAnalyticsMoney(float $amount): string
         </section>
     </section>
 </div>
+<dialog class="analytics-confirm-dialog" id="permitStatusConfirmDialog" aria-labelledby="permitStatusConfirmTitle" aria-describedby="permitStatusConfirmMessage">
+    <div class="analytics-confirm-content">
+        <h2 id="permitStatusConfirmTitle">Confirm permit status change</h2>
+        <p id="permitStatusConfirmMessage"></p>
+        <div class="analytics-confirm-actions">
+            <button type="button" id="permitStatusConfirmCancel" autofocus>Cancel</button>
+            <button type="button" class="analytics-confirm-submit" id="permitStatusConfirmSubmit">Confirm</button>
+        </div>
+    </div>
+</dialog>
 <script src="<?php echo e(nxCodeUrl('JS/admin_module.js')); ?>"></script>
 <script>
     (function () {
@@ -1266,6 +1314,11 @@ function nxAnalyticsMoney(float $amount): string
         var annualProfitTotal = document.getElementById('annualProfitTotal');
         var annualProfitStatus = document.getElementById('annualProfitStatus');
         var annualProfitLabel = document.getElementById('annualProfitLabel');
+        var statusConfirmationDialog = document.getElementById('permitStatusConfirmDialog');
+        var statusConfirmationMessage = document.getElementById('permitStatusConfirmMessage');
+        var statusConfirmationCancel = document.getElementById('permitStatusConfirmCancel');
+        var statusConfirmationSubmit = document.getElementById('permitStatusConfirmSubmit');
+        var pendingStatusForm = null;
         var businessProfitMonthSelect = document.getElementById('businessDetailsProfitMonth');
         var businessProfitYearSelect = document.getElementById('businessDetailsProfitYear');
         var businessProfitStatus = document.getElementById('businessDetailsProfitStatus');
@@ -1350,16 +1403,32 @@ function nxAnalyticsMoney(float $amount): string
             form.addEventListener('submit', function (event) {
                 event.preventDefault();
                 var nextStatus = select.value;
-                var confirmation = nextStatus === 'paid'
+                if (!nextStatus) return;
+                statusConfirmationMessage.textContent = nextStatus === 'paid'
                     ? 'Confirm marking Quarter ' + quarterNumber + ' of ' + data.permit_year + ' as paid?'
                     : 'Confirm marking Quarter ' + quarterNumber + ' of ' + data.permit_year +
                         ' as unpaid? This may restrict business access after the grace period.';
-                if (nextStatus && window.confirm(confirmation)) {
-                    form.submit();
-                }
+                statusConfirmationSubmit.textContent = 'Mark as ' + nextStatus;
+                pendingStatusForm = form;
+                statusConfirmationDialog.showModal();
             });
             return form;
         }
+
+        statusConfirmationCancel.addEventListener('click', function () {
+            pendingStatusForm = null;
+            statusConfirmationDialog.close();
+        });
+        statusConfirmationDialog.addEventListener('close', function () {
+            pendingStatusForm = null;
+        });
+        statusConfirmationSubmit.addEventListener('click', function () {
+            if (!pendingStatusForm) return;
+            var form = pendingStatusForm;
+            pendingStatusForm = null;
+            statusConfirmationDialog.close();
+            form.submit();
+        });
 
         function updateMonthlyProfit() {
             var requestedMonth = profitMonthSelect.value;
