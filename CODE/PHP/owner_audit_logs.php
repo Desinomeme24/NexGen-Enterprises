@@ -123,14 +123,19 @@ $stmt->close();
 
     <main class="owner-module-main">
         <div class="owner-module-heading">
+            <h1><i class="bi bi-journal-check" aria-hidden="true"></i> Audit Logs</h1>
             <div>
-                <span class="owner-module-eyebrow"><i class="bi bi-shield-check"></i> Accountability</span>
-                <h1>Audit Logs</h1>
                 <p>Review and verify actions performed from your owner account. Records are shown only to the account that created them.</p>
             </div>
         </div>
 
-        <section class="owner-module-card" aria-label="Owner audit records">
+        <section class="owner-module-card" aria-labelledby="auditRecordsHeading">
+            <div class="owner-module-section-heading">
+                <div>
+                    <h2 id="auditRecordsHeading"><i class="bi bi-list-check" aria-hidden="true"></i> Activity Log Records</h2>
+                    <p>Owner actions with a verifiable integrity status.</p>
+                </div>
+            </div>
             <div class="owner-module-toolbar">
                 <form method="GET" action="<?php echo e(nxAppUrl('owner_audit_logs.php')); ?>">
                     <label class="visually-hidden" for="auditSearch">Search audit records</label>

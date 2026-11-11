@@ -215,9 +215,8 @@ unset($_SESSION['flash']);
 
     <main class="owner-module-main">
         <div class="owner-module-heading">
+            <h1><i class="bi bi-people-fill" aria-hidden="true"></i> Manage Employees</h1>
             <div>
-                <span class="owner-module-eyebrow"><i class="bi bi-people-fill"></i> Team access</span>
-                <h1>Manage Employees</h1>
                 <p>Review employee applications and manage the roster assigned to your business branches.</p>
             </div>
         </div>
@@ -236,7 +235,7 @@ unset($_SESSION['flash']);
                 </div>
             </div>
             <div class="owner-module-toolbar">
-                <form method="GET" action="<?php echo e(nxAppUrl('manage_employees.php')); ?>">
+                <form method="GET" action="<?php echo e(nxAppUrl('manage_employees.php')); ?>" data-auto-submit-filters>
                     <input type="hidden" name="employee_search" value="<?php echo e($employeeSearch); ?>">
                     <input type="hidden" name="employee_status" value="<?php echo e($employeeStatus); ?>">
                     <input type="hidden" name="employee_branch" value="<?php echo $employeeBranchId; ?>">
@@ -311,7 +310,7 @@ unset($_SESSION['flash']);
                 </div>
             </div>
             <div class="owner-module-toolbar">
-                <form method="GET" action="<?php echo e(nxAppUrl('manage_employees.php')); ?>">
+                <form method="GET" action="<?php echo e(nxAppUrl('manage_employees.php')); ?>" data-auto-submit-filters>
                     <input type="hidden" name="search" value="<?php echo e($search); ?>">
                     <input type="hidden" name="status" value="<?php echo e($status); ?>">
                     <label class="visually-hidden" for="enrolledEmployeeSearch">Search enrolled employees</label>
@@ -404,5 +403,10 @@ unset($_SESSION['flash']);
     </main>
 </div>
 <script src="<?php echo e(nxCodeUrl('JS/header.js')); ?>" defer></script>
+<script>
+document.querySelectorAll('form[data-auto-submit-filters] select').forEach((select) => {
+    select.addEventListener('change', () => select.form.requestSubmit());
+});
+</script>
 </body>
 </html>
