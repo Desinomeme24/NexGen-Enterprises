@@ -899,10 +899,9 @@ unset($_SESSION['success'], $_SESSION['error']);
                                     <option value="senior">Senior Citizen (20%)</option>
                                     <option value="pwd">PWD (20%)</option>
                                     <option value="custom_percent">Custom percentage</option>
-                                    <option value="custom_amount">Custom amount (₱)</option>
                                 </select>
                                 <div id="saleDiscountValueWrap" hidden>
-                                    <label for="saleDiscountValue" id="saleDiscountValueLabel">Discount value</label>
+                                    <label for="saleDiscountValue" id="saleDiscountValueLabel">Discount percentage</label>
                                     <input
                                         type="number"
                                         name="discount_value"

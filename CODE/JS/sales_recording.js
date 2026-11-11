@@ -574,24 +574,22 @@ document.addEventListener("DOMContentLoaded", function () {
       senior: "Senior Citizen Discount (20%)",
       pwd: "PWD Discount (20%)",
       custom_percent: `Custom Discount (${safeNumber(saleDiscountValue?.value)}%)`,
-      custom_amount: "Custom Discount",
     };
     return labels[saleDiscountType?.value || "none"] || "Sale Discount";
   }
 
   function syncDiscountControls() {
     const type = saleDiscountType?.value || "none";
-    const needsValue = ["custom_percent", "custom_amount"].includes(type);
+    const needsValue = type === "custom_percent";
     if (saleDiscountValueWrap) {
       saleDiscountValueWrap.hidden = !needsValue;
     }
     if (saleDiscountValue) {
       saleDiscountValue.disabled = !needsValue;
-      saleDiscountValue.max = type === "custom_percent" ? "100" : "";
+      saleDiscountValue.max = needsValue ? "100" : "";
     }
     if (saleDiscountValueLabel) {
-      saleDiscountValueLabel.textContent =
-        type === "custom_percent" ? "Discount percentage" : "Discount amount (₱)";
+      saleDiscountValueLabel.textContent = "Discount percentage";
     }
     calculateGrandTotal();
   }
@@ -629,8 +627,6 @@ document.addEventListener("DOMContentLoaded", function () {
       discountCents = Math.round(subtotalCents * 0.2);
     } else if (type === "custom_percent") {
       discountCents = Math.round(subtotalCents * Math.min(Math.max(rawValue, 0), 100) / 100);
-    } else if (type === "custom_amount") {
-      discountCents = Math.round(Math.max(rawValue, 0) * 100);
     }
     discountCents = Math.min(discountCents, subtotalCents);
     const subtotal = subtotalCents / 100;
@@ -816,7 +812,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const discountValue = saleDiscountValue?.value.trim() || "";
     const subtotal = getSaleTotals().subtotal;
 
-    if (["custom_percent", "custom_amount"].includes(discountType)) {
+    if (discountType === "custom_percent") {
       const parsedDiscount = Number(discountValue);
       if (
         !/^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/.test(discountValue)
@@ -828,14 +824,8 @@ document.addEventListener("DOMContentLoaded", function () {
         saleDiscountValue?.focus();
         return false;
       }
-      if (discountType === "custom_percent" && parsedDiscount > 100) {
+      if (parsedDiscount > 100) {
         showToast("Percentage discount cannot exceed 100%.", "warning");
-        goToWizardStep(2);
-        saleDiscountValue?.focus();
-        return false;
-      }
-      if (discountType === "custom_amount" && parsedDiscount > subtotal) {
-        showToast("Fixed discount cannot exceed the sale subtotal.", "warning");
         goToWizardStep(2);
         saleDiscountValue?.focus();
         return false;

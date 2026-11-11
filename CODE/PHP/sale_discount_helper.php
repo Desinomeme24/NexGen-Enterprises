@@ -3,7 +3,7 @@
 if (!function_exists('nxPrepareSaleDiscountTotals')) {
     function nxPrepareSaleDiscountTotals(array $items, string $discountType, mixed $rawDiscountValue): array
     {
-        $allowedTypes = ['none', 'senior', 'pwd', 'custom_percent', 'custom_amount'];
+        $allowedTypes = ['none', 'senior', 'pwd', 'custom_percent'];
         if (!in_array($discountType, $allowedTypes, true)) {
             throw new InvalidArgumentException('Choose a valid sale discount.');
         }
@@ -27,7 +27,7 @@ if (!function_exists('nxPrepareSaleDiscountTotals')) {
         $discountValue = 0.0;
         if ($discountType === 'senior' || $discountType === 'pwd') {
             $discountValue = 20.0;
-        } elseif ($discountType === 'custom_percent' || $discountType === 'custom_amount') {
+        } elseif ($discountType === 'custom_percent') {
             $discountValueInput = is_scalar($rawDiscountValue)
                 ? trim((string)$rawDiscountValue)
                 : '';
@@ -45,7 +45,6 @@ if (!function_exists('nxPrepareSaleDiscountTotals')) {
 
         $discountCents = match ($discountType) {
             'senior', 'pwd', 'custom_percent' => (int)round($subtotalCents * $discountValue / 100),
-            'custom_amount' => (int)round($discountValue * 100),
             default => 0,
         };
         if ($discountCents > $subtotalCents) {
