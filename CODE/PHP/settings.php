@@ -316,7 +316,7 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="newBusinessType">SME type</label>
+                                <label for="newBusinessType">SE type</label>
                                 <select name="business_type" id="newBusinessType" required>
                                     <option value="">Select business type</option>
                                     <option value="Hardware / Construction Supplies">Hardware / Construction Supplies</option>
@@ -346,7 +346,7 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
                         </div>
                         <label class="workspace-check">
                             <input type="checkbox" name="separate_operations" value="1">
-                            <span>This workspace must use separate operations and accounting, even if its name and SME type match one of my existing businesses.</span>
+                            <span>This workspace must use separate operations and accounting, even if its name and SE type match one of my existing businesses.</span>
                         </label>
                         <div class="form-actions-left"><button type="submit" class="btn btn-save">Submit Business Request</button></div>
                     </form>

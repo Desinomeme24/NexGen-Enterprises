@@ -6,7 +6,7 @@ This retrofit applies to signup documents and administrator resubmissions only.
 It does not change profile-image, product-image, or sales-receipt uploads.
 
 Signup accepts one government ID image (JPG/JPEG, PNG, HEIC, or HEIF) and,
-for SME Owners, one required business permit (PDF or one of those image types).
+for SE Owners, one required business permit (PDF or one of those image types).
 ID slots reject PDFs. HEIC/HEIF is input-only and is converted to a sanitized
 JPEG. PDFs are rasterized page-by-page into image-only PDFs. Original uploads
 are scanned before decoding; only sanitized outputs are encrypted and retained.

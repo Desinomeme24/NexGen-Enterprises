@@ -4023,7 +4023,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
                         </div>
 
                         <div class="full-width role-fields owner-fields" hidden>
-                            <div class="role-section-heading">SME Business Information</div>
+                            <div class="role-section-heading">SE Business Information</div>
                         </div>
 
                         <div class="full-width role-fields owner-fields" hidden>
@@ -4054,12 +4054,12 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
                         </div>
 
                         <div class="full-width role-fields employee-fields" hidden>
-                            <div class="role-section-heading">SME Employment Information</div>
+                            <div class="role-section-heading">SE Employment Information</div>
                         </div>
 
                         <div class="role-fields employee-fields" hidden>
-                            <label for="businessCode">SME Business Code</label>
-                            <input type="text" name="business_code" id="businessCode" pattern="[A-Za-z0-9-]{3,20}" placeholder="Code provided by the SME owner" maxlength="20">
+                            <label for="businessCode">SE Business Code</label>
+                            <input type="text" name="business_code" id="businessCode" pattern="[A-Za-z0-9-]{3,20}" placeholder="Code provided by the SE owner" maxlength="20">
                         </div>
 
                         <div class="role-fields employee-fields" hidden>
@@ -4107,7 +4107,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
                         <div class="full-width role-fields owner-fields" hidden>
                             <label for="businessPermit">Business Permit</label>
                             <input type="file" name="business_permit" id="businessPermit" accept="image/jpeg,image/png,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.heic,.heif,.pdf">
-                            <small class="field-help">Required for SME Owners. Accepted: PDF up to 10 MB; JPG/PNG up to 5 MB; HEIC/HEIF up to 10 MB before conversion.</small>
+                            <small class="field-help">Required for SE Owners. Accepted: PDF up to 10 MB; JPG/PNG up to 5 MB; HEIC/HEIF up to 10 MB before conversion.</small>
                         </div>
                     </div>
                     <p class="field-help signup-document-notice">Privacy notice: NexGen uses these documents only to review your registration. They are malware-scanned, sanitized, encrypted in private storage, and available only to authorized administrators. If your request is rejected, the stored documents and their encryption keys are deleted immediately. We record the notice version and your consent time.</p>

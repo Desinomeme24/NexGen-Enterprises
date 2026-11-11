@@ -3,6 +3,7 @@ session_start();
 require_once("config.php");
 require_once("tenant_helper.php");
 require_once __DIR__ . '/inventory_date_helper.php';
+require_once __DIR__ . '/inventory_quantity_helper.php';
 
 if (!isset($_SESSION['user_id'])) { header("Location: /NexGen/CODE/PHP/index.php"); exit(); }
 if ((int)($_SESSION['can_inventory'] ?? 0)!==1){$_SESSION['inventory_error']='Unauthorized access.';header("Location: /NexGen/CODE/PHP/dashboard.php");exit();}
@@ -12,10 +13,17 @@ $businessId=nxRequireBusinessId($conn); $isOwner=($_SESSION['role']??'')==='owne
 $btStmt=$conn->prepare('SELECT b.business_type, be.expiry_date_required FROM businesses b INNER JOIN business_entities be ON be.id=b.business_entity_id WHERE b.id=? LIMIT 1'); $btStmt->bind_param('i',$businessId); $btStmt->execute(); $businessTypeRow=$btStmt->get_result()->fetch_assoc(); $btStmt->close();
 $isBatchTracked=nxIsBatchTrackedType($businessTypeRow['business_type']??null);
 $requiresExpiryDate=nxRequiresExpiryDate($businessTypeRow['business_type']??null,(int)($businessTypeRow['expiry_date_required']??0)===1);
-$id=(int)($_POST['id']??0); $expectedVersion=(int)($_POST['version']??0); $product_code=trim($_POST['product_code']??''); $product_name=trim($_POST['product_name']??''); $category_id=(int)($_POST['category_id']??0); $brand=trim($_POST['brand']??''); $unit=trim($_POST['unit']??''); $cost_price=(float)($_POST['cost_price']??0); $selling_price=(float)($_POST['selling_price']??0); $stock_quantity=(float)($_POST['stock_quantity']??0); $reorder_level=$isOwner?max(0,(float)($_POST['reorder_level']??5)):5; $on_order_level=$isOwner?max(0,(float)($_POST['on_order_level']??0)):0; $description=trim($_POST['description']??''); $is_active=(int)($_POST['is_active']??1);
-if($isBatchTracked){$manufacturing_date=null;$expiry_date=null;}else{try{$manufacturing_date=nxValidateManufacturingDate($_POST['manufacturing_date']??'');if($manufacturing_date===null)throw new InvalidArgumentException('Manufacturing date is required for every product.');$expiry_date=nxValidateExpiryDate($_POST['expiry_date']??'',$requiresExpiryDate);}catch(InvalidArgumentException $exception){$_SESSION['inventory_error']=$exception->getMessage();header("Location: /NexGen/CODE/PHP/inventory_management.php");exit();}}
+$id=(int)($_POST['id']??0); $expectedVersion=(int)($_POST['version']??0); $product_code=trim($_POST['product_code']??''); $product_name=trim($_POST['product_name']??''); $category_id=(int)($_POST['category_id']??0); $brand=trim($_POST['brand']??''); $unit=trim($_POST['unit']??''); $cost_price=(float)($_POST['cost_price']??0); $selling_price=(float)($_POST['selling_price']??0); $description=trim($_POST['description']??''); $is_active=(int)($_POST['is_active']??1);
+try {
+ $stock_quantity=nxValidateWholeQuantity($_POST['stock_quantity']??0,'Stock quantity');
+ $reorder_level=$isOwner?nxValidateWholeQuantity($_POST['reorder_level']??null,'Reorder level'):5;
+ $on_order_level=$isOwner?nxValidateWholeQuantity($_POST['on_order_level']??null,'On-order quantity'):0;
+ if($isBatchTracked){$manufacturing_date=null;$expiry_date=null;}else{$manufacturing_date=nxValidateManufacturingDate($_POST['manufacturing_date']??'');if($manufacturing_date===null)throw new InvalidArgumentException('Manufacturing date is required for every product.');$expiry_date=nxValidateExpiryDate($_POST['expiry_date']??'',$requiresExpiryDate);}
+} catch (InvalidArgumentException $exception) {
+ $_SESSION['inventory_error']=$exception->getMessage();header("Location: /NexGen/CODE/PHP/inventory_management.php");exit();
+}
 if(!$isBatchTracked&&$manufacturing_date!==null&&$expiry_date!==null&&$manufacturing_date>$expiry_date){$_SESSION['inventory_error']='Manufacturing date cannot be after the expiry date.';header("Location: /NexGen/CODE/PHP/inventory_management.php");exit();}
-if($id<=0||$product_code===''||$product_name===''||$category_id<=0||$unit===''||min($cost_price,$selling_price,($isBatchTracked?0:$stock_quantity))<0){$_SESSION['inventory_error']='Invalid product data.';header("Location: /NexGen/CODE/PHP/inventory_management.php");exit();}
+if($id<=0||$product_code===''||$product_name===''||$category_id<=0||$unit===''||min($cost_price,$selling_price)<0){$_SESSION['inventory_error']='Invalid product data.';header("Location: /NexGen/CODE/PHP/inventory_management.php");exit();}
 $conn->begin_transaction();
 try{
  $lock=$conn->prepare('SELECT product_image,version FROM products WHERE id=? AND business_id=? FOR UPDATE');$lock->bind_param('ii',$id,$businessId);$lock->execute();$current=$lock->get_result()->fetch_assoc();$lock->close();if(!$current)throw new Exception('Product not found in your business.');if($expectedVersion<=0||(int)$current['version']!==$expectedVersion)throw new Exception('INVENTORY_CONFLICT');

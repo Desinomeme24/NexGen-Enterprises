@@ -235,7 +235,7 @@ if (!function_exists('nxGenerateUniqueWorkspaceCode')) {
     function nxGenerateUniqueWorkspaceCode(mysqli $conn, string $kind): string
     {
         $config = [
-            'business' => ['table' => 'business_entities', 'column' => 'business_code', 'prefix' => 'SME-'],
+            'business' => ['table' => 'business_entities', 'column' => 'business_code', 'prefix' => 'SE-'],
             'branch' => ['table' => 'businesses', 'column' => 'branch_code', 'prefix' => 'BR-'],
         ];
 
@@ -598,7 +598,7 @@ if (!function_exists('nxSetActiveWorkspace')) {
         $role = (string)($_SESSION['role'] ?? '');
 
         if ($userId <= 0 || !in_array($role, ['owner', 'employee'], true)) {
-            throw new RuntimeException('Only SME owners and employees can switch workspaces.');
+            throw new RuntimeException('Only SE owners and employees can switch workspaces.');
         }
 
         $workspaces = nxGetAccessibleWorkspaces($conn, $userId, $role);
@@ -835,7 +835,7 @@ if (!function_exists('nxRequireBusinessId')) {
         $businessId = (int)($workspace['business_id'] ?? 0);
 
         if ($businessId <= 0) {
-            $_SESSION['error'] = 'Your account is not connected to an active SME business branch. Please contact the administrator.';
+            $_SESSION['error'] = 'Your account is not connected to an active SE business branch. Please contact the administrator.';
             header('Location: ' . nxAppUrl('dashboard.php'));
             exit();
         }

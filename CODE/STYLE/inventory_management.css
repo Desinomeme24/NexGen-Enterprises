@@ -1102,15 +1102,29 @@ body {
   color: var(--ink-soft);
 }
 
+.batch-edit-dates-btn,
 .batch-drop-btn {
-  border: 1px solid rgba(221, 107, 124, 0.4);
-  background: rgba(221, 107, 124, 0.12);
-  color: #dd6b7c;
   border-radius: 10px;
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
+}
+
+.batch-edit-dates-btn {
+  border: 1px solid rgba(73, 118, 235, 0.4);
+  background: rgba(73, 118, 235, 0.12);
+  color: #86a8ff;
+}
+
+.batch-edit-dates-btn:hover {
+  background: rgba(73, 118, 235, 0.22);
+}
+
+.batch-drop-btn {
+  border: 1px solid rgba(221, 107, 124, 0.4);
+  background: rgba(221, 107, 124, 0.12);
+  color: #dd6b7c;
 }
 
 .batch-drop-btn:hover {

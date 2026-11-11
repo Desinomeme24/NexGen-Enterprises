@@ -482,7 +482,7 @@ try {
             || !nxResubmitLengthBetween($businessAddress, 5, 500)
             || nxResubmitHasControlCharacters($businessAddress, true)
         ) {
-            throw new RuntimeException('Provide complete and valid SME business information.');
+            throw new RuntimeException('Provide complete and valid SE business information.');
         }
 
         $duplicateStmt = $conn->prepare(
@@ -515,14 +515,14 @@ try {
             if ($sameName && $sameType && $sameAddress) {
                 $possibleDuplicate = 1;
                 $duplicateBusinessId = (int)$existing['id'];
-                $duplicateReason = 'Exact business name, SME type, and branch address match. Review the existing business/branch before approval.';
+                $duplicateReason = 'Exact business name, SE type, and branch address match. Review the existing business/branch before approval.';
                 break;
             }
 
             if ($sameName && $sameType && $possibleDuplicate === 0) {
                 $possibleDuplicate = 1;
                 $duplicateBusinessId = (int)$existing['id'];
-                $duplicateReason = 'Same business name and SME type found at a different address. Verify whether this should be a branch of the existing business.';
+                $duplicateReason = 'Same business name and SE type found at a different address. Verify whether this should be a branch of the existing business.';
             }
         }
         $duplicateStmt->close();
@@ -532,7 +532,7 @@ try {
             || !preg_match('/^[A-Z0-9-]{3,20}$/', $branchCode)
             || !preg_match('/^[A-Za-z0-9._-]{1,50}$/', $employeeNo)
         ) {
-            throw new RuntimeException('Provide valid SME employment information.');
+            throw new RuntimeException('Provide valid SE employment information.');
         }
 
         $workspaceStmt = $conn->prepare(

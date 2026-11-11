@@ -60,6 +60,7 @@ while ($row = $result->fetch_assoc()) {
         'status' => $row['status'],
         'is_expired' => $isExpired,
         'can_drop' => $isExpired && $row['status'] === 'active' && (float)$row['quantity'] > 0,
+        'can_edit' => $row['status'] === 'active',
     ];
 }
 $batchStmt->close();

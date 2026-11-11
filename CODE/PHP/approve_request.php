@@ -235,11 +235,11 @@ try {
             trim((string) $request['business_address']) === '' ||
             ((string)$request['business_type'] === 'Others'
                 && trim((string)($request['business_type_other'] ?? '')) === '')) {
-            throw new RuntimeException('The owner request has incomplete SME business information.');
+            throw new RuntimeException('The owner request has incomplete SE business information.');
         }
 
         do {
-            $businessCode = 'SME-' . strtoupper(bin2hex(random_bytes(3)));
+            $businessCode = 'SE-' . strtoupper(bin2hex(random_bytes(3)));
             $codeStmt = $conn->prepare(
                 'SELECT id FROM businesses WHERE business_code = ? LIMIT 1'
             );
@@ -258,7 +258,7 @@ try {
              VALUES (?, ?, ?, ?, ?)'
         );
         if (!$stmt) {
-            throw new RuntimeException('Unable to create the SME business: ' . $conn->error);
+            throw new RuntimeException('Unable to create the SE business: ' . $conn->error);
         }
 
         $businessTypeOther = (string)$request['business_type'] === 'Others'
@@ -274,7 +274,7 @@ try {
         );
 
         if (!$stmt->execute()) {
-            throw new RuntimeException('Failed to create the SME business: ' . $stmt->error);
+            throw new RuntimeException('Failed to create the SE business: ' . $stmt->error);
         }
 
         $businessId = (int) $stmt->insert_id;
@@ -308,18 +308,18 @@ try {
                 'UPDATE business_entities SET business_type_other = ? WHERE id = ?'
             );
             if (!$typeStmt) {
-                throw new RuntimeException('Unable to save the specified SME business type.');
+                throw new RuntimeException('Unable to save the specified SE business type.');
             }
             $businessTypeOther = (string)($request['business_type_other'] ?? '');
             $typeStmt->bind_param('si', $businessTypeOther, $businessEntityId);
             if (!$typeStmt->execute()) {
-                throw new RuntimeException('Unable to save the specified SME business type.');
+                throw new RuntimeException('Unable to save the specified SE business type.');
             }
             $typeStmt->close();
         }
     } else {
         if ($businessCode === '' || $branchCode === '') {
-            throw new RuntimeException('The employee request must contain both the SME business code and branch code.');
+            throw new RuntimeException('The employee request must contain both the SE business code and branch code.');
         }
 
         $stmt = $conn->prepare(
@@ -334,7 +334,7 @@ try {
              LIMIT 1"
         );
         if (!$stmt) {
-            throw new RuntimeException('Unable to verify the SME business and branch codes: ' . $conn->error);
+            throw new RuntimeException('Unable to verify the SE business and branch codes: ' . $conn->error);
         }
         $stmt->bind_param('ss', $businessCode, $branchCode);
         $stmt->execute();
@@ -343,7 +343,7 @@ try {
 
         if (!$workspace) {
             throw new RuntimeException(
-                'The submitted SME business code and branch code no longer match an active branch.'
+                'The submitted SE business code and branch code no longer match an active branch.'
             );
         }
 
@@ -539,9 +539,9 @@ try {
             "Hello,\n\n" .
             "Your NexGen account registration has been approved.\n" .
             ($role === 'owner'
-                ? "Your SME business code is: {$businessCode}\n" .
+                ? "Your SE business code is: {$businessCode}\n" .
                   "Your main branch code is: {$branchCode}\n"
-                : "Your account is linked to SME code: {$businessCode}\n" .
+                : "Your account is linked to SE code: {$businessCode}\n" .
                   "Your assigned branch is: {$branchName}\n" .
                   "Your branch code is: {$branchCode}\n") .
             "You may now log in using your registered username and password.\n\n" .

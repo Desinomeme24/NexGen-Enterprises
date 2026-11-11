@@ -3,6 +3,7 @@ session_start();
 require_once("config.php");
 require_once("tenant_helper.php");
 require_once __DIR__ . '/inventory_date_helper.php';
+require_once __DIR__ . '/inventory_quantity_helper.php';
 
 
 
@@ -57,21 +58,19 @@ if ($product_id <= 0 || $expectedVersion <= 0) {
     exit();
 }
 
-// "Place Order" is its own lightweight flow: it ONLY changes on_order_level
-// and never touches stock_quantity or the stock_movements log, since no
-// physical stock has moved yet. Owner-only, since placing a PO is a
-// purchasing decision.
+// "Place Order" changes on_order_level and records an order_placed history
+// entry without changing physical stock. It remains owner-only.
 $placeOrder = $isOwner && isset($_POST['place_order']) && $_POST['place_order'] === '1';
 
 if ($placeOrder) {
-    $orderQty = max(0, (float)($_POST['on_order_add'] ?? 0));
-    $orderRemarks = trim($_POST['remarks'] ?? '');
-
-    if ($orderQty <= 0) {
-        $_SESSION['inventory_error'] = "Order quantity must be greater than 0.";
+    try {
+        $orderQty = nxValidateWholeQuantity($_POST['on_order_add'] ?? null, 'Order quantity', false);
+    } catch (InvalidArgumentException $exception) {
+        $_SESSION['inventory_error'] = $exception->getMessage();
         header("Location: /NexGen/CODE/PHP/inventory_management.php");
         exit();
     }
+    $orderRemarks = trim($_POST['remarks'] ?? '');
 
     try {
         $conn->begin_transaction();
@@ -170,7 +169,13 @@ if ($placeOrder) {
 $receiveShipment = isset($_POST['receive_shipment']) && $_POST['receive_shipment'] === '1';
 
 $movement_type = $receiveShipment ? 'stock_in' : trim($_POST['movement_type'] ?? '');
-$quantity = (float)($_POST['quantity'] ?? 0);
+try {
+    $quantity = nxValidateWholeQuantity($_POST['quantity'] ?? null, 'Quantity', false);
+} catch (InvalidArgumentException $exception) {
+    $_SESSION['inventory_error'] = $exception->getMessage();
+    header("Location: /NexGen/CODE/PHP/inventory_management.php");
+    exit();
+}
 $remarks = trim($_POST['remarks'] ?? '');
 $manufacturingDate = null;
 $expiryDate = null;
@@ -194,9 +199,24 @@ if ($movement_type === 'stock_in') {
     }
 }
 
-// Placing a NEW purchase order is handled above (place_order branch), so by
-// the time we get here, on_order_level can only move via deduction below.
-$on_order_add = 0;
+if (!$isOwner && array_key_exists('on_order_add', $_POST)) {
+    $_SESSION['inventory_error'] = 'Only the business owner can add on-order quantity.';
+    header("Location: /NexGen/CODE/PHP/inventory_management.php");
+    exit();
+}
+try {
+    $onOrderAddInput = $_POST['on_order_add'] ?? 0;
+    if ($onOrderAddInput === '') {
+        $onOrderAddInput = 0;
+    }
+    $on_order_add = $isOwner
+        ? nxValidateWholeQuantity($onOrderAddInput, 'On-order quantity')
+        : 0;
+} catch (InvalidArgumentException $exception) {
+    $_SESSION['inventory_error'] = $exception->getMessage();
+    header("Location: /NexGen/CODE/PHP/inventory_management.php");
+    exit();
+}
 
 // Deducting from on-order (i.e. a shipment arrived) is routine receiving
 // work, not a purchasing decision, so any logged-in user can do it.
@@ -204,12 +224,6 @@ $deduct_from_on_order = $receiveShipment || isset($_POST['deduct_from_on_order']
 
 if (!in_array($movement_type, ['stock_in', 'stock_out'], true)) {
     $_SESSION['inventory_error'] = "Invalid movement type.";
-    header("Location: /NexGen/CODE/PHP/inventory_management.php");
-    exit();
-}
-
-if ($quantity <= 0) {
-    $_SESSION['inventory_error'] = "Quantity must be greater than 0.";
     header("Location: /NexGen/CODE/PHP/inventory_management.php");
     exit();
 }
@@ -246,7 +260,7 @@ try {
     $currentOnOrder = (float)($product['on_order_level'] ?? 0);
     $productName = $product['product_name'] ?? 'Product';
 
-    $newOnOrder = $currentOnOrder;
+    $newOnOrder = $currentOnOrder + $on_order_add;
 
     if ($isBatchTracked) {
         // Stock lives in product_batches for this business type; the
@@ -254,8 +268,6 @@ try {
         // automatically, so stock itself is never written here directly.
         if ($movement_type === 'stock_in') {
             $batchNumber = nxGenerateBatchNumber();
-            $newOnOrder += $on_order_add;
-
             if ($deduct_from_on_order) {
                 $deductQty = min($quantity, $newOnOrder);
                 $newOnOrder -= $deductQty;
@@ -306,8 +318,6 @@ try {
 
         if ($movement_type === 'stock_in') {
             $newStock += $quantity;
-            $newOnOrder += $on_order_add;
-
             if ($deduct_from_on_order) {
                 $deductQty = min($quantity, $newOnOrder);
                 $newOnOrder -= $deductQty;
@@ -326,7 +336,6 @@ try {
             }
 
             $newStock -= $quantity;
-            $newOnOrder += $on_order_add;
         }
 
         if ($movement_type === 'stock_in') {
@@ -393,12 +402,37 @@ try {
 
     $movementStmt->close();
 
+    if ($on_order_add > 0) {
+        $orderHistoryStmt = $conn->prepare("
+            INSERT INTO stock_movements (business_id, product_id, movement_type, quantity, remarks, created_by, created_at)
+            VALUES (?, ?, 'order_placed', ?, ?, ?, NOW())
+        ");
+        if (!$orderHistoryStmt) {
+            throw new Exception("Failed to prepare purchase order history query.");
+        }
+        $orderHistoryStmt->bind_param(
+            "iidsi",
+            $businessId,
+            $product_id,
+            $on_order_add,
+            $remarks,
+            $user_id
+        );
+        if (!$orderHistoryStmt->execute()) {
+            throw new Exception("Failed to save purchase order history.");
+        }
+        $orderHistoryStmt->close();
+    }
+
     $conn->commit();
 
     if ($receiveShipment) {
         $_SESSION['inventory_success'] = "Shipment received: " . formatQty($quantity) . " unit(s) added to stock for {$productName}.";
     } else {
         $_SESSION['inventory_success'] = "Stock movement saved successfully for {$productName}.";
+    }
+    if ($on_order_add > 0) {
+        $_SESSION['inventory_success'] .= " " . formatQty($on_order_add) . " unit(s) added to on-order.";
     }
 
 } catch (Exception $e) {

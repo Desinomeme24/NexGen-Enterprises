@@ -3,6 +3,7 @@ session_start();
 require_once("config.php");
 require_once("tenant_helper.php");
 require_once __DIR__ . '/inventory_date_helper.php';
+require_once __DIR__ . '/inventory_quantity_helper.php';
 
 if (!isset($_SESSION['user_id'])) { header("Location: /NexGen/CODE/PHP/index.php"); exit(); }
 if ((int)($_SESSION['can_inventory'] ?? 0) !== 1) { $_SESSION['inventory_error']='Unauthorized access.'; header("Location: /NexGen/CODE/PHP/dashboard.php"); exit(); }
@@ -14,9 +15,11 @@ $isBatchTracked=nxIsBatchTrackedType($businessTypeRow['business_type']??null);
 $requiresExpiryDate=nxRequiresExpiryDate($businessTypeRow['business_type']??null,(int)($businessTypeRow['expiry_date_required']??0)===1);
 $product_code=trim($_POST['product_code']??''); $product_name=trim($_POST['product_name']??''); $category_id=(int)($_POST['category_id']??0);
 $brand=trim($_POST['brand']??''); $unit=trim($_POST['unit']??''); $cost_price=(float)($_POST['cost_price']??0); $selling_price=(float)($_POST['selling_price']??0);
-$stock_quantity=(float)($_POST['stock_quantity']??0); $reorder_level=$isOwner?(float)($_POST['reorder_level']??5):5; $on_order_level=$isOwner?(float)($_POST['on_order_level']??0):0;
 $description=trim($_POST['description']??''); $is_active=(int)($_POST['is_active']??1);
 try {
+ $stock_quantity=nxValidateWholeQuantity($_POST['stock_quantity']??null,'Stock quantity');
+ $reorder_level=$isOwner?nxValidateWholeQuantity($_POST['reorder_level']??null,'Reorder level'):5;
+ $on_order_level=$isOwner?nxValidateWholeQuantity($_POST['on_order_level']??null,'On-order quantity'):0;
  $manufacturing_date=nxValidateManufacturingDate($_POST['manufacturing_date']??'');
  if($manufacturing_date===null)throw new InvalidArgumentException('Manufacturing date is required for every product.');
  $expiry_date=nxValidateExpiryDate($_POST['expiry_date']??'',$requiresExpiryDate);
@@ -27,7 +30,7 @@ if ($expiry_date!==null && $manufacturing_date>$expiry_date) { $_SESSION['invent
 $batch_number=$isBatchTracked?nxGenerateBatchNumber():'';
 if ($product_code===''||$product_name===''||$category_id<=0||$unit==='') { $_SESSION['inventory_error']='Please fill in all required fields.'; header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit(); }
 if ($isBatchTracked && $stock_quantity<=0) { $_SESSION['inventory_error']='A positive initial quantity is required for this business type.'; header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit(); }
-if (min($cost_price,$selling_price,$stock_quantity,$reorder_level,$on_order_level)<0) { $_SESSION['inventory_error']='Numeric values must not be negative.'; header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit(); }
+if (min($cost_price,$selling_price)<0) { $_SESSION['inventory_error']='Prices must not be negative.'; header("Location: /NexGen/CODE/PHP/inventory_management.php"); exit(); }
 $cat=$conn->prepare('SELECT id FROM categories WHERE id=? AND business_id=?'); $cat->bind_param('ii',$category_id,$businessId); $cat->execute(); $catOk=$cat->get_result()->fetch_assoc(); $cat->close();
 if(!$catOk){$_SESSION['inventory_error']='Invalid category for this business.';header("Location: /NexGen/CODE/PHP/inventory_management.php");exit();}
 $imagePath='';

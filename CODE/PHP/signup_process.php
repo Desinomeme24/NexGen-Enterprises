@@ -260,7 +260,7 @@ if ($requestedRole === 'owner') {
         || !signupLengthBetween($businessAddress, 5, 500)
         || signupHasControlCharacters($businessAddress)
     ) {
-        signupRedirect('Please provide complete and valid SME business information.');
+        signupRedirect('Please provide complete and valid SE business information.');
     }
 
     // A new owner's business is created only after administrator approval.
@@ -299,14 +299,14 @@ if ($requestedRole === 'owner') {
             if ($sameName && $sameType && $sameAddress) {
                 $possibleDuplicate = 1;
                 $duplicateBusinessId = (int)$existing['id'];
-                $duplicateReason = 'Exact business name, SME type, and branch address match. Review the existing business/branch before approval.';
+                $duplicateReason = 'Exact business name, SE type, and branch address match. Review the existing business/branch before approval.';
                 break;
             }
 
             if ($sameName && $sameType && $possibleDuplicate === 0) {
                 $possibleDuplicate = 1;
                 $duplicateBusinessId = (int)$existing['id'];
-                $duplicateReason = 'Same business name and SME type found at a different address. Verify whether this should be a branch of the existing business.';
+                $duplicateReason = 'Same business name and SE type found at a different address. Verify whether this should be a branch of the existing business.';
             }
         }
         $duplicateStmt->close();
@@ -319,7 +319,7 @@ if ($requestedRole === 'owner') {
         || !preg_match('/^[A-Z0-9-]{3,20}$/', $branchCode)
         || !preg_match('/^[A-Za-z0-9._-]{1,50}$/', $employeeNo)
     ) {
-        signupRedirect('Please provide valid SME employment information.');
+        signupRedirect('Please provide valid SE employment information.');
     }
 
     $business = null;
@@ -335,7 +335,7 @@ if ($requestedRole === 'owner') {
              LIMIT 1"
         );
         if (!$businessStmt) {
-            throw new RuntimeException('Unable to prepare the SME branch check.');
+            throw new RuntimeException('Unable to prepare the SE branch check.');
         }
 
         $businessStmt->bind_param('ss', $businessCode, $branchCode);
@@ -347,7 +347,7 @@ if ($requestedRole === 'owner') {
     }
 
     if (!$business) {
-        signupRedirect('The employment information could not be verified. Please confirm the codes with the SME owner.');
+        signupRedirect('The employment information could not be verified. Please confirm the codes with the SE owner.');
     }
 
     $businessId = (int)$business['id'];
@@ -373,7 +373,7 @@ try {
             || (int)$_FILES['business_permit']['error'] !== UPLOAD_ERR_OK
         )
     ) {
-        throw new NxDocumentUploadRejected('A business permit is required for SME Owners.');
+        throw new NxDocumentUploadRejected('A business permit is required for SE Owners.');
     }
     if (
         $requestedRole !== 'owner'

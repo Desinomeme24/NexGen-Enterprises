@@ -76,7 +76,7 @@ try {
         throw new RuntimeException('Only pending workspace requests can be reviewed.');
     }
     if ($request['requester_role'] !== 'owner' || $request['account_status'] !== 'active') {
-        throw new RuntimeException('The requester is no longer an active SME owner.');
+        throw new RuntimeException('The requester is no longer an active SE owner.');
     }
 
     $reviewedAt = date('Y-m-d H:i:s');

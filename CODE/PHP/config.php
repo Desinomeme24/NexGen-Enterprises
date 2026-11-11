@@ -347,7 +347,7 @@ if (!function_exists('formatQty')) {
     /* Formats a decimal(12,3) quantity for display: trims trailing zeros so a
        whole number like 10.000 shows as "10" while a fractional quantity like
        2.500 shows as "2.5" - keeps piece-counted products (groceries, school
-       supplies) looking like plain integers without needing per-SME-type
+       supplies) looking like plain integers without needing per-SE-type
        display logic. */
     function formatQty($value): string
     {
@@ -359,10 +359,10 @@ if (!function_exists('formatQty')) {
 }
 
 /* =========================================================================
-   ADAPTIVE SME-TYPE / BATCH INVENTORY HELPERS
+   ADAPTIVE SE-TYPE / BATCH INVENTORY HELPERS
    ========================================================================= */
 if (!function_exists('nxIsBatchTrackedType')) {
-    /* Which SME types manage stock as per-batch/per-expiry lots (product_batches)
+    /* Which SE types manage stock as per-batch/per-expiry lots (product_batches)
        instead of a single flat stock_quantity number. */
     function nxIsBatchTrackedType(?string $businessType): bool
     {
@@ -654,7 +654,7 @@ if (!function_exists('nxConsumeSecurityRateLimit')) {
 
 if (!function_exists('nxMaskUsername')) {
     /* Masks a username for display when a forgot-password lookup matches more
-       than one account under the same email (e.g. an SME owner's branch
+       than one account under the same email (e.g. an SE owner's branch
        accounts) - shows enough to be recognizable without exposing the full
        username to anyone who isn't already looking at their own inbox. */
     function nxMaskUsername(string $username): string

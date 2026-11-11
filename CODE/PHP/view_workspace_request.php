@@ -298,7 +298,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                     <div class="request-summary-item"><label>Request Type</label><div class="value"><?php echo $isBranchRequest ? 'New Branch' : 'New Business'; ?></div></div>
                     <div class="request-summary-item"><label>Status</label><div class="value"><span class="badge badge-<?php echo e($currentStatus); ?>"><?php echo e(ucfirst($currentStatus)); ?></span></div></div>
                     <div class="request-summary-item"><label>Business Name</label><div class="value"><?php echo e($request['business_name']); ?></div></div>
-                    <div class="request-summary-item"><label>SME Type</label><div class="value"><?php echo e(nxBusinessTypeLabel($request['business_type'] ?? '', ($request['business_type_other'] ?? '') ?: ($request['parent_business_type_other'] ?? ''))); ?></div></div>
+                    <div class="request-summary-item"><label>SE Type</label><div class="value"><?php echo e(nxBusinessTypeLabel($request['business_type'] ?? '', ($request['business_type_other'] ?? '') ?: ($request['parent_business_type_other'] ?? ''))); ?></div></div>
                     <div class="request-summary-item"><label>Branch Name</label><div class="value"><?php echo e($request['branch_name']); ?></div></div>
                     <div class="request-summary-item"><label><?php echo $isBranchRequest ? 'Branch Address' : 'Business/Branch Address'; ?></label><div class="value"><?php echo e($request['business_address']); ?></div></div>
                     <div class="request-summary-item full">

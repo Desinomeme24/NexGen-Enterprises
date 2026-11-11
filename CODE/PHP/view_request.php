@@ -934,7 +934,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                     <div class="kv-item"><label>Business Type</label><div class="value"><?php echo e(nxBusinessTypeLabel($request['business_type'] ?? '', $request['business_type_other'] ?? '')); ?></div></div>
                     <div class="kv-item"><label>Business Address</label><div class="value"><?php echo e($request['business_address'] ?? ''); ?></div></div>
                     <div class="kv-item">
-                        <label>SME Business Code</label>
+                        <label>SE Business Code</label>
                         <div class="value"><?php echo !empty($request['business_code']) ? e($request['business_code']) : '<em>Not yet assigned (generated on approval)</em>'; ?></div>
                     </div>
                     <?php if ($request['requested_role'] === 'employee'): ?>
@@ -1082,7 +1082,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                                         <input class="correction-input" id="correctionEmployeeNo" name="employee_no" type="text" maxlength="50" value="<?php echo e($request['employee_no'] ?? ''); ?>" data-correction-required>
                                     </div>
                                     <div class="correction-field">
-                                        <label for="correctionBusinessCode">SME Business Code</label>
+                                        <label for="correctionBusinessCode">SE Business Code</label>
                                         <input class="correction-input" id="correctionBusinessCode" name="business_code" type="text" maxlength="20" value="<?php echo e($submittedBusinessCode); ?>" data-correction-required>
                                     </div>
                                     <div class="correction-field">

@@ -70,7 +70,7 @@ unset(
 |--------------------------------------------------------------------------
 | FIND ALL ACCOUNTS UNDER THIS EMAIL
 |--------------------------------------------------------------------------
-| An SME owner can have several branch accounts registered under one
+| An SE owner can have several branch accounts registered under one
 | Gmail, so this can legitimately match more than one row.
 */
 

@@ -43,7 +43,7 @@ $arEnabled = nxArEnabled($conn, $user_id);
 $activeWorkspace = nxInitializeUserWorkspace($conn);
 $businessId = (int)($activeWorkspace['business_id'] ?? 0);
 if ($businessId <= 0) {
-    echo json_encode(['success' => false, 'message' => 'Your account is not connected to an SME business.']);
+    echo json_encode(['success' => false, 'message' => 'Your account is not connected to an SE business.']);
     exit();
 }
 

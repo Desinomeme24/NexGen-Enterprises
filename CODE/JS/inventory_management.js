@@ -43,6 +43,10 @@ const batchesModalBody = document.getElementById("batchesModalBody");
 const batchesProductName = document.getElementById("batchesProductName");
 const batchDropForm = document.getElementById("batchDropForm");
 const batchDropId = document.getElementById("batchDropId");
+const editBatchDatesModal = document.getElementById("editBatchDatesModal");
+const closeEditBatchDatesModal = document.getElementById("closeEditBatchDatesModal");
+const cancelEditBatchDates = document.getElementById("cancelEditBatchDates");
+const editBatchDatesNumber = document.getElementById("editBatchDatesNumber");
 
 const dropBatchConfirmOverlay = document.getElementById(
   "dropBatchConfirmOverlay",
@@ -122,6 +126,13 @@ function closeModal(modal) {
   if (!modal) {return;}
   modal.classList.remove("show");
   document.body.style.overflow = "";
+}
+
+function closeEditBatchDateModal() {
+  if (!editBatchDatesModal) {return;}
+  editBatchDatesModal.classList.remove("show");
+  document.body.style.overflow =
+    batchesModal && batchesModal.classList.contains("show") ? "hidden" : "";
 }
 
 /* PRODUCT WIZARDS (Add + Edit share the same step markup/classes) */
@@ -615,6 +626,14 @@ if (closeBatchesModal && batchesModal) {
   });
 }
 
+if (closeEditBatchDatesModal && editBatchDatesModal) {
+  closeEditBatchDatesModal.addEventListener("click", closeEditBatchDateModal);
+}
+
+if (cancelEditBatchDates && editBatchDatesModal) {
+  cancelEditBatchDates.addEventListener("click", closeEditBatchDateModal);
+}
+
 /* PRODUCT BATCHES: view a product's individual batches, drop expired ones */
 function escapeHtml(value) {
   return String(value === null || value === undefined ? "" : value).replace(
@@ -661,6 +680,9 @@ function renderBatchesTable(batches, productVersion) {
         : "Not recorded";
 
       const safeBatchNumber = escapeHtml(batch.batch_number);
+      const editCell = batch.can_edit
+        ? `<button type="button" class="batch-edit-dates-btn" data-edit-batch-id="${batch.id}" data-edit-batch-number="${safeBatchNumber}" data-manufacturing-date="${escapeHtml(batch.manufacturing_date || "")}" data-expiry-date="${escapeHtml(batch.expiry_date || "")}" data-version="${productVersion}">Edit Dates</button>`
+        : "";
       const dropCell = batch.can_drop
         ? `<button type="button" class="batch-drop-btn" data-drop-batch-id="${batch.id}" data-drop-batch-number="${safeBatchNumber}" data-version="${productVersion}">Drop</button>`
         : "";
@@ -671,7 +693,7 @@ function renderBatchesTable(batches, productVersion) {
         <td>${manufacturingText}</td>
         <td>${expiryText}</td>
         <td><span class="batch-status-pill ${statusClass}">${statusLabel}</span></td>
-        <td>${dropCell}</td>
+        <td>${editCell} ${dropCell}</td>
       </tr>`;
     })
     .join("");
@@ -710,7 +732,7 @@ function openBatchesModal(productId, productName, productVersion) {
       console.error("Failed to load batches:", error);
       if (batchesModalBody) {
         batchesModalBody.innerHTML =
-          '<tr><td colspan="5" class="batches-empty-state">Failed to load batches. Please try again.</td></tr>';
+          '<tr><td colspan="6" class="batches-empty-state">Failed to load batches. Please try again.</td></tr>';
       }
     });
 }
@@ -743,6 +765,14 @@ if (dropBatchConfirmOverlay) {
 document.addEventListener("keydown", function (e) {
   if (
     e.key === "Escape" &&
+    editBatchDatesModal &&
+    editBatchDatesModal.classList.contains("show")
+  ) {
+    closeEditBatchDateModal();
+  }
+
+  if (
+    e.key === "Escape" &&
     dropBatchConfirmOverlay &&
     dropBatchConfirmOverlay.classList.contains("show")
   ) {
@@ -769,12 +799,17 @@ if (dropBatchConfirmBtn) {
   receiveShipmentModal,
   placeOrderModal,
   batchesModal,
+  editBatchDatesModal,
 ].forEach((modal) => {
   if (!modal) {return;}
 
   modal.addEventListener("click", (event) => {
     if (event.target === modal) {
-      closeModal(modal);
+      if (modal === editBatchDatesModal) {
+        closeEditBatchDateModal();
+      } else {
+        closeModal(modal);
+      }
       if (modal === productModal && addProductWizard) {
         addProductWizard.reset();
       } else if (modal === editProductModal && editProductWizard) {
@@ -987,6 +1022,19 @@ document.addEventListener("click", (event) => {
       dropBatchButton.dataset.dropBatchNumber || "this batch",
       dropBatchButton.dataset.version,
     );
+    return;
+  }
+
+  const editBatchDatesButton = event.target.closest(".batch-edit-dates-btn");
+  if (editBatchDatesButton) {
+    setValue("edit_batch_id", editBatchDatesButton.dataset.editBatchId);
+    setValue("edit_batch_version", editBatchDatesButton.dataset.version);
+    setValue("edit_batch_manufacturing_date", editBatchDatesButton.dataset.manufacturingDate);
+    setValue("edit_batch_expiry_date", editBatchDatesButton.dataset.expiryDate);
+    if (editBatchDatesNumber) {
+      editBatchDatesNumber.textContent = editBatchDatesButton.dataset.editBatchNumber || "Batch";
+    }
+    openModal(editBatchDatesModal);
     return;
   }
 

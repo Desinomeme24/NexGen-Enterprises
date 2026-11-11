@@ -170,7 +170,7 @@ if (isset($_SESSION['success'])) {
 }
 
 if (!$hasActiveWorkspace && $popupMessage === '') {
-    $popupMessage = 'Your account is not connected to an active SME business branch. Please contact the administrator.';
+    $popupMessage = 'Your account is not connected to an active SE business branch. Please contact the administrator.';
     $popupType = 'error';
 }
 
@@ -361,7 +361,7 @@ $pageSubtitle = $isOwner
             </div>
 
             <div class="why-outline-text why-reveal why-reveal-up">WHY US</div>
-            <div class="why-highlight-box why-reveal why-reveal-up">WHY NEXGEN FOR SMEs?</div>
+            <div class="why-highlight-box why-reveal why-reveal-up">WHY NEXGEN FOR SEs?</div>
 
             <div class="why-content">
                 <div class="why-left why-reveal why-reveal-left">
@@ -371,7 +371,7 @@ $pageSubtitle = $isOwner
                 <div class="why-right why-reveal why-reveal-right">
                     <div class="why-icon-text">
                         <div class="why-description">
-                            <p><strong>NexGen</strong> is designed to provide Small and Medium Enterprises (SMEs) with a secure, efficient, and intelligent platform for managing inventory, sales transactions, and business operations.</p>
+                            <p><strong>NexGen</strong> is designed to provide Small Enterprises with a secure, efficient, and intelligent platform for managing inventory, sales transactions, and business operations.</p>
                             <p>We prioritize accuracy, usability, reliability, and real-time access to business information to help enterprises operate more effectively.</p>
                             <p class="why-closing">Choose NexGen — where smarter business management meets intelligent technology.</p>
                         </div>
@@ -382,7 +382,7 @@ $pageSubtitle = $isOwner
                         </button>
 
                         <div class="why-extra" id="whyExtra">
-                            <p>Founded to support growing businesses, NexGen brings together inventory management, sales recording, sales analytics, accounts receivable monitoring, and an AI-powered chatbot assistant into one centralized web-based platform.</p>
+                            <p>Founded to support growing businesses, NexGen brings together inventory management, sales recording, sales analytics, accounts receivable monitoring, and a chatbot assistant into one centralized web-based platform.</p>
                             <p>Our system reduces manual work, improves data accuracy, streamlines daily operations, and provides real-time business insights, allowing business owners to focus on making informed decisions and achieving sustainable growth.</p>
                         </div>
                     </div>

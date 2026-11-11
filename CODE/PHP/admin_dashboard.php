@@ -195,7 +195,7 @@ try {
                 'id' => (int)$request['id'],
                 'source' => 'account',
                 'source_label' => 'Account Request',
-                'request_label' => 'SME Owner',
+                'request_label' => 'SE Owner',
                 'requester_name' => (string)$request['full_name'],
                 'username' => (string)$request['username'],
                 'workspace_name' => (string)($request['business_name'] ?? ''),
@@ -1429,7 +1429,7 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
                     <div class="dashboard-activity-copy">
                         <strong><?php echo $recentlyActiveUsers; ?></strong>
                         <span>recently active users</span>
-                        <small>of <?php echo $managedUsers; ?> managed SME account(s)</small>
+                        <small>of <?php echo $managedUsers; ?> managed SE account(s)</small>
                     </div>
                 </div>
             </article>
@@ -1497,7 +1497,7 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
                 <div>
                     <h2>Review Queue</h2>
                     <p style="margin:5px 0 0; color:var(--muted, #aab4cf); font-size:0.84rem;">
-                        The newest SME account and workspace requests awaiting BPLO review.
+                        The newest SE account and workspace requests awaiting BPLO review.
                     </p>
                 </div>
                 <a class="btn btn-gold" href="pending_requests.php">

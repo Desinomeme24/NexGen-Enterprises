@@ -115,6 +115,7 @@ $csrfStock = generateCsrfToken('inventory_stock');
 $csrfCategory = generateCsrfToken('inventory_category');
 $csrfDeleteRestore = generateCsrfToken('inventory_delete_restore');
 $csrfBatchDrop = generateCsrfToken('inventory_batch_drop');
+$csrfBatchUpdate = generateCsrfToken('inventory_batch_update');
 $displayName = $_SESSION['username'] ?? 'Client';
 $fullName = $_SESSION['full_name'] ?? 'Client';
 $userId = (int)$_SESSION['user_id'];
@@ -1099,9 +1100,9 @@ if ($currentStatusForTab === '') {
                                                     data-unit="<?php echo htmlspecialchars($product['unit']); ?>"
                                                     data-cost="<?php echo htmlspecialchars($product['cost_price']); ?>"
                                                     data-selling="<?php echo htmlspecialchars($product['selling_price']); ?>"
-                                                    data-stock="<?php echo htmlspecialchars($product['stock_quantity']); ?>"
-                                                    data-reorder="<?php echo htmlspecialchars($product['reorder_level']); ?>"
-                                                    data-onorder="<?php echo htmlspecialchars($product['on_order_level'] ?? 0); ?>"
+                                                    data-stock="<?php echo htmlspecialchars(formatQty($product['stock_quantity'])); ?>"
+                                                    data-reorder="<?php echo htmlspecialchars(formatQty($product['reorder_level'])); ?>"
+                                                    data-onorder="<?php echo htmlspecialchars(formatQty($product['on_order_level'] ?? 0)); ?>"
                                                     data-expiry="<?php echo htmlspecialchars($product['expiry_date'] ?? ''); ?>"
                                                     data-manufacturing="<?php echo htmlspecialchars($product['manufacturing_date'] ?? ''); ?>"
                                                     data-description="<?php echo htmlspecialchars($product['description'] ?? ''); ?>"
@@ -1118,7 +1119,7 @@ if ($currentStatusForTab === '') {
                                                     type="button"
                                                     data-stock-id="<?php echo (int)$product['id']; ?>"
                                                     data-stock-name="<?php echo htmlspecialchars($product['product_name']); ?>"
-                                                    data-current-onorder="<?php echo htmlspecialchars($product['on_order_level'] ?? 0); ?>"
+                                                    data-current-onorder="<?php echo htmlspecialchars(formatQty($product['on_order_level'] ?? 0)); ?>"
                                                     data-version="<?php echo (int)$product['version']; ?>"
                                                 >
                                                     <i class="bi bi-arrow-left-right"></i>
@@ -1144,7 +1145,7 @@ if ($currentStatusForTab === '') {
                                                         type="button"
                                                         data-order-id="<?php echo (int)$product['id']; ?>"
                                                         data-order-name="<?php echo htmlspecialchars($product['product_name']); ?>"
-                                                        data-order-current="<?php echo htmlspecialchars($product['on_order_level'] ?? 0); ?>"
+                                                        data-order-current="<?php echo htmlspecialchars(formatQty($product['on_order_level'] ?? 0)); ?>"
                                                         data-version="<?php echo (int)$product['version']; ?>"
                                                     >
                                                         <i class="bi bi-cart-plus"></i>
@@ -1158,7 +1159,7 @@ if ($currentStatusForTab === '') {
                                                         type="button"
                                                         data-receive-id="<?php echo (int)$product['id']; ?>"
                                                         data-receive-name="<?php echo htmlspecialchars($product['product_name']); ?>"
-                                                        data-receive-onorder="<?php echo htmlspecialchars($product['on_order_level'] ?? 0); ?>"
+                                                        data-receive-onorder="<?php echo htmlspecialchars(formatQty($product['on_order_level'] ?? 0)); ?>"
                                                         data-version="<?php echo (int)$product['version']; ?>"
                                                     >
                                                         <i class="bi bi-box-seam"></i>
@@ -1318,6 +1319,36 @@ if ($currentStatusForTab === '') {
         </div>
     </div>
 
+    <div class="modal-overlay" id="editBatchDatesModal">
+        <div class="stock-modal">
+            <div class="modal-header">
+                <h2>Edit Dates &mdash; <span id="editBatchDatesNumber">Batch</span></h2>
+                <button type="button" class="close-modal-btn" id="closeEditBatchDatesModal" aria-label="Close Edit Batch Dates">&times;</button>
+            </div>
+
+            <form action="/NexGen/CODE/PHP/inventory_batch_update.php" method="POST" class="stock-form" id="editBatchDatesForm">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfBatchUpdate); ?>">
+                <input type="hidden" name="batch_id" id="edit_batch_id">
+                <input type="hidden" name="version" id="edit_batch_version">
+
+                <div class="form-group">
+                    <label>Manufacturing Date <span class="field-required">(required)</span></label>
+                    <input type="date" name="manufacturing_date" id="edit_batch_manufacturing_date" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Expiry Date <span class="<?php echo $requiresExpiryDate ? 'field-required' : 'field-optional'; ?>"><?php echo $requiresExpiryDate ? '(required)' : '(optional)'; ?></span></label>
+                    <input type="date" name="expiry_date" id="edit_batch_expiry_date" <?php echo $requiresExpiryDate ? 'required' : ''; ?>>
+                </div>
+
+                <div class="form-group form-actions full-width">
+                    <button type="button" class="wizard-back-btn is-visible" id="cancelEditBatchDates">Cancel</button>
+                    <button type="submit" class="save-btn">Save Dates</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <form method="POST" action="/NexGen/CODE/PHP/inventory_batch_drop.php" id="batchDropForm" class="visually-hidden-form">
         <input type="hidden" name="batch_id" id="batchDropId" value="">
         <input type="hidden" name="version" id="batchDropVersion" value="">
@@ -1440,7 +1471,7 @@ if ($currentStatusForTab === '') {
                             </div>
                             <div class="form-group">
                                 <label>Initial Quantity</label>
-                                <input type="number" min="0.001" step="0.001" name="stock_quantity" required>
+                                <input type="number" min="1" step="1" inputmode="numeric" name="stock_quantity" required>
                             </div>
                             <div class="form-group">
                                 <label>Manufacturing Date <span class="field-required">(required)</span></label>
@@ -1453,7 +1484,7 @@ if ($currentStatusForTab === '') {
                         <?php else: ?>
                             <div class="form-group">
                                 <label>Stock Quantity</label>
-                                <input type="number" min="0" step="0.001" name="stock_quantity" required>
+                                <input type="number" min="0" step="1" inputmode="numeric" name="stock_quantity" required>
                             </div>
 
                             <div class="form-group">
@@ -1470,12 +1501,12 @@ if ($currentStatusForTab === '') {
                         <?php if ($isOwner): ?>
                             <div class="form-group">
                                 <label>Reorder Level</label>
-                                <input type="number" min="0" step="0.001" name="reorder_level" value="5" required>
+                                <input type="number" min="0" step="1" inputmode="numeric" name="reorder_level" value="5" required>
                             </div>
 
                             <div class="form-group">
                                 <label>On Order Level</label>
-                                <input type="number" min="0" step="0.001" name="on_order_level" value="0" required>
+                                <input type="number" min="0" step="1" inputmode="numeric" name="on_order_level" value="0" required>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -1618,15 +1649,15 @@ if ($currentStatusForTab === '') {
                         <?php if ($isBatchTracked): ?>
                             <div class="form-group">
                                 <label>Current Stock (all batches)</label>
-                                <input type="number" id="edit_stock_quantity" readonly>
+                                <input type="number" id="edit_stock_quantity" step="1" readonly>
                             </div>
                             <div class="form-group full-width">
-                                <label class="field-help">This business tracks stock per batch. Use Adjust Stock on the product's menu to add a new batch or record a Stock Out - stock quantity here is read-only.</label>
+                                <label class="field-help">This business tracks stock per batch. Use Adjust Stock on the product's menu to add a new batch or record a Stock Out, and View Batches to edit dates for an individual batch. Stock quantity here is read-only.</label>
                             </div>
                         <?php else: ?>
                             <div class="form-group">
                                 <label>Stock Quantity</label>
-                                <input type="number" min="0" step="0.001" name="stock_quantity" id="edit_stock_quantity" required>
+                                <input type="number" min="0" step="1" inputmode="numeric" name="stock_quantity" id="edit_stock_quantity" required>
                             </div>
 
                             <div class="form-group">
@@ -1643,12 +1674,12 @@ if ($currentStatusForTab === '') {
                         <?php if ($isOwner): ?>
                             <div class="form-group">
                                 <label>Reorder Level</label>
-                                <input type="number" min="0" step="0.001" name="reorder_level" id="edit_reorder_level" required>
+                                <input type="number" min="0" step="1" inputmode="numeric" name="reorder_level" id="edit_reorder_level" required>
                             </div>
 
                             <div class="form-group">
                                 <label>On Order Level</label>
-                                <input type="number" min="0" step="0.001" name="on_order_level" id="edit_on_order_level" required>
+                                <input type="number" min="0" step="1" inputmode="numeric" name="on_order_level" id="edit_on_order_level" required>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -1719,7 +1750,7 @@ if ($currentStatusForTab === '') {
 
                 <div class="form-group">
                     <label>Quantity</label>
-                    <input type="number" name="quantity" min="0.001" step="0.001" required>
+                    <input type="number" name="quantity" min="1" step="1" inputmode="numeric" required>
                 </div>
 
                 <?php if ($isBatchTracked): ?>
@@ -1738,8 +1769,15 @@ if ($currentStatusForTab === '') {
 
                 <div class="form-group">
                     <label>Current On Order</label>
-                    <input type="number" id="stock_current_on_order" readonly>
+                    <input type="number" id="stock_current_on_order" step="1" readonly>
                 </div>
+
+                <?php if ($isOwner): ?>
+                <div class="form-group" id="onOrderOwnerFields">
+                    <label>Add to On Order</label>
+                    <input type="number" name="on_order_add" id="on_order_add" min="0" step="1" inputmode="numeric" value="0">
+                </div>
+                <?php endif; ?>
 
                 <div class="form-group full-width" id="deductOnOrderWrap">
                     <label class="checkbox-row">
@@ -1781,12 +1819,12 @@ if ($currentStatusForTab === '') {
 
                 <div class="form-group">
                     <label>Current On Order</label>
-                    <input type="number" id="order_current_on_order" readonly>
+                    <input type="number" id="order_current_on_order" step="1" readonly>
                 </div>
 
                 <div class="form-group">
                     <label>Quantity to Order</label>
-                    <input type="number" name="on_order_add" id="order_quantity" min="0.001" step="0.001" required>
+                    <input type="number" name="on_order_add" id="order_quantity" min="1" step="1" inputmode="numeric" required>
                 </div>
 
                 <div class="form-group full-width">
@@ -1824,12 +1862,12 @@ if ($currentStatusForTab === '') {
 
                 <div class="form-group">
                     <label>Expected (On Order)</label>
-                    <input type="number" id="receive_expected_qty" readonly>
+                    <input type="number" id="receive_expected_qty" step="1" readonly>
                 </div>
 
                 <div class="form-group">
                     <label>Quantity Received</label>
-                    <input type="number" name="quantity" id="receive_quantity" min="0.001" step="0.001" required>
+                    <input type="number" name="quantity" id="receive_quantity" min="1" step="1" inputmode="numeric" required>
                 </div>
 
                 <div class="form-group">

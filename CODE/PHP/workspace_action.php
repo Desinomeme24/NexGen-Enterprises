@@ -106,7 +106,7 @@ try {
     }
 
     if ($role !== 'owner') {
-        throw new RuntimeException('Only an SME owner can request another business or branch.');
+        throw new RuntimeException('Only an SE owner can request another business or branch.');
     }
 
     if (!nxWorkspaceRequestSchemaReady($conn)) {
@@ -160,10 +160,10 @@ try {
         $separateOperations = isset($_POST['separate_operations']) ? 1 : 0;
 
         if ($businessName === '' || $businessType === '' || $businessAddress === '') {
-            throw new RuntimeException('Business name, SME type, and business address are required.');
+            throw new RuntimeException('Business name, SE type, and business address are required.');
         }
         if (!in_array($businessType, $allowedBusinessTypes, true)) {
-            throw new RuntimeException('Please select a valid SME type.');
+            throw new RuntimeException('Please select a valid SE type.');
         }
         if (
             ($businessType === 'Others' && $businessTypeOther === '')
@@ -204,7 +204,7 @@ try {
             if ($sameName && $sameType && $sameOtherType && $sameAddress) {
                 $globalStmt->close();
                 throw new RuntimeException(
-                    'Possible duplicate: that exact business name, SME type, and address already exist. Review the existing workspace instead.'
+                    'Possible duplicate: that exact business name, SE type, and address already exist. Review the existing workspace instead.'
                 );
             }
         }
@@ -242,7 +242,7 @@ try {
 
         if ($sameIdentityFound && !$separateOperations) {
             throw new RuntimeException(
-                'This name and SME type already belong to one of your businesses. Use Add Branch for another location, or confirm separate operations.'
+                'This name and SE type already belong to one of your businesses. Use Add Branch for another location, or confirm separate operations.'
             );
         }
     } elseif ($action === 'add_branch') {
