@@ -123,7 +123,7 @@ $stmt->close();
 
     <main class="owner-module-main">
         <div class="owner-module-heading">
-            <h1><i class="bi bi-journal-check" aria-hidden="true"></i> Audit Logs</h1>
+            <h1><i class="bi bi-journal-check"></i> Audit Logs</h1>
             <div>
                 <p>Review and verify actions performed from your owner account. Records are shown only to the account that created them.</p>
             </div>
@@ -132,7 +132,7 @@ $stmt->close();
         <section class="owner-module-card" aria-labelledby="auditRecordsHeading">
             <div class="owner-module-section-heading">
                 <div>
-                    <h2 id="auditRecordsHeading"><i class="bi bi-list-check" aria-hidden="true"></i> Activity Log Records</h2>
+                    <h2 id="auditRecordsHeading"><i class="bi bi-list-check"></i> Activity Log Records</h2>
                     <p>Owner actions with a verifiable integrity status.</p>
                 </div>
             </div>

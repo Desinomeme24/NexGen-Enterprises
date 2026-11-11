@@ -747,23 +747,24 @@ html[data-theme="light"] .owner-module-integrity.invalid {
 }
 
 .owner-module-shell .sidebar-menu {
-  gap: 3px;
+  gap: 14px;
   padding: 0 0 0 14px;
 }
 
 .owner-module-shell .sidebar-menu::before {
-  display: none;
+  display: block;
 }
 
 .owner-module-shell .sidebar .menu-item,
 .owner-module-shell .sidebar .dropdown-btn {
-  min-height: 46px;
-  padding: 10px 13px 10px 16px;
+  min-height: 56px;
+  padding: 14px 16px;
   border: 1px solid transparent;
   border-radius: 12px;
   background: transparent;
   color: #b9d4f5;
-  font-size: 0.88rem;
+  font-size: 15.5px;
+  font-weight: 600;
   transition:
     background 0.2s ease,
     border-color 0.2s ease,
@@ -813,7 +814,7 @@ html[data-theme="light"] .owner-module-integrity.invalid {
   height: auto;
   background: transparent;
   color: #b9d4f5;
-  font-size: 1rem;
+  font-size: 17px;
   text-align: center;
 }
 
@@ -913,8 +914,9 @@ html[data-theme="light"] .owner-module-shell .sidebar .menu-item.active i {
 
   .owner-module-shell .sidebar .menu-item,
   .owner-module-shell .sidebar .dropdown-btn {
-    min-height: 48px;
-    font-size: 0.88rem;
+    min-height: 50px;
+    padding: 12px 14px;
+    font-size: 14.5px;
   }
 }
 

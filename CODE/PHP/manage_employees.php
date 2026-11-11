@@ -215,7 +215,7 @@ unset($_SESSION['flash']);
 
     <main class="owner-module-main">
         <div class="owner-module-heading">
-            <h1><i class="bi bi-people-fill" aria-hidden="true"></i> Manage Employees</h1>
+            <h1><i class="bi bi-people-fill"></i> Manage Employees</h1>
             <div>
                 <p>Review employee applications and manage the roster assigned to your business branches.</p>
             </div>
@@ -230,7 +230,7 @@ unset($_SESSION['flash']);
         <section class="owner-module-card" aria-labelledby="employeeRequestsHeading">
             <div class="owner-module-section-heading">
                 <div>
-                    <h2 id="employeeRequestsHeading"><i class="bi bi-person-lines-fill" aria-hidden="true"></i> Access Requests</h2>
+                    <h2 id="employeeRequestsHeading"><i class="bi bi-person-lines-fill"></i> Access Requests</h2>
                     <p>Review and decide on employee applications for your business branches.</p>
                 </div>
             </div>
@@ -290,7 +290,7 @@ unset($_SESSION['flash']);
                                 <td data-label="Submitted"><?php echo e(date('M d, Y', strtotime((string)$request['created_at']))); ?></td>
                                 <td data-label="Review">
                                     <a class="owner-module-link" href="<?php echo e(nxAppUrl('view_request.php?owner_review=1&id=' . (int)$request['id'])); ?>">
-                                        Review <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+                                        Review <i class="bi bi-arrow-up-right"></i>
                                     </a>
                                 </td>
                             </tr>

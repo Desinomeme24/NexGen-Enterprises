@@ -1355,7 +1355,10 @@ if ($currentStatusForTab === '') {
     <div class="modal-overlay" id="editBatchDatesModal">
         <div class="stock-modal">
             <div class="modal-header">
-                <h2>Edit Dates &mdash; <span id="editBatchDatesNumber">Batch</span></h2>
+                <div class="batch-date-heading">
+                    <h2>Edit Dates</h2>
+                    <span id="editBatchDatesNumber">Batch</span>
+                </div>
                 <button type="button" class="close-modal-btn" id="closeEditBatchDatesModal" aria-label="Close Edit Batch Dates">&times;</button>
             </div>
 

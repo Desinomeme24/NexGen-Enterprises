@@ -1034,6 +1034,28 @@ body {
   max-width: 680px;
 }
 
+#editBatchDatesModal .modal-header {
+  align-items: flex-start;
+}
+
+#editBatchDatesModal .batch-date-heading {
+  min-width: 0;
+}
+
+#editBatchDatesModal .batch-date-heading h2 {
+  margin: 0;
+}
+
+#editBatchDatesModal #editBatchDatesNumber {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 .batches-modal {
   max-width: 760px;
 }
