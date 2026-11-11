@@ -153,8 +153,8 @@ $stmt->close();
                 <span class="owner-module-count"><?php echo count($logs); ?> recent record<?php echo count($logs) === 1 ? '' : 's'; ?></span>
             </div>
 
-            <div class="owner-module-table-wrap">
-                <table class="owner-module-table">
+            <div class="owner-module-table-wrap owner-audit-log-table-wrap">
+                <table class="owner-module-table owner-audit-log-table">
                     <thead>
                         <tr>
                             <th>Date &amp; time</th>
@@ -178,7 +178,7 @@ $stmt->close();
                             $integrityValid = !empty($log['log_hash']) && verifyAdminLogRowIntegrity($log);
                             $target = trim((string)$log['target_type'] . ' #' . (int)$log['target_id']);
                             ?>
-                            <tr>
+                            <tr class="owner-audit-log-card">
                                 <td data-label="Date &amp; time"><?php echo e(date('M d, Y h:i A', strtotime((string)$log['created_at']))); ?></td>
                                 <td data-label="Action"><?php echo e(ucwords(str_replace('_', ' ', (string)$log['action']))); ?></td>
                                 <td data-label="Target"><?php echo e($target); ?></td>

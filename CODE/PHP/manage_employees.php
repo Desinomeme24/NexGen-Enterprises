@@ -334,7 +334,7 @@ unset($_SESSION['flash']);
                 <span class="owner-module-count"><?php echo count($employees); ?> employee<?php echo count($employees) === 1 ? '' : 's'; ?></span>
             </div>
 
-            <div class="owner-module-table-wrap">
+            <div class="owner-module-table-wrap owner-employee-table-wrap">
                 <table class="owner-module-table owner-employee-table">
                     <thead>
                         <tr>
@@ -363,7 +363,7 @@ unset($_SESSION['flash']);
                                 : 'disabled';
                             $statusLabel = ucwords(str_replace('_', ' ', $activityStatus));
                             ?>
-                            <tr>
+                            <tr class="owner-employee-card">
                                 <td data-label="Employee">
                                     <strong><?php echo e($employee['full_name']); ?></strong>
                                     <span class="owner-module-muted">@<?php echo e($employee['username']); ?></span>
