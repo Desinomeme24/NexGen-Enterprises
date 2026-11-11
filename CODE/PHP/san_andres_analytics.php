@@ -455,6 +455,12 @@ function nxAnalyticsMoney(float $amount): string
             backdrop-filter: blur(14px);
             -webkit-backdrop-filter: blur(14px);
         }
+        .analytics-summary .analytics-metric {
+            border-color: rgba(125, 211, 252, .28);
+            color: #eef5ff;
+            background: linear-gradient(125deg, #4388f7 0%, #174bfb 48%, #0b2383 100%);
+            box-shadow: 0 12px 28px rgba(3, 3, 30, .4), inset 0 1px 0 rgba(255, 255, 255, .16);
+        }
         .analytics-metric::before {
             position: absolute;
             inset: 0 auto 0 0;
@@ -482,6 +488,8 @@ function nxAnalyticsMoney(float $amount): string
         .analytics-filter-button:focus-visible { outline: 2px solid var(--gold, #eab75e); outline-offset: 2px; }
         .analytics-filter-hint { display: block; margin-top: 9px; color: var(--muted); font-size: .78rem; }
         .analytics-metric span { display: block; color: var(--muted); font-size: .86rem; font-weight: 650; }
+        .analytics-summary .analytics-metric > span,
+        .analytics-summary .analytics-metric > strong { color: #eef5ff; }
         .analytics-metric strong {
             display: block;
             margin-top: 14px;
@@ -512,6 +520,14 @@ function nxAnalyticsMoney(float $amount): string
             background: var(--card);
             font: inherit;
         }
+        .analytics-summary .analytics-month-select,
+        .analytics-summary .analytics-annual-select {
+            border-color: rgba(191, 219, 254, .22);
+            color: #eef5ff;
+            background: rgba(9, 28, 102, .58);
+        }
+        .analytics-summary .analytics-month-select option,
+        .analytics-summary .analytics-annual-select option { color: #eef5ff; background: #102b82; }
         .analytics-annual-form { margin-top: 10px; }
         .analytics-annual-select {
             width: 100%;
@@ -716,6 +732,44 @@ function nxAnalyticsMoney(float $amount): string
         .analytics-financial-grid .analytics-detail-card { min-height: 100px; }
         .analytics-financial-grid .analytics-detail-card h3 { color: var(--muted); font-size: .82rem; }
         .analytics-financial-grid .analytics-detail-card p { color: var(--text); font-size: 1.3rem; font-weight: 750; font-variant-numeric: tabular-nums; }
+        .analytics-financial-grid .analytics-gradient-card {
+            border-color: rgba(125, 211, 252, .28);
+            background: linear-gradient(125deg, #4388f7 0%, #174bfb 48%, #0b2383 100%);
+            box-shadow: 0 10px 24px rgba(3, 3, 30, .34), inset 0 1px 0 rgba(255, 255, 255, .16);
+        }
+        .analytics-financial-grid .analytics-gradient-card h3,
+        .analytics-financial-grid .analytics-gradient-card p,
+        .analytics-financial-grid .analytics-gradient-card .analytics-location-empty { color: #eef5ff; }
+        .analytics-detail-select {
+            width: 100%;
+            min-height: 38px;
+            margin: 0 0 10px;
+            padding: 7px 10px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            color: var(--text);
+            background: var(--card);
+            font: inherit;
+        }
+        .analytics-gradient-card .analytics-detail-select {
+            border-color: rgba(191, 219, 254, .22);
+            color: #eef5ff;
+            background: rgba(9, 28, 102, .58);
+        }
+        .analytics-gradient-card .analytics-detail-select option { color: #eef5ff; background: #102b82; }
+        .analytics-business-profit-note {
+            grid-column: 1 / -1;
+            margin: -4px 0 0;
+            color: var(--muted);
+            font-size: .78rem;
+        }
+        .analytics-business-profit-status {
+            grid-column: 1 / -1;
+            min-height: 1.2em;
+            color: var(--muted);
+            font-size: .78rem;
+        }
+        .analytics-business-profit-status.is-error { color: #ff9aa3; }
         .analytics-location-summary { display: flex; flex-direction: column; }
         .analytics-financial-grid .analytics-location-summary { grid-column: 1 / -1; }
         .analytics-location-summary h3 { color: var(--muted); font-size: .82rem; }
@@ -724,13 +778,13 @@ function nxAnalyticsMoney(float $amount): string
             display: grid;
             gap: 4px;
             padding: 11px 12px;
-            border: 1px solid var(--line);
+            border: 1px solid rgba(191, 219, 254, .22);
             border-radius: 11px;
-            background: color-mix(in srgb, var(--card) 75%, transparent);
+            background: rgba(9, 28, 102, .45);
         }
-        .analytics-location-item strong { color: var(--text); font-size: .88rem; }
+        .analytics-location-item strong { color: #eef5ff; font-size: .88rem; }
         .analytics-location-item span,
-        .analytics-location-empty { color: var(--muted); font-size: .84rem; line-height: 1.5; }
+        .analytics-location-empty { color: #c9ddff; font-size: .84rem; line-height: 1.5; }
         .analytics-detail-card,
         .analytics-quarter-card {
             min-width: 0;
@@ -742,6 +796,10 @@ function nxAnalyticsMoney(float $amount): string
         }
         html[data-theme="light"] .analytics-detail-card,
         html[data-theme="light"] .analytics-quarter-card { background: #f6f8fc; }
+        html[data-theme="light"] .analytics-financial-grid .analytics-gradient-card {
+            background: linear-gradient(125deg, #4388f7 0%, #174bfb 48%, #0b2383 100%);
+            box-shadow: 0 10px 24px rgba(3, 3, 30, .34), inset 0 1px 0 rgba(255, 255, 255, .16);
+        }
         .analytics-detail-card h3,
         .analytics-quarter-card h4 { margin: 0 0 8px; font-size: 1rem; }
         .analytics-detail-card p { margin: 0; overflow-wrap: anywhere; color: var(--muted); }
@@ -858,7 +916,7 @@ function nxAnalyticsMoney(float $amount): string
         <div class="topbar">
             <div class="analytics-heading">
                 <div>
-                    <div class="page-title"><h1>Cainta Analytics</h1></div>
+                    <div class="page-title"><h1>San Andres Analytics</h1></div>
                 </div>
             </div>
         </div>
@@ -959,6 +1017,7 @@ function nxAnalyticsMoney(float $amount): string
                                     'net_profit' => (float)$business['net_profit'],
                                     'monthly_net_profit' => (float)$business['monthly_net_profit'],
                                     'annual_net_profit' => (float)$business['annual_net_profit'],
+                                    'current_profit_year' => $currentYear,
                                     'profit_year' => $selectedAnnualYear,
                                     'profit_month' => date('F', mktime(0, 0, 0, $selectedProfitMonth, 1)),
                                     'annual_profit_year' => $selectedAnnualYear,
@@ -1023,19 +1082,33 @@ function nxAnalyticsMoney(float $amount): string
             <button type="button" class="analytics-modal-close" id="businessDetailsClose" aria-label="Close business details">&times;</button>
         </div>
         <div class="analytics-modal-grid analytics-financial-grid" id="businessDetailsFinancials">
-            <article class="analytics-detail-card">
+            <article class="analytics-detail-card analytics-gradient-card">
                 <h3 id="businessDetailsYearProfitLabel"></h3>
                 <p id="businessDetailsNetProfit"></p>
             </article>
-            <article class="analytics-detail-card">
+            <article class="analytics-detail-card analytics-gradient-card">
                 <h3 id="businessDetailsMonthProfitLabel"></h3>
+                <label class="analytics-sr-only" for="businessDetailsProfitMonth">Select a month for this business's profit</label>
+                <select class="analytics-detail-select" id="businessDetailsProfitMonth">
+                    <?php for ($month = 1; $month <= 12; $month++): ?>
+                        <option value="<?php echo $month; ?>"><?php echo e(date('F', mktime(0, 0, 0, $month, 1))); ?></option>
+                    <?php endfor; ?>
+                </select>
                 <p id="businessDetailsMonthlyProfit"></p>
             </article>
-            <article class="analytics-detail-card">
+            <article class="analytics-detail-card analytics-gradient-card">
                 <h3 id="businessDetailsAnnualProfitLabel"></h3>
+                <label class="analytics-sr-only" for="businessDetailsProfitYear">Select a year for this business's profit</label>
+                <select class="analytics-detail-select" id="businessDetailsProfitYear">
+                    <?php for ($year = $currentYear; $year >= $annualYearMinimum; $year--): ?>
+                        <option value="<?php echo $year; ?>"><?php echo $year; ?></option>
+                    <?php endfor; ?>
+                </select>
                 <p id="businessDetailsAnnualProfit"></p>
             </article>
-            <article class="analytics-detail-card analytics-location-summary">
+            <p class="analytics-business-profit-note">Profit shown is for this business entity and is not divided among multiple owners.</p>
+            <p class="analytics-business-profit-status" id="businessDetailsProfitStatus" role="status" aria-live="polite"></p>
+            <article class="analytics-detail-card analytics-gradient-card analytics-location-summary">
                 <h3>Business location(s)</h3>
                 <div class="analytics-location-list" id="businessDetailsLocations"></div>
             </article>
@@ -1068,6 +1141,9 @@ function nxAnalyticsMoney(float $amount): string
         var annualProfitTotal = document.getElementById('annualProfitTotal');
         var annualProfitStatus = document.getElementById('annualProfitStatus');
         var annualProfitLabel = document.getElementById('annualProfitLabel');
+        var businessProfitMonthSelect = document.getElementById('businessDetailsProfitMonth');
+        var businessProfitYearSelect = document.getElementById('businessDetailsProfitYear');
+        var businessProfitStatus = document.getElementById('businessDetailsProfitStatus');
         var lastFocused = null;
         var activeBusinessRow = null;
         var lastSuccessfulProfitMonth = profitMonthSelect.value;
@@ -1133,6 +1209,10 @@ function nxAnalyticsMoney(float $amount): string
             });
             monthlyProfitStatus.classList.remove('is-error');
             monthlyProfitStatus.textContent = 'Loading monthly profit...';
+            if (activeBusinessRow) {
+                businessProfitStatus.classList.remove('is-error');
+                businessProfitStatus.textContent = 'Updating this business’s monthly profit...';
+            }
 
             fetch(analyticsEndpoint + '?' + params.toString(), {
                 headers: { Accept: 'application/json' },
@@ -1153,6 +1233,8 @@ function nxAnalyticsMoney(float $amount): string
 
                     monthlyProfitTotal.textContent = money(data.total_profit);
                     monthlyProfitYearLabel.textContent = 'Monthly profit (' + data.year + ')';
+                    businessProfitMonthSelect.value = String(data.month);
+                    businessProfitYearSelect.value = String(data.year);
                     document.querySelectorAll('[data-business-row]').forEach(function (row) {
                         try {
                             var businessData = JSON.parse(row.getAttribute('data-business'));
@@ -1176,12 +1258,20 @@ function nxAnalyticsMoney(float $amount): string
                     currentUrl.searchParams.set('profit_month', requestedMonth);
                     window.history.replaceState(null, '', currentUrl.pathname + currentUrl.search + currentUrl.hash);
                     monthlyProfitStatus.textContent = 'Updated for ' + data.month_label + ' ' + data.year + '.';
+                    if (activeBusinessRow) {
+                        businessProfitStatus.textContent = 'Updated for ' + data.month_label + ' ' + data.year + '.';
+                    }
                 })
                 .catch(function (error) {
                     if (requestId !== monthlyProfitRequestId) return;
                     profitMonthSelect.value = lastSuccessfulProfitMonth;
                     monthlyProfitStatus.classList.add('is-error');
                     monthlyProfitStatus.textContent = error.message || 'Monthly profit could not be updated. Please try again.';
+                    if (activeBusinessRow) {
+                        businessProfitMonthSelect.value = lastSuccessfulProfitMonth;
+                        businessProfitStatus.classList.add('is-error');
+                        businessProfitStatus.textContent = error.message || 'Monthly profit could not be updated. Please try again.';
+                    }
                 });
         }
 
@@ -1194,6 +1284,10 @@ function nxAnalyticsMoney(float $amount): string
             });
             annualProfitStatus.classList.remove('is-error');
             annualProfitStatus.textContent = 'Loading annual profit...';
+            if (activeBusinessRow) {
+                businessProfitStatus.classList.remove('is-error');
+                businessProfitStatus.textContent = 'Updating this business’s annual profit...';
+            }
 
             fetch(analyticsEndpoint + '?' + params.toString(), {
                 headers: { Accept: 'application/json' },
@@ -1214,6 +1308,7 @@ function nxAnalyticsMoney(float $amount): string
 
                     annualProfitTotal.textContent = money(data.total_profit);
                     annualProfitLabel.textContent = 'Annual profit (' + data.year + ')';
+                    businessProfitYearSelect.value = String(data.year);
                     document.querySelectorAll('[data-business-row]').forEach(function (row) {
                         try {
                             var businessData = JSON.parse(row.getAttribute('data-business'));
@@ -1236,12 +1331,20 @@ function nxAnalyticsMoney(float $amount): string
                     currentUrl.searchParams.set('annual_year', requestedYear);
                     window.history.replaceState(null, '', currentUrl.pathname + currentUrl.search + currentUrl.hash);
                     annualProfitStatus.textContent = 'Updated for ' + data.year + '.';
+                    if (activeBusinessRow) {
+                        businessProfitStatus.textContent = 'Updated for ' + data.year + '.';
+                    }
                 })
                 .catch(function (error) {
                     if (requestId !== annualProfitRequestId) return;
                     annualProfitYearSelect.value = lastSuccessfulAnnualYear;
                     annualProfitStatus.classList.add('is-error');
                     annualProfitStatus.textContent = error.message || 'Annual profit could not be updated. Please try again.';
+                    if (activeBusinessRow) {
+                        businessProfitYearSelect.value = lastSuccessfulAnnualYear;
+                        businessProfitStatus.classList.add('is-error');
+                        businessProfitStatus.textContent = error.message || 'Annual profit could not be updated. Please try again.';
+                    }
                 });
         }
 
@@ -1256,6 +1359,14 @@ function nxAnalyticsMoney(float $amount): string
             event.preventDefault();
             updateAnnualProfit();
         });
+        businessProfitMonthSelect.addEventListener('change', function () {
+            profitMonthSelect.value = businessProfitMonthSelect.value;
+            profitMonthSelect.dispatchEvent(new Event('change'));
+        });
+        businessProfitYearSelect.addEventListener('change', function () {
+            annualProfitYearSelect.value = businessProfitYearSelect.value;
+            annualProfitYearSelect.dispatchEvent(new Event('change'));
+        });
 
         function openDetails(row) {
             var data;
@@ -1266,6 +1377,10 @@ function nxAnalyticsMoney(float $amount): string
             }
             activeBusinessRow = row;
             lastFocused = document.activeElement;
+            businessProfitMonthSelect.value = profitMonthSelect.value;
+            businessProfitYearSelect.value = annualProfitYearSelect.value;
+            businessProfitStatus.classList.remove('is-error');
+            businessProfitStatus.textContent = '';
             document.getElementById('businessDetailsTitle').textContent = data.business_name;
             document.getElementById('businessDetailsOwner').textContent = 'Owner(s): ' + data.owner_names;
             var permitBadge = document.getElementById('businessDetailsPermitBadge');
@@ -1274,7 +1389,7 @@ function nxAnalyticsMoney(float $amount): string
                 permitStatus === 'paid' ? 'is-paid' : (permitStatus === 'unpaid' ? 'is-unpaid' : 'is-unknown')
             );
             permitBadge.textContent = permitStatus === 'paid' ? 'Permit paid' : (permitStatus === 'unpaid' ? 'Permit unpaid' : 'Status not set');
-            document.getElementById('businessDetailsYearProfitLabel').textContent = 'Net profit (' + data.profit_year + ')';
+            document.getElementById('businessDetailsYearProfitLabel').textContent = 'Current-year profit (' + data.current_profit_year + ')';
             document.getElementById('businessDetailsNetProfit').textContent = money(data.net_profit);
             document.getElementById('businessDetailsMonthProfitLabel').textContent = data.profit_month + ' ' + data.profit_year + ' profit';
             document.getElementById('businessDetailsMonthlyProfit').textContent = money(data.monthly_net_profit);
