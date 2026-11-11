@@ -602,203 +602,13 @@ if (session_status() === PHP_SESSION_ACTIVE) {
     display: flex;
     align-items: center;
     gap: 24px;
-    margin-bottom: 48px;
+    margin-bottom: 0;
     flex-wrap: wrap;
     opacity: 0;
     transform: translateY(20px);
     position: relative;
     z-index: 10;
   }
-
-  .play-link {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-weight: 600;
-    font-size: 15px;
-    color: var(--text-main);
-    transition: transform 0.3s ease;
-    padding: 0;
-    border: 0;
-    background: none;
-    font-family: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-  .play-link:hover { transform: scale(1.05); }
-
-  .video-player-dialog {
-    width: min(92vw, 1440px, calc((100vh - 88px) * 16 / 9));
-    width: min(92vw, 1440px, calc((100dvh - 88px) * 16 / 9));
-    max-width: none;
-    max-height: calc(100vh - 48px);
-    max-height: calc(100dvh - 48px);
-    margin: auto;
-    padding: 0;
-    overflow: visible;
-    border: 0;
-    background: transparent;
-    color: #fff;
-  }
-  .video-player-dialog::backdrop {
-    background: rgba(2, 7, 20, 0.74);
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
-  }
-  .video-dialog-frame {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    border-radius: clamp(8px, 1.4vw, 18px);
-    background: #000;
-    box-shadow: 0 24px 90px rgba(0, 0, 0, 0.6);
-  }
-  .video-dialog-player {
-    display: block;
-    width: 100%;
-    height: 100%;
-    border-radius: inherit;
-    background: #000;
-    object-fit: contain;
-  }
-  .video-dialog-close {
-    position: absolute;
-    top: clamp(8px, 1.5vw, 16px);
-    right: clamp(8px, 1.5vw, 16px);
-    z-index: 1;
-    display: grid;
-    width: 44px;
-    height: 44px;
-    place-items: center;
-    padding: 0;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    border-radius: 50%;
-    background: rgba(5, 11, 28, 0.78);
-    color: #fff;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .video-dialog-close:hover,
-  .video-dialog-close:focus-visible {
-    background: var(--accent);
-    color: #0A1128;
-  }
-  .video-dialog-close:focus-visible,
-  .play-link:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 4px;
-  }
-  .video-dialog-message {
-    min-height: 1.5em;
-    margin: 10px 0 0;
-    color: #fff;
-    font-size: 14px;
-    text-align: center;
-  }
-  .video-dialog-message:empty {
-    display: none;
-  }
-  @media (max-width: 480px) {
-    .video-player-dialog {
-      width: min(96vw, calc((100dvh - 72px) * 16 / 9));
-    }
-    .video-dialog-close {
-      width: 40px;
-      height: 40px;
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .play-link {
-      transition: none;
-    }
-  }
-
-  .play-circle {
-    width: 52px; height: 52px;
-    border-radius: 50%;
-    border: 2px solid var(--line-bright);
-    display: flex; align-items: center; justify-content: center;
-    background: rgba(200, 205, 210,0.04);
-    transition: all 0.3s ease;
-    position: relative;
-  }
-  .play-circle::before {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 50%;
-    border: 1px solid rgba(247, 202, 132,0.3);
-    animation: playRing 2s ease-in-out infinite;
-  }
-  @keyframes playRing {
-    0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.15); opacity: 0; }
-  }
-  .play-link:hover .play-circle {
-    background: var(--accent);
-    color: #0A1128;
-    transform: scale(1.08);
-    border-color: var(--accent);
-  }
-
-  /* Team join */
-  .team-join {
-    display: flex;
-    align-items: center;
-    gap: 18px;
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  .team-join-label {
-    font-size: 13px;
-    color: var(--text-muted);
-    max-width: 110px;
-    line-height: 1.3;
-    font-weight: 500;
-  }
-  .avatar-row { display: flex; align-items: center; }
-  .avatar-placeholder {
-    width: 46px; height: 46px;
-    border-radius: 50%;
-    border: 2px dashed rgba(200, 205, 210,0.35);
-    background: var(--bg-panel-light);
-    margin-left: -12px;
-    overflow: hidden;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--text-faint);
-    transition: transform 0.3s ease, border-color 0.3s ease;
-  }
-  .avatar-placeholder:first-child { margin-left: 0; }
-  .avatar-placeholder img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    -webkit-touch-callout: none;
-    -webkit-user-drag: none;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-  .team-join .avatar-placeholder {
-    -webkit-touch-callout: none;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-  .avatar-placeholder:hover { transform: translateY(-4px); border-color: var(--accent); }
-  .avatar-add {
-    width: 46px; height: 46px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: #0A1128;
-    display: flex; align-items: center; justify-content: center;
-    margin-left: -12px;
-    font-size: 20px;
-    font-weight: 700;
-    border: 2px solid var(--bg-deep);
-    transition: transform 0.3s ease;
-    cursor: pointer;
-  }
-  .avatar-add:hover { transform: scale(1.1) rotate(90deg); }
 
   /* ========== HERO VISUAL ========== */
   .hero-visual {
@@ -4683,7 +4493,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
         <span class="word"><span class="highlight">Excellence</span></span>
       </h1>
       <p class="hero-lead">
-        NexGen brings inventory, sales, analytics, and receivables together
+        NexGen brings inventory, sales, and analytics together
         in one connected system — so your business runs on clear numbers,
         not guesswork.
       </p>
@@ -4927,14 +4737,14 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
     <div class="stats-header reveal from-left">
       <span class="eyebrow">Built for Modern Business</span>
       <h2>Powering Your Operations from Day One</h2>
-      <p>NexGen was founded in 2026 with a clear mission — to give businesses an all-in-one platform for inventory, sales, analytics, and receivables.</p>
+      <p>NexGen was founded in 2026 with a clear mission — to give businesses an all-in-one platform for inventory, sales, and analytics.</p>
     </div>
     <div class="stats-grid">
       <div class="stat-card reveal from-scale">
         <div class="stat-icon"><i class="fas fa-code-branch"></i></div>
         <div class="stat-number"><span class="counter" data-target="4">0</span></div>
         <div class="stat-label">Core Business Modules</div>
-        <div class="stat-desc">Inventory, sales, analytics, and receivables in one platform.</div>
+        <div class="stat-desc">Inventory, sales, and analytics in one platform.</div>
       </div>
       <div class="stat-card reveal from-scale">
         <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
@@ -4946,7 +4756,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
         <div class="stat-icon"><i class="fas fa-comments"></i></div>
         <div class="stat-number"><span class="counter" data-target="1">0</span></div>
         <div class="stat-label">Business Assistant</div>
-        <div class="stat-desc">Get quick answers about inventory, sales, analytics, and receivables.</div>
+        <div class="stat-desc">Get quick answers about inventory, sales, and analytics.</div>
       </div>
       <div class="stat-card reveal from-scale">
         <div class="stat-icon"><i class="fas fa-shield-halved"></i></div>
@@ -5052,7 +4862,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
       <div class="about-left reveal">
         <span class="eyebrow">About Us</span>
         <h2>We Build What Businesses <span class="gradient-text">Actually Need</span></h2>
-        <p class="about-lead">Founded in 2026, NexGen was born from a simple observation — most businesses juggle disconnected tools for inventory, sales, analytics, and receivables. We built a unified platform so you stop guessing and start growing.</p>
+        <p class="about-lead">Founded in 2026, NexGen was born from a simple observation — most businesses juggle disconnected tools for inventory, sales, and analytics. We built a unified platform so you stop guessing and start growing.</p>
 
         <div class="about-values">
           <div class="value-item reveal">
@@ -5193,7 +5003,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
           <img src="../../IMAGES/NGlogo.png" alt="NexGen logo" class="logo-img">
           NexGen
         </div>
-        <p>Bringing inventory, sales, analytics, and receivables together in one connected system for smarter business operations.</p>
+        <p>Bringing inventory, sales, and analytics together in one connected system for smarter business operations.</p>
         <div class="footer-social">
           <a href="https://www.facebook.com/share/1CuKN9qY3g/" target="_blank" rel="noopener"><i class="fab fa-facebook-f"></i></a>
           <a href="https://www.instagram.com/nexgen.enterprises26?igsh=MTB5bDNod3lubjhjdw==" target="_blank" rel="noopener"><i class="fab fa-instagram"></i></a>
