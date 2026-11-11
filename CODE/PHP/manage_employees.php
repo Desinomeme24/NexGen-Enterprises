@@ -404,9 +404,57 @@ unset($_SESSION['flash']);
 </div>
 <script src="<?php echo e(nxCodeUrl('JS/header.js')); ?>" defer></script>
 <script>
-document.querySelectorAll('form[data-auto-submit-filters] select').forEach((select) => {
-    select.addEventListener('change', () => select.form.requestSubmit());
-});
+(() => {
+    const scrollKey = 'nexgen.manageEmployees.filterScroll';
+    const filterForms = document.querySelectorAll('form[data-auto-submit-filters]');
+
+    filterForms.forEach((form) => {
+        form.addEventListener('submit', () => {
+            try {
+                sessionStorage.setItem(
+                    scrollKey,
+                    JSON.stringify({ x: window.scrollX, y: window.scrollY })
+                );
+            } catch (error) {
+                console.warn('Could not preserve the Manage Employees scroll position.', error);
+            }
+        });
+
+        form.querySelectorAll('select').forEach((select) => {
+            select.addEventListener('change', () => form.requestSubmit());
+        });
+    });
+
+    window.addEventListener('pageshow', () => {
+        let savedPosition;
+        try {
+            savedPosition = sessionStorage.getItem(scrollKey);
+            sessionStorage.removeItem(scrollKey);
+        } catch (error) {
+            console.warn('Could not restore the Manage Employees scroll position.', error);
+            return;
+        }
+
+        if (!savedPosition) {
+            return;
+        }
+
+        try {
+            const position = JSON.parse(savedPosition);
+            if (!Number.isFinite(position.x) || !Number.isFinite(position.y)) {
+                return;
+            }
+
+            document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
+            window.scrollTo(position.x, position.y);
+            window.requestAnimationFrame(() => {
+                document.documentElement.style.removeProperty('scroll-behavior');
+            });
+        } catch (error) {
+            console.warn('Could not restore the Manage Employees scroll position.', error);
+        }
+    }, { once: true });
+})();
 </script>
 </body>
 </html>
