@@ -614,6 +614,23 @@ if (!function_exists('nxSetActiveWorkspace')) {
             throw new RuntimeException('You do not have access to the selected business branch.');
         }
 
+        try {
+            $permit = nxGetBusinessPermitAccess($conn, $businessId);
+        } catch (Throwable $permitError) {
+            error_log('NexGen workspace switch permit check failed: ' . $permitError->getMessage());
+            throw new RuntimeException('The selected business permit could not be verified. Please try again later.');
+        }
+
+        if (empty($permit['found'])) {
+            throw new RuntimeException('The selected business permit could not be verified. Please contact BPLO.');
+        }
+
+        if (!empty($permit['grace_expired'])) {
+            throw new RuntimeException(
+                'This business is unavailable because its permit is unpaid beyond the 30-day grace period. Please coordinate with BPLO to activate your account.'
+            );
+        }
+
         if (nxWorkspaceSchemaReady($conn)) {
             $entityId = (int)$selected['business_entity_id'];
             $conn->begin_transaction();
@@ -815,6 +832,37 @@ if (!function_exists('nxGetBusinessPermitAccess')) {
             'unpaid_since' => $unpaidSince !== '' ? $unpaidSince : null,
             'grace_expired' => $graceExpired,
         ];
+    }
+}
+
+if (!function_exists('nxBusinessPermitQuarterGraceDeadline')) {
+    function nxBusinessPermitQuarterGraceDeadline(int $permitYear, int $quarter): DateTimeImmutable
+    {
+        if ($permitYear < 2000 || $permitYear > 2100 || $quarter < 1 || $quarter > 4) {
+            throw new InvalidArgumentException('A valid permit year and quarter are required.');
+        }
+
+        $timezone = new DateTimeZone('Asia/Manila');
+        $startMonth = (($quarter - 1) * 3) + 1;
+        $quarterStart = new DateTimeImmutable(
+            sprintf('%04d-%02d-01 00:00:00', $permitYear, $startMonth),
+            $timezone
+        );
+
+        return $quarterStart->modify('+30 days');
+    }
+}
+
+if (!function_exists('nxBusinessPermitQuarterGraceExpired')) {
+    function nxBusinessPermitQuarterGraceExpired(
+        int $permitYear,
+        int $quarter,
+        ?DateTimeImmutable $now = null
+    ): bool {
+        $timezone = new DateTimeZone('Asia/Manila');
+        $now = $now ? $now->setTimezone($timezone) : new DateTimeImmutable('now', $timezone);
+
+        return $now >= nxBusinessPermitQuarterGraceDeadline($permitYear, $quarter);
     }
 }
 

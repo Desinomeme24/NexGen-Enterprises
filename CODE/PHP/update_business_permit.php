@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/tenant_helper.php';
 
 function nxBusinessPermitRedirect(bool $success, string $message, int $businessEntityId): void
 {
@@ -105,22 +106,50 @@ try {
         $annualFee = number_format((float)$annualFeeInput, 2, '.', '');
         $feeCents = (int)round((float)$annualFee * 100);
 
+        $existingQuarters = [];
+        $paidAmountCents = 0;
         if ($assessment) {
-            $paidStmt = $conn->prepare(
-                "SELECT COUNT(*) AS paid_count
+            $assessmentId = (int)$assessment['id'];
+            $quarterRead = $conn->prepare(
+                'SELECT quarter_number, assessed_amount, payment_status
                  FROM business_permit_quarterly_payments
-                 WHERE assessment_id = ? AND payment_status = 'paid'"
+                 WHERE assessment_id = ?
+                 FOR UPDATE'
             );
-            if (!$paidStmt) {
+            if (!$quarterRead) {
                 throw new RuntimeException('Unable to verify existing quarterly payments.');
             }
-            $assessmentId = (int)$assessment['id'];
-            $paidStmt->bind_param('i', $assessmentId);
-            $paidStmt->execute();
-            $paidCount = (int)($paidStmt->get_result()->fetch_assoc()['paid_count'] ?? 0);
-            $paidStmt->close();
-            if ($paidCount > 0 && (float)$assessment['annual_fee'] !== (float)$annualFee) {
-                throw new RuntimeException('The annual fee cannot be changed after a quarter has been marked paid.');
+            $quarterRead->bind_param('i', $assessmentId);
+            if (!$quarterRead->execute()) {
+                throw new RuntimeException('Unable to load existing quarterly payments.');
+            }
+            $quarterResult = $quarterRead->get_result();
+            while ($quarterRow = $quarterResult->fetch_assoc()) {
+                $quarterNumber = (int)$quarterRow['quarter_number'];
+                $existingQuarters[$quarterNumber] = (string)$quarterRow['payment_status'];
+                if ($quarterRow['payment_status'] === 'paid') {
+                    $paidAmountCents += (int)round((float)$quarterRow['assessed_amount'] * 100);
+                }
+            }
+            $quarterRead->close();
+        }
+
+        $unpaidQuarters = [];
+        for ($quarter = 1; $quarter <= 4; $quarter++) {
+            if (($existingQuarters[$quarter] ?? 'pending') !== 'paid') {
+                $unpaidQuarters[] = $quarter;
+            }
+        }
+
+        if ($assessment) {
+            $previousFeeCents = (int)round((float)$assessment['annual_fee'] * 100);
+            if (
+                $previousFeeCents !== $feeCents
+                && ($unpaidQuarters === [] || $paidAmountCents >= $feeCents)
+            ) {
+                throw new RuntimeException(
+                    'The revised annual fee must exceed recorded paid amounts and at least one quarter must remain unpaid. Reconcile the permit payments before changing this fee.'
+                );
             }
 
             $updateAssessment = $conn->prepare(
@@ -151,21 +180,27 @@ try {
             $insertAssessment->close();
         }
 
-        $baseCents = intdiv($feeCents, 4);
-        $remainder = $feeCents % 4;
+        $remainingFeeCents = max(0, $feeCents - $paidAmountCents);
+        $allocationQuarters = $unpaidQuarters !== [] ? $unpaidQuarters : [1, 2, 3, 4];
+        $baseCents = intdiv($remainingFeeCents, count($allocationQuarters));
+        $remainder = $remainingFeeCents % count($allocationQuarters);
+        $allocationAmounts = [];
+        foreach ($allocationQuarters as $index => $quarterNumber) {
+            $allocationAmounts[$quarterNumber] = $baseCents + ($index < $remainder ? 1 : 0);
+        }
+
         $quarterStmt = $conn->prepare(
             "INSERT INTO business_permit_quarterly_payments
                 (assessment_id, quarter_number, assessed_amount, payment_status)
-             VALUES (?, ?, ?, 'unpaid')
+             VALUES (?, ?, ?, 'pending')
              ON DUPLICATE KEY UPDATE
-                assessed_amount = IF(payment_status = 'unpaid', VALUES(assessed_amount), assessed_amount)"
+                assessed_amount = IF(payment_status <> 'paid', VALUES(assessed_amount), assessed_amount)"
         );
         if (!$quarterStmt) {
             throw new RuntimeException('Unable to prepare the quarterly assessment records.');
         }
         for ($quarter = 1; $quarter <= 4; $quarter++) {
-            $amountCents = $baseCents + ($quarter <= $remainder ? 1 : 0);
-            $amount = number_format($amountCents / 100, 2, '.', '');
+            $amount = number_format(($allocationAmounts[$quarter] ?? 0) / 100, 2, '.', '');
             $quarterStmt->bind_param('iis', $assessmentId, $quarter, $amount);
             if (!$quarterStmt->execute()) {
                 throw new RuntimeException('Unable to save quarterly assessment amounts.');
@@ -196,13 +231,27 @@ try {
             throw new RuntimeException('Unable to load the quarterly payment record.');
         }
         $quarterRead->bind_param('ii', $assessmentId, $quarter);
-        $quarterRead->execute();
+        if (!$quarterRead->execute()) {
+            throw new RuntimeException('Unable to load the quarterly payment record.');
+        }
         $quarterRecord = $quarterRead->get_result()->fetch_assoc();
         $quarterRead->close();
         if (!$quarterRecord) {
             throw new RuntimeException('The quarterly payment record is missing.');
         }
+        if ((string)$quarterRecord['payment_status'] === $paymentStatus) {
+            throw new RuntimeException('Quarter ' . $quarter . ' is already marked ' . $paymentStatus . '.');
+        }
 
+        if (
+            $paymentStatus === 'unpaid'
+            && !nxBusinessPermitQuarterGraceExpired($permitYear, $quarter)
+        ) {
+            $graceDeadline = nxBusinessPermitQuarterGraceDeadline($permitYear, $quarter)->format('M d, Y');
+            throw new RuntimeException(
+                "Quarter {$quarter} cannot be marked unpaid before its 30-day grace period ends on {$graceDeadline}."
+            );
+        }
         if ($paymentStatus === 'paid') {
             $updateQuarter = $conn->prepare(
                 'UPDATE business_permit_quarterly_payments
@@ -247,13 +296,13 @@ try {
     $quarterStatusStmt->bind_param('i', $assessmentId);
     $quarterStatusStmt->execute();
     $quarterResult = $quarterStatusStmt->get_result();
-    $allPaid = true;
+    $hasConfirmedUnpaid = false;
     $firstUnpaidMonth = null;
     $quarterCount = 0;
     while ($quarterRow = $quarterResult->fetch_assoc()) {
         $quarterCount++;
-        if ($quarterRow['payment_status'] !== 'paid') {
-            $allPaid = false;
+        if ($quarterRow['payment_status'] === 'unpaid') {
+            $hasConfirmedUnpaid = true;
             if ($firstUnpaidMonth === null) {
                 $firstUnpaidMonth = ((int)$quarterRow['quarter_number'] - 1) * 3 + 1;
             }
@@ -264,8 +313,8 @@ try {
         throw new RuntimeException('The assessment must contain exactly four quarterly payment records.');
     }
 
-    $overallStatus = $allPaid ? 'paid' : 'unpaid';
-    $unpaidSince = $allPaid
+    $overallStatus = $hasConfirmedUnpaid ? 'unpaid' : 'paid';
+    $unpaidSince = !$hasConfirmedUnpaid
         ? null
         : sprintf('%04d-%02d-01 00:00:00', $permitYear, $firstUnpaidMonth);
     $syncStmt = $conn->prepare(

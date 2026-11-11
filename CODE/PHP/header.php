@@ -30,6 +30,21 @@ $activeWorkspace = in_array($role, ['owner', 'employee'], true)
     ? nxGetActiveWorkspace($conn)
     : [];
 $workspaceCount = count($workspaceOptions);
+$workspacePermitAccess = [];
+if ($workspaceCount > 1) {
+    foreach ($workspaceOptions as $workspaceOption) {
+        $workspaceId = (int)$workspaceOption['business_id'];
+        try {
+            $workspacePermitAccess[$workspaceId] = nxGetBusinessPermitAccess($conn, $workspaceId);
+        } catch (Throwable $permitError) {
+            error_log('NexGen workspace picker permit check failed: ' . $permitError->getMessage());
+            $workspacePermitAccess[$workspaceId] = [
+                'found' => false,
+                'grace_expired' => true,
+            ];
+        }
+    }
+}
 $activeWorkspaceLabel = !empty($activeWorkspace)
     ? trim((string)$activeWorkspace['business_name'] . ' — ' . (string)$activeWorkspace['branch_name'])
     : '';
@@ -197,6 +212,14 @@ window.NEXGEN_PATHS = <?php echo json_encode([
                                     $workspaceId = (int)$workspace['business_id'];
                                     $workspaceLabel = trim((string)$workspace['business_name'] . ' — ' . (string)$workspace['branch_name']);
                                     $isActiveWorkspace = $workspaceId === (int)$activeWorkspace['business_id'];
+                                    $permitAccess = $workspacePermitAccess[$workspaceId] ?? [];
+                                    $workspacePermitBlocked = empty($permitAccess['found']) || !empty($permitAccess['grace_expired']);
+                                    $workspaceOptionLabel = $workspaceLabel;
+                                    if ($workspacePermitBlocked) {
+                                        $workspaceOptionLabel .= !empty($permitAccess['found'])
+                                            ? ' — Permit unpaid (contact BPLO)'
+                                            : ' — Permit status unavailable';
+                                    }
                                 ?>
                                 <button
                                     type="submit"
@@ -205,11 +228,12 @@ window.NEXGEN_PATHS = <?php echo json_encode([
                                     class="workspace-picker-option<?php echo $isActiveWorkspace ? ' is-selected' : ''; ?>"
                                     role="option"
                                     aria-selected="<?php echo $isActiveWorkspace ? 'true' : 'false'; ?>"
+                                    <?php echo $workspacePermitBlocked ? 'disabled aria-disabled="true"' : ''; ?>
                                     tabindex="-1"
-                                    title="<?php echo e($workspaceLabel); ?>"
+                                    title="<?php echo e($workspaceOptionLabel); ?>"
                                     data-workspace-option
                                 >
-                                    <span class="workspace-picker-option-label"><?php echo e($workspaceLabel); ?></span>
+                                    <span class="workspace-picker-option-label"><?php echo e($workspaceOptionLabel); ?></span>
                                     <i class="bi bi-check2 workspace-picker-option-check" aria-hidden="true"></i>
                                 </button>
                             <?php endforeach; ?>
@@ -220,8 +244,19 @@ window.NEXGEN_PATHS = <?php echo json_encode([
                             <label for="headerWorkspaceFallbackSelect" class="visually-hidden">Active business branch</label>
                             <select name="business_id" id="headerWorkspaceFallbackSelect" class="workspace-fallback-select" aria-label="Active business branch">
                                 <?php foreach ($workspaceOptions as $workspace): ?>
-                                    <option value="<?php echo (int)$workspace['business_id']; ?>" <?php echo (int)$workspace['business_id'] === (int)$activeWorkspace['business_id'] ? 'selected' : ''; ?>>
-                                        <?php echo e($workspace['business_name'] . ' — ' . $workspace['branch_name']); ?>
+                                    <?php
+                                        $workspaceId = (int)$workspace['business_id'];
+                                        $permitAccess = $workspacePermitAccess[$workspaceId] ?? [];
+                                        $workspacePermitBlocked = empty($permitAccess['found']) || !empty($permitAccess['grace_expired']);
+                                        $workspaceLabel = $workspace['business_name'] . ' — ' . $workspace['branch_name'];
+                                        if ($workspacePermitBlocked) {
+                                            $workspaceLabel .= !empty($permitAccess['found'])
+                                                ? ' — Permit unpaid (contact BPLO)'
+                                                : ' — Permit status unavailable';
+                                        }
+                                    ?>
+                                    <option value="<?php echo $workspaceId; ?>" <?php echo $workspacePermitBlocked ? 'disabled' : ''; ?> <?php echo $workspaceId === (int)$activeWorkspace['business_id'] ? 'selected' : ''; ?>>
+                                        <?php echo e($workspaceLabel); ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>

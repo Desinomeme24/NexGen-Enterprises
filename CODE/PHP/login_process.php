@@ -446,7 +446,11 @@ if (in_array($user['role'], ['owner', 'employee'], true)) {
             exit();
         }
 
-        if (!$alternativeWorkspaceFound) {
+        $ownerNeedsPermitActivation = (string)$user['role'] === 'owner'
+            && !empty($permit['found'])
+            && !empty($permit['grace_expired']);
+
+        if (!$alternativeWorkspaceFound && !$ownerNeedsPermitActivation) {
             $_SESSION = [];
             session_regenerate_id(true);
             $_SESSION['error'] = 'Business access is temporarily suspended because all assigned business permits are unpaid beyond the 30-day grace period.';

@@ -334,16 +334,19 @@
   const workspaceList = workspacePicker
     ? workspacePicker.querySelector("[data-workspace-list]")
     : null;
-  const workspaceOptions = workspaceList
+  const allWorkspaceOptions = workspaceList
     ? Array.from(workspaceList.querySelectorAll("[data-workspace-option]"))
     : [];
+  const workspaceOptions = allWorkspaceOptions.filter(function (option) {
+    return !option.disabled;
+  });
 
   if (
     workspaceForm &&
     workspacePicker &&
     workspaceToggle &&
     workspaceList &&
-    workspaceOptions.length > 0
+    allWorkspaceOptions.length > 0
   ) {
     function selectedWorkspaceIndex() {
       const selectedIndex = workspaceOptions.findIndex(function (option) {

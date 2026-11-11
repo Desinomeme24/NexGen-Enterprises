@@ -125,7 +125,9 @@ if ($hasActiveWorkspace) {
     $businessPermitBlocked = empty($permitAccess['found']) || !empty($permitAccess['grace_expired']);
     if ($businessPermitBlocked) {
         $_SESSION['business_permit_access_blocked'] = true;
-        $_SESSION['business_permit_notice'] = 'Business access is temporarily suspended because the permit has remained unpaid beyond the 30-day grace period. Contact the business administrator after payment.';
+        $_SESSION['business_permit_notice'] = $role === 'owner'
+            ? 'Business access is unavailable because its permit is unpaid beyond the 30-day grace period. Please coordinate with BPLO to activate your account.'
+            : 'Business access is temporarily suspended because the permit has remained unpaid beyond the 30-day grace period. Contact the business administrator after payment.';
     } else {
         unset($_SESSION['business_permit_access_blocked'], $_SESSION['business_permit_notice']);
     }
@@ -340,7 +342,9 @@ $pageSubtitle = $isOwner
 
         <?php if ($businessPermitBlocked): ?>
             <div class="notice notice-error" role="alert" style="max-width:1100px;margin:20px auto;">
-                <?php echo e($_SESSION['business_permit_notice'] ?? 'Business access is temporarily suspended because the permit is unpaid beyond its 30-day grace period.'); ?>
+                <?php echo e($_SESSION['business_permit_notice'] ?? ($isOwner
+                    ? 'Business access is unavailable because its permit is unpaid beyond the 30-day grace period. Please coordinate with BPLO to activate your account.'
+                    : 'Business access is temporarily suspended because the permit is unpaid beyond its 30-day grace period.')); ?>
             </div>
         <?php endif; ?>
     </section>

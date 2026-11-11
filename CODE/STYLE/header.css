@@ -312,6 +312,15 @@ html[data-theme="light"] {
   opacity: 1;
 }
 
+.workspace-picker-option:disabled,
+.workspace-picker-option:disabled:hover {
+  border-color: transparent;
+  background: rgba(148, 163, 184, 0.1);
+  color: #8d99ad;
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
 .workspace-switch-form.is-switching {
   cursor: wait;
 }
@@ -402,6 +411,15 @@ html[data-theme="light"] .workspace-picker-option.is-selected {
   border-color: rgba(198, 134, 76, 0.55);
   background: rgba(255, 221, 85, 0.28);
   color: #71451e;
+}
+
+html[data-theme="light"] .workspace-picker-option:disabled,
+html[data-theme="light"] .workspace-picker-option:disabled:hover {
+  border-color: transparent;
+  background: rgba(100, 116, 139, 0.1);
+  color: #768398;
+  cursor: not-allowed;
+  opacity: 0.75;
 }
 
 html[data-theme="light"] .workspace-fallback-select {

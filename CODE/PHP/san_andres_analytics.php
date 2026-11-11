@@ -292,15 +292,6 @@ while ($row = $financialResult->fetch_assoc()) {
 }
 $financialStmt->close();
 $businessCount = count($businesses);
-$paidPermitCount = 0;
-$unpaidPermitCount = 0;
-foreach ($businesses as $business) {
-    if (strtolower((string)$business['permit_payment_status']) === 'paid') {
-        $paidPermitCount++;
-    } elseif (strtolower((string)$business['permit_payment_status']) === 'unpaid') {
-        $unpaidPermitCount++;
-    }
-}
 
 $locationsByEntity = [];
 $locationResult = $conn->query(
@@ -324,17 +315,26 @@ while ($location = $locationResult->fetch_assoc()) {
 }
 
 $permitTablesResult = $conn->query(
-    "SELECT COUNT(DISTINCT TABLE_NAME) AS total
-     FROM information_schema.TABLES
-     WHERE TABLE_SCHEMA = DATABASE()
-       AND TABLE_NAME IN ('business_permit_assessments', 'business_permit_quarterly_payments')"
+    "SELECT
+        (SELECT COUNT(DISTINCT TABLE_NAME)
+         FROM information_schema.TABLES
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME IN ('business_permit_assessments', 'business_permit_quarterly_payments')) AS table_count,
+        (SELECT COUNT(*)
+         FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'business_permit_quarterly_payments'
+           AND COLUMN_NAME = 'payment_status'
+           AND LOCATE('pending', COLUMN_TYPE) > 0) AS pending_status_ready"
 );
 if (!($permitTablesResult instanceof mysqli_result)) {
     error_log('NexGen San Andres analytics permit schema check failed: ' . $conn->error);
     http_response_code(503);
     exit('Permit payment details are temporarily unavailable.');
 }
-$permitTrackingReady = (int)($permitTablesResult->fetch_assoc()['total'] ?? 0) === 2;
+$permitSchema = $permitTablesResult->fetch_assoc() ?: [];
+$permitTrackingReady = (int)($permitSchema['table_count'] ?? 0) === 2
+    && (int)($permitSchema['pending_status_ready'] ?? 0) === 1;
 $permitByEntity = [];
 if ($permitTrackingReady) {
     $permitYear = (int)date('Y');
@@ -374,10 +374,41 @@ if ($permitTrackingReady) {
             'assessed_amount' => (float)$permit['assessed_amount'],
             'payment_status' => (string)$permit['payment_status'],
             'paid_at' => $permit['paid_at'] !== null ? (string)$permit['paid_at'] : null,
+            'unpaid_eligible' => nxBusinessPermitQuarterGraceExpired($permitYear, $quarterNumber),
+            'unpaid_after' => nxBusinessPermitQuarterGraceDeadline($permitYear, $quarterNumber)->format('Y-m-d'),
         ];
     }
     $permitStmt->close();
 }
+
+$paidPermitCount = 0;
+$unpaidPermitCount = 0;
+$pendingPermitCount = 0;
+foreach ($businesses as &$business) {
+    $entityId = (int)$business['business_entity_id'];
+    if (isset($permitByEntity[$entityId])) {
+        $quarterStatuses = array_column($permitByEntity[$entityId]['quarters'], 'payment_status');
+        if (in_array('unpaid', $quarterStatuses, true)) {
+            $business['permit_payment_status'] = 'unpaid';
+        } elseif (count($quarterStatuses) === 4 && count(array_filter(
+            $quarterStatuses,
+            static fn(string $status): bool => $status === 'paid'
+        )) === 4) {
+            $business['permit_payment_status'] = 'paid';
+        } else {
+            $business['permit_payment_status'] = 'pending';
+        }
+    }
+
+    if ($business['permit_payment_status'] === 'paid') {
+        $paidPermitCount++;
+    } elseif ($business['permit_payment_status'] === 'unpaid') {
+        $unpaidPermitCount++;
+    } else {
+        $pendingPermitCount++;
+    }
+}
+unset($business);
 
 $permitCsrfByEntity = [];
 foreach ($businesses as $business) {
@@ -521,6 +552,7 @@ function nxAnalyticsMoney(float $amount): string
         .analytics-metric:not(.analytics-filter-button)::before { background: var(--tone-info-b); }
         .analytics-filter-button[data-permit-filter="paid"]::before { background: #34d399; }
         .analytics-filter-button[data-permit-filter="unpaid"]::before { background: #ff9aa3; }
+        .analytics-filter-button[data-permit-filter="pending"]::before { background: #fbbf24; }
         .analytics-month-status {
             min-height: 1.2em;
             margin-top: 7px;
@@ -649,6 +681,7 @@ function nxAnalyticsMoney(float $amount): string
         }
         .analytics-permit-status.is-paid { color: #34d399; background: rgba(52, 211, 153, .1); }
         .analytics-permit-status.is-unpaid { color: #ff9aa3; background: rgba(239, 68, 68, .1); }
+        .analytics-permit-status.is-pending { color: #fbbf24; background: rgba(251, 191, 36, .1); }
         .analytics-permit-status.is-unknown { color: var(--muted); background: var(--line); }
         .analytics-empty { padding: 32px 24px; color: var(--muted); text-align: center; }
         .analytics-business-row { cursor: pointer; }
@@ -731,6 +764,7 @@ function nxAnalyticsMoney(float $amount): string
         }
         .analytics-business-status.is-paid { color: #34d399; background: rgba(52, 211, 153, .1); }
         .analytics-business-status.is-unpaid { color: #ff9aa3; background: rgba(239, 68, 68, .1); }
+        .analytics-business-status.is-pending { color: #fbbf24; background: rgba(251, 191, 36, .1); }
         .analytics-business-status.is-unknown { color: var(--muted); background: var(--card); }
         .analytics-modal-close {
             flex: 0 0 auto;
@@ -869,6 +903,7 @@ function nxAnalyticsMoney(float $amount): string
         .analytics-quarter-status span { font-size: .76rem; font-weight: 800; }
         .analytics-quarter-status.is-paid { color: #34d399 !important; }
         .analytics-quarter-status.is-unpaid { color: #ff9aa3 !important; }
+        .analytics-quarter-status.is-pending { color: #fbbf24 !important; }
         .analytics-permit-empty { max-width: none; }
         .analytics-assessment-panel {
             position: relative;
@@ -891,7 +926,17 @@ function nxAnalyticsMoney(float $amount): string
         .analytics-assessment-copy h4 { margin: 0 0 5px; font-size: .95rem; }
         .analytics-assessment-copy p { margin: 0; color: rgba(238, 245, 255, .72); font-size: .82rem; line-height: 1.5; }
         .analytics-quarter-card p { margin: 6px 0; color: var(--muted); }
-        .analytics-quarter-card form { margin-top: 12px; }
+        .analytics-quarter-card form { display: grid; gap: 8px; margin-top: 12px; }
+        .analytics-quarter-card select {
+            width: 100%;
+            min-width: 0;
+            padding: 9px 10px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            color: var(--text);
+            background: var(--card);
+            font: inherit;
+        }
         .analytics-quarter-card button,
         .analytics-assessment-form button {
             border: 0;
@@ -938,10 +983,20 @@ function nxAnalyticsMoney(float $amount): string
         html[data-theme="light"] .analytics-assessment-copy { color: #0b1f73; }
         html[data-theme="light"] .analytics-quarter-card p,
         html[data-theme="light"] .analytics-assessment-copy p { color: #536786; }
+        html[data-theme="light"] .analytics-quarter-status.is-pending { color: #9a6a12 !important; }
         html[data-theme="light"] .analytics-quarter-card button,
         html[data-theme="light"] .analytics-assessment-form button {
             color: #0b1f73;
             background: rgba(11, 31, 115, .1);
+        }
+        html[data-theme="light"] .analytics-quarter-card select {
+            color: #0b1f73;
+            background: rgba(255, 255, 255, .92);
+        }
+        .analytics-quarter-card button:disabled,
+        .analytics-quarter-card select:disabled {
+            cursor: not-allowed;
+            opacity: .58;
         }
         @media (max-width: 900px) {
             .analytics-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1033,6 +1088,10 @@ function nxAnalyticsMoney(float $amount): string
                 <strong><?php echo number_format($unpaidPermitCount); ?></strong>
                 
             </button>
+            <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="pending" aria-pressed="false" aria-controls="analyticsBusinessRows">
+                <span>Pending business permits</span>
+                <strong><?php echo number_format($pendingPermitCount); ?></strong>
+            </button>
         </section>
 
         <section class="panel" aria-labelledby="analyticsBusinessesHeading">
@@ -1102,8 +1161,12 @@ function nxAnalyticsMoney(float $amount): string
                                     </td>
                                     <?php
                                     $permitStatus = strtolower(trim((string)$business['permit_payment_status']));
-                                    $permitStatusLabel = $permitStatus === 'paid' ? 'Paid' : ($permitStatus === 'unpaid' ? 'Unpaid' : 'Not set');
-                                    $permitStatusClass = $permitStatus === 'paid' ? 'is-paid' : ($permitStatus === 'unpaid' ? 'is-unpaid' : 'is-unknown');
+                                    $permitStatusLabel = $permitStatus === 'paid'
+                                        ? 'Paid'
+                                        : ($permitStatus === 'unpaid' ? 'Unpaid' : ($permitStatus === 'pending' ? 'Pending' : 'Not set'));
+                                    $permitStatusClass = $permitStatus === 'paid'
+                                        ? 'is-paid'
+                                        : ($permitStatus === 'unpaid' ? 'is-unpaid' : ($permitStatus === 'pending' ? 'is-pending' : 'is-unknown'));
                                     ?>
                                     <td class="analytics-business-address" data-label="Business Address">
                                         <?php if (!empty($locationsByEntity[$entityId])): ?>
@@ -1244,7 +1307,7 @@ function nxAnalyticsMoney(float $amount): string
             form.appendChild(input);
         }
 
-        function paymentForm(data, quarterNumber, nextStatus) {
+        function paymentForm(data, quarterNumber, quarter) {
             var form = document.createElement('form');
             form.method = 'POST';
             form.action = phpEndpoint;
@@ -1252,12 +1315,49 @@ function nxAnalyticsMoney(float $amount): string
             hiddenField(form, 'business_entity_id', data.business_entity_id);
             hiddenField(form, 'permit_year', data.permit_year);
             hiddenField(form, 'quarter_number', quarterNumber);
-            hiddenField(form, 'payment_status', nextStatus);
             hiddenField(form, 'csrf_token', data.csrf.quarters[quarterNumber]);
+            var currentStatus = quarter ? quarter.payment_status : 'pending';
+            var select = document.createElement('select');
+            select.name = 'payment_status';
+            select.required = true;
+            select.setAttribute('aria-label', 'Quarter ' + quarterNumber + ' payment action');
+            var currentOption = document.createElement('option');
+            currentOption.value = '';
+            currentOption.disabled = true;
+            currentOption.selected = true;
+            currentOption.textContent = currentStatus === 'paid'
+                ? 'Current status: Paid'
+                : currentStatus === 'unpaid'
+                    ? 'Current status: Unpaid'
+                    : quarter && quarter.unpaid_eligible
+                        ? 'Current status: Pending'
+                        : 'Pending · within 30-day grace';
+            select.appendChild(currentOption);
+            var paidOption = document.createElement('option');
+            paidOption.value = 'paid';
+            paidOption.textContent = 'Mark as paid';
+            paidOption.disabled = currentStatus === 'paid';
+            select.appendChild(paidOption);
+            var unpaidOption = document.createElement('option');
+            unpaidOption.value = 'unpaid';
+            unpaidOption.textContent = 'Mark as unpaid';
+            unpaidOption.disabled = !quarter || !quarter.unpaid_eligible || currentStatus === 'unpaid';
+            select.appendChild(unpaidOption);
             var button = document.createElement('button');
             button.type = 'submit';
-            button.textContent = nextStatus === 'paid' ? 'Mark paid' : 'Mark unpaid';
-            form.appendChild(button);
+            button.textContent = 'Update status';
+            form.append(select, button);
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+                var nextStatus = select.value;
+                var confirmation = nextStatus === 'paid'
+                    ? 'Confirm marking Quarter ' + quarterNumber + ' of ' + data.permit_year + ' as paid?'
+                    : 'Confirm marking Quarter ' + quarterNumber + ' of ' + data.permit_year +
+                        ' as unpaid? This may restrict business access after the grace period.';
+                if (nextStatus && window.confirm(confirmation)) {
+                    form.submit();
+                }
+            });
             return form;
         }
 
@@ -1484,6 +1584,9 @@ function nxAnalyticsMoney(float $amount): string
             if (data.permit_status === 'paid') {
                 accessSummary.className = 'analytics-permit-access is-active';
                 accessSummary.textContent = 'Business access: Active · permit paid.';
+            } else if (data.permit_status === 'pending') {
+                accessSummary.className = 'analytics-permit-access is-active';
+                accessSummary.textContent = 'Business access: Active · quarter payments are pending.';
             } else {
                 var unpaidDate = data.permit_unpaid_since ? new Date(data.permit_unpaid_since.replace(' ', 'T')) : null;
                 var graceDeadline = unpaidDate && !Number.isNaN(unpaidDate.getTime())
@@ -1507,7 +1610,7 @@ function nxAnalyticsMoney(float $amount): string
                 var migrationHeading = document.createElement('h4');
                 migrationHeading.textContent = 'Permit payment tracking is not configured';
                 var migrationText = document.createElement('p');
-                migrationText.textContent = 'Apply the quarterly permit-payment database migration to view and manage permit assessments.';
+                migrationText.textContent = 'Apply the quarterly permit-payment migration and add the Pending status before managing annual assessments.';
                 migrationCard.append(migrationHeading, migrationText);
                 quarters.appendChild(migrationCard);
             } else {
@@ -1523,7 +1626,7 @@ function nxAnalyticsMoney(float $amount): string
                     var emptyHeading = document.createElement('h4');
                     emptyHeading.textContent = 'Annual assessment needed';
                     var emptyCopy = document.createElement('p');
-                    emptyCopy.textContent = 'Set the annual permit fee below to create the four quarterly records. An overdue unpaid quarter may make business access inactive after the 30-day grace period.';
+                    emptyCopy.textContent = 'Set this year’s annual permit fee to create four Pending quarter records. Each quarter becomes eligible to mark unpaid 30 days after it starts.';
                     emptyAssessment.append(emptyHeading, emptyCopy);
                     quarters.appendChild(emptyAssessment);
                 } else {
@@ -1535,18 +1638,27 @@ function nxAnalyticsMoney(float $amount): string
                         var heading = document.createElement('h4');
                         heading.textContent = 'Quarter ' + quarterNumber;
                         var dueDate = document.createElement('p');
-                        dueDate.textContent = 'Quarter starts: ' + new Date(year, (quarterNumber - 1) * 3, 1)
-                            .toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+                        var quarterStart = new Date(year, (quarterNumber - 1) * 3, 1);
+                        var unpaidAfter = quarter && quarter.unpaid_after
+                            ? new Date(quarter.unpaid_after + 'T00:00:00+08:00')
+                            : new Date(year, (quarterNumber - 1) * 3, 1 + 30);
+                        dueDate.textContent = 'Quarter starts: ' +
+                            quarterStart.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) +
+                            ' · Mark unpaid after: ' +
+                            unpaidAfter.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
                         var amount = document.createElement('p');
                         amount.textContent = 'Amount: ' + money(quarter ? quarter.assessed_amount : 0);
                         var status = document.createElement('p');
                         var isQuarterPaid = quarter && quarter.payment_status === 'paid';
-                        status.className = 'analytics-quarter-status ' + (isQuarterPaid ? 'is-paid' : 'is-unpaid');
+                        var isQuarterUnpaid = quarter && quarter.payment_status === 'unpaid';
+                        var quarterStatusLabel = isQuarterPaid ? 'Paid' : (isQuarterUnpaid ? 'Unpaid' : 'Pending');
+                        status.className = 'analytics-quarter-status ' +
+                            (isQuarterPaid ? 'is-paid' : (isQuarterUnpaid ? 'is-unpaid' : 'is-pending'));
                         status.textContent = isQuarterPaid
                             ? 'Status: Paid' + (quarter.paid_at ? ' · ' + quarter.paid_at : '')
-                            : 'Status: Unpaid';
+                            : 'Status: ' + quarterStatusLabel;
                         card.append(heading, dueDate, amount, status);
-                        card.appendChild(paymentForm(data, quarterNumber, quarter && quarter.payment_status === 'paid' ? 'unpaid' : 'paid'));
+                        card.appendChild(paymentForm(data, quarterNumber, quarter));
                         quarters.appendChild(card);
                     }
                 }
@@ -1570,15 +1682,11 @@ function nxAnalyticsMoney(float $amount): string
                 feeInput.required = true;
                 if (assessment) {
                     feeInput.value = Number(assessment.annual_fee).toFixed(2);
-                    feeInput.readOnly = Object.values(assessment.quarters).some(function (quarter) {
-                        return quarter.payment_status === 'paid';
-                    });
                 }
                 feeLabel.appendChild(feeInput);
                 var save = document.createElement('button');
                 save.type = 'submit';
                 save.textContent = assessment ? 'Update annual assessment' : 'Set annual assessment';
-                save.disabled = feeInput.readOnly;
                 assessmentForm.append(feeLabel, save);
                 var assessmentPanel = document.createElement('div');
                 assessmentPanel.className = 'analytics-assessment-panel';
@@ -1587,16 +1695,10 @@ function nxAnalyticsMoney(float $amount): string
                 var assessmentHeading = document.createElement('h4');
                 assessmentHeading.textContent = 'Annual assessment';
                 var assessmentDescription = document.createElement('p');
-                assessmentDescription.textContent = 'Set or update the annual permit fee. It is divided across four calendar quarters.';
+                assessmentDescription.textContent = 'Set or revise the annual permit fee as profit is assessed. Paid quarter amounts stay fixed; the remaining amount is divided among unpaid quarters. Reconcile recorded payments if they already meet or exceed the revised fee.';
                 assessmentCopy.append(assessmentHeading, assessmentDescription);
                 assessmentPanel.append(assessmentCopy, assessmentForm);
                 controls.appendChild(assessmentPanel);
-                if (feeInput.readOnly) {
-                    var lockedNote = document.createElement('p');
-                    lockedNote.className = 'analytics-permit-help analytics-assessment-note';
-                    lockedNote.textContent = 'The annual fee is locked after a quarterly payment is recorded.';
-                    controls.appendChild(lockedNote);
-                }
             }
             backdrop.hidden = false;
             document.body.style.overflow = 'hidden';
