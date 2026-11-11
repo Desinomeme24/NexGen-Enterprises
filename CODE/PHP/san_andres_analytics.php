@@ -1014,10 +1014,10 @@ function nxAnalyticsMoney(float $amount): string
             box-shadow: 0 28px 90px rgba(0, 0, 0, .48);
         }
         .analytics-confirm-dialog::backdrop { background: rgba(5, 11, 36, .72); backdrop-filter: blur(3px); }
-        .analytics-confirm-content { padding: 24px; }
+        .analytics-confirm-content { padding: 24px; text-align: center; }
         .analytics-confirm-content h2 { margin: 0 0 10px; font-size: 1.2rem; }
         .analytics-confirm-content p { margin: 0; color: var(--muted); line-height: 1.55; }
-        .analytics-confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+        .analytics-confirm-actions { display: flex; justify-content: center; gap: 10px; margin-top: 24px; }
         .analytics-confirm-actions button {
             min-height: 40px;
             padding: 9px 14px;
