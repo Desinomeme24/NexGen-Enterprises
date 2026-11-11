@@ -1005,6 +1005,9 @@ function nxAnalyticsMoney(float $amount): string
             opacity: .58;
         }
         .analytics-confirm-dialog {
+            position: fixed;
+            inset: 0;
+            margin: auto;
             width: min(440px, calc(100% - 32px));
             padding: 0;
             border: 1px solid var(--glass-border);
