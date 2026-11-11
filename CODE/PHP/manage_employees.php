@@ -251,8 +251,8 @@ unset($_SESSION['flash']);
                 <span class="owner-module-count"><?php echo count($requests); ?> request<?php echo count($requests) === 1 ? '' : 's'; ?></span>
             </div>
 
-            <div class="owner-module-table-wrap">
-                <table class="owner-module-table">
+            <div class="owner-module-table-wrap owner-employee-request-table-wrap">
+                <table class="owner-module-table owner-employee-request-table">
                     <thead>
                         <tr>
                             <th>Applicant</th>
@@ -272,7 +272,7 @@ unset($_SESSION['flash']);
                         </tr>
                     <?php else: ?>
                         <?php foreach ($requests as $request): ?>
-                            <tr>
+                            <tr class="owner-employee-request-card">
                                 <td data-label="Applicant">
                                     <strong><?php echo e($request['full_name']); ?></strong>
                                     <span class="owner-module-muted">@<?php echo e($request['username']); ?> · <?php echo e($request['email']); ?></span>

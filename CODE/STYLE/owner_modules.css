@@ -723,6 +723,111 @@ html[data-theme="light"] .owner-module-integrity.invalid {
   .owner-module-log-description {
     max-width: none;
   }
+
+  .owner-employee-request-table-wrap {
+    overflow: visible;
+  }
+
+  .owner-module-table.owner-employee-request-table {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .owner-module-table.owner-employee-request-table tbody {
+    display: block;
+    width: 100%;
+    padding: 12px 0;
+  }
+
+  .owner-module-table.owner-employee-request-table tr.owner-employee-request-card {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 12px;
+    padding: 8px 16px;
+    border: 1px solid rgba(125, 211, 252, 0.28);
+    border-radius: 16px;
+    background:
+      radial-gradient(ellipse at top left, rgba(59, 130, 246, 0.2), transparent 58%),
+      linear-gradient(145deg, rgba(18, 41, 90, 0.98), rgba(6, 15, 31, 0.98));
+    box-shadow:
+      0 12px 26px rgba(3, 10, 32, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  }
+
+  .owner-module-table.owner-employee-request-table tr.owner-employee-request-card:last-child {
+    margin-bottom: 0;
+  }
+
+  .owner-module-table.owner-employee-request-table tr.owner-employee-request-card td {
+    display: none;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 10px 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .owner-module-table.owner-employee-request-table tr.owner-employee-request-card td[data-label="Applicant"] {
+    display: block;
+    padding-top: 8px;
+    text-align: left;
+  }
+
+  .owner-module-table.owner-employee-request-table td[data-label="Applicant"]::before,
+  .owner-module-table.owner-employee-request-table td[data-label="Applicant"] .owner-module-muted {
+    display: none;
+  }
+
+  .owner-module-table.owner-employee-request-table td[data-label="Applicant"] strong {
+    display: block;
+    overflow-wrap: anywhere;
+    font-size: 1rem;
+  }
+
+  .owner-module-table.owner-employee-request-table tr.owner-employee-request-card td[data-label="Status"],
+  .owner-module-table.owner-employee-request-table tr.owner-employee-request-card td[data-label="Review"] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: right;
+  }
+
+  .owner-module-table.owner-employee-request-table td[data-label="Status"]::before,
+  .owner-module-table.owner-employee-request-table td[data-label="Review"]::before {
+    flex: none;
+    color: #aeb8cb;
+    font: 700 0.68rem var(--font-body);
+    letter-spacing: 0.06em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  .owner-module-table.owner-employee-request-table td[data-label="Review"] {
+    border-top: 1px solid rgba(174, 184, 203, 0.14);
+  }
+
+  .owner-module-table.owner-employee-request-table td[data-label="Review"] .owner-module-link {
+    min-height: 38px;
+    padding: 8px 14px;
+  }
+
+  html[data-theme="light"] .owner-module-table.owner-employee-request-table tr.owner-employee-request-card {
+    border-color: rgba(59, 130, 246, 0.24);
+    background:
+      radial-gradient(ellipse at top left, rgba(125, 211, 252, 0.2), transparent 58%),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(214, 235, 255, 0.96));
+    box-shadow:
+      0 12px 26px rgba(57, 88, 134, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  }
+
+  html[data-theme="light"] .owner-module-table.owner-employee-request-table td[data-label="Status"]::before,
+  html[data-theme="light"] .owner-module-table.owner-employee-request-table td[data-label="Review"]::before {
+    color: #52627a;
+  }
 }
 
 @media (max-width: 600px) {
