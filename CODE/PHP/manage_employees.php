@@ -247,7 +247,6 @@ unset($_SESSION['flash']);
                         <option value="pending" <?php echo $status === 'pending' ? 'selected' : ''; ?>>Pending</option>
                         <option value="resubmit" <?php echo $status === 'resubmit' ? 'selected' : ''; ?>>Resubmission</option>
                     </select>
-                    <button class="owner-module-button" type="submit"><i class="bi bi-search"></i> Filter</button>
                 </form>
                 <span class="owner-module-count"><?php echo count($requests); ?> request<?php echo count($requests) === 1 ? '' : 's'; ?></span>
             </div>
@@ -331,7 +330,6 @@ unset($_SESSION['flash']);
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <button class="owner-module-button" type="submit"><i class="bi bi-search"></i> Filter</button>
                 </form>
                 <span class="owner-module-count"><?php echo count($employees); ?> employee<?php echo count($employees) === 1 ? '' : 's'; ?></span>
             </div>

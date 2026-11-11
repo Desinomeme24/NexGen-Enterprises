@@ -284,15 +284,14 @@ $recentMovements = nxFetchAll($conn, "SELECT sm.*,p.product_name,p.product_code,
     FROM stock_movements sm INNER JOIN products p ON sm.product_id=p.id AND sm.business_id=p.business_id
     WHERE sm.business_id=? AND sm.created_at>=NOW()-INTERVAL 7 DAY ORDER BY sm.created_at DESC LIMIT 5", "i", [$businessId]);
 
-// Purchase order history is owner-only: only fetch it for owners so it
-// never ends up in the HTML response for employees (the trigger button
-// being hidden for employees was not enough - the data itself must not
-// be sent to the browser).
+// Purchase-order and stock-in history is owner-only: do not send it to
+// employees even when its trigger button is hidden.
 $orderHistory = $isOwner ? nxFetchAll($conn, "SELECT sm.id, sm.product_id, sm.quantity, sm.remarks, sm.created_at,
+        sm.movement_type, sm.manufacturing_date, sm.expiry_date,
         p.product_name, p.product_code
     FROM stock_movements sm
     INNER JOIN products p ON p.id=sm.product_id AND p.business_id=sm.business_id
-    WHERE sm.business_id=? AND sm.movement_type='order_placed'
+    WHERE sm.business_id=? AND sm.movement_type IN ('order_placed', 'stock_in')
     ORDER BY sm.created_at DESC, sm.id DESC LIMIT 20", "i", [$businessId]) : [];
 
 $inventoryConflict = !empty($_SESSION['inventory_conflict']);
@@ -575,7 +574,7 @@ if ($currentStatusForTab === '') {
 
         .po-history-modal-table {
             width: 100%;
-            min-width: 720px;
+            min-width: 1040px;
             border-collapse: separate;
             border-spacing: 0;
             overflow: hidden;
@@ -634,6 +633,22 @@ if ($currentStatusForTab === '') {
 
         .po-date {
             white-space: nowrap;
+        }
+
+        .po-activity-pill {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 999px;
+            background: rgba(59, 130, 246, .18);
+            color: #bfdbfe;
+            font-size: 11px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .po-activity-pill.is-received {
+            background: rgba(34, 197, 94, .16);
+            color: #bbf7d0;
         }
 
         .po-empty {
@@ -1229,13 +1244,13 @@ if ($currentStatusForTab === '') {
                 <div>
                     <span class="po-history-kicker">Inventory Purchasing</span>
                     <h2 id="poHistoryTitle">Purchase Order History</h2>
-                    <p>Review quantities and remarks recorded when products were placed on order.</p>
+                    <p>Review quantities, dates, and remarks for product orders and stock received.</p>
                 </div>
                 <button type="button" class="po-history-close" id="closePoHistoryModal" aria-label="Close Purchase Order History">&times;</button>
             </div>
 
             <div class="po-history-modal-meta">
-                <span><i class="bi bi-clock-history"></i> Latest 20 orders</span>
+                <span><i class="bi bi-clock-history"></i> Latest 20 orders and stock-ins</span>
                 <span class="po-history-total"><?php echo count($orderHistory); ?> shown</span>
             </div>
 
@@ -1245,8 +1260,11 @@ if ($currentStatusForTab === '') {
                         <tr>
                             <th>Product</th>
                             <th>Qty</th>
+                            <th>Activity</th>
+                            <th>Manufacturing Date</th>
+                            <th>Expiry Date</th>
                             <th>Remarks</th>
-                            <th>Placed On</th>
+                            <th>Recorded On</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1258,6 +1276,21 @@ if ($currentStatusForTab === '') {
                                     <small>SKU: <?php echo htmlspecialchars($order['product_code']); ?></small>
                                 </td>
                                 <td class="po-qty">+<?php echo formatQty($order['quantity']); ?></td>
+                                <td>
+                                    <span class="po-activity-pill <?php echo $order['movement_type'] === 'stock_in' ? 'is-received' : ''; ?>">
+                                        <?php echo $order['movement_type'] === 'stock_in' ? 'Stock In' : 'Order Placed'; ?>
+                                    </span>
+                                </td>
+                                <td class="po-date">
+                                    <?php echo !empty($order['manufacturing_date'])
+                                        ? htmlspecialchars(date('M d, Y', strtotime($order['manufacturing_date'])))
+                                        : '—'; ?>
+                                </td>
+                                <td class="po-date">
+                                    <?php echo !empty($order['expiry_date'])
+                                        ? htmlspecialchars(date('M d, Y', strtotime($order['expiry_date'])))
+                                        : '—'; ?>
+                                </td>
                                 <td class="po-remarks">
                                     <?php if (trim((string)($order['remarks'] ?? '')) !== ''): ?>
                                         <?php echo nl2br(htmlspecialchars($order['remarks'])); ?>
@@ -1274,10 +1307,10 @@ if ($currentStatusForTab === '') {
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="4" class="po-history-empty-state">
+                            <td colspan="7" class="po-history-empty-state">
                                 <i class="bi bi-receipt"></i>
                                 <strong>No purchase-order history yet.</strong>
-                                <span>New orders will appear here after you place them.</span>
+                                <span>Orders and stock-ins will appear here after they are recorded.</span>
                             </td>
                         </tr>
                     <?php endif; ?>
@@ -1653,6 +1686,11 @@ if ($currentStatusForTab === '') {
                             </div>
                             <div class="form-group full-width">
                                 <label class="field-help">This business tracks stock per batch. Use Adjust Stock on the product's menu to add a new batch or record a Stock Out, and View Batches to edit dates for an individual batch. Stock quantity here is read-only.</label>
+                            </div>
+                            <div class="form-group full-width">
+                                <button type="button" class="save-btn" data-edit-product-batches>
+                                    View &amp; Edit Batch Dates
+                                </button>
                             </div>
                         <?php else: ?>
                             <div class="form-group">

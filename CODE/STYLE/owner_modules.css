@@ -5,6 +5,11 @@
   box-sizing: border-box;
 }
 
+body {
+  margin: 0;
+  background: var(--bg-page);
+}
+
 .owner-module-shell {
   --owner-admin-glass: linear-gradient(
     180deg,

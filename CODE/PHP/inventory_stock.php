@@ -386,15 +386,26 @@ try {
     $versionStmt->close();
 
     $movementStmt = $conn->prepare("
-        INSERT INTO stock_movements (business_id, product_id, movement_type, quantity, remarks, created_by, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, NOW())
+        INSERT INTO stock_movements
+            (business_id, product_id, movement_type, quantity, remarks, manufacturing_date, expiry_date, created_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
     ");
 
     if (!$movementStmt) {
         throw new Exception("Failed to prepare stock movement history query.");
     }
 
-    $movementStmt->bind_param("iisdsi", $businessId, $product_id, $movement_type, $quantity, $remarks, $user_id);
+    $movementStmt->bind_param(
+        "iisdsssi",
+        $businessId,
+        $product_id,
+        $movement_type,
+        $quantity,
+        $remarks,
+        $manufacturingDate,
+        $expiryDate,
+        $user_id
+    );
 
     if (!$movementStmt->execute()) {
         throw new Exception("Failed to save stock movement history.");

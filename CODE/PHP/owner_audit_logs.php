@@ -137,7 +137,7 @@ $stmt->close();
                 </div>
             </div>
             <div class="owner-module-toolbar">
-                <form method="GET" action="<?php echo e(nxAppUrl('owner_audit_logs.php')); ?>">
+                <form method="GET" action="<?php echo e(nxAppUrl('owner_audit_logs.php')); ?>" data-auto-submit-filters>
                     <label class="visually-hidden" for="auditSearch">Search audit records</label>
                     <input id="auditSearch" name="search" value="<?php echo e($search); ?>" placeholder="Search action, target, details, or date" autocomplete="off">
                     <label class="visually-hidden" for="auditAction">Filter by action</label>
@@ -149,7 +149,6 @@ $stmt->close();
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <button class="owner-module-button" type="submit"><i class="bi bi-search"></i> Filter</button>
                 </form>
                 <span class="owner-module-count"><?php echo count($logs); ?> recent record<?php echo count($logs) === 1 ? '' : 's'; ?></span>
             </div>
@@ -200,5 +199,10 @@ $stmt->close();
     </main>
 </div>
 <script src="<?php echo e(nxCodeUrl('JS/header.js')); ?>" defer></script>
+<script>
+document.querySelectorAll('form[data-auto-submit-filters] select').forEach((select) => {
+    select.addEventListener('change', () => select.form.requestSubmit());
+});
+</script>
 </body>
 </html>

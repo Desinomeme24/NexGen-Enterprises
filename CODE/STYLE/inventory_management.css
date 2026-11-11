@@ -3961,6 +3961,10 @@ html[data-theme="light"] .category-list::-webkit-scrollbar-thumb {
   z-index: 5000;
 }
 
+.modal-overlay.batch-modal-elevated {
+  z-index: 5001;
+}
+
 .product-modal .modal-header {
   gap: 12px;
 }

@@ -4873,7 +4873,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
             <span>Location: Cainta Municipal Hall Street Cainta Calabarzon</span>
           </li>
           <li>
-            <span>Facebook: <a href="https://www.facebook.com/profile.php?id=100067438239190" target="_blank" rel="noopener noreferrer">One Cainta BPLO - Business Permit and Licensing Office</a></span>
+           
           </li>
         </ul>
       </div>

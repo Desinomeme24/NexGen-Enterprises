@@ -290,7 +290,7 @@ unset($_SESSION['success'], $_SESSION['error']);
     <?php include __DIR__ . '/theme_init.php'; ?>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sales</title>
-    <link rel="stylesheet" href="/NexGen/CODE/STYLE/sales_recording.css?v=12">
+    <link rel="stylesheet" href="/NexGen/CODE/STYLE/sales_recording.css?v=13">
     <link rel="stylesheet" href="/NexGen/CODE/STYLE/header.css?v=5">
     <link rel="stylesheet" href="/NexGen/CODE/STYLE/module_footer.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -1157,11 +1157,18 @@ unset($_SESSION['success'], $_SESSION['error']);
                                 <strong>₱<span id="receiptTotal">0.00</span></strong>
                             </div>
                         </div>
-                        <label class="attach-receipt-btn" for="receiptImageInput">
-                            <i class="bi bi-upload"></i>
-                            <strong id="attachReceiptText">Attach Receipt Photo (optional)</strong>
-                            <small>Tap to browse &bull; JPG, PNG up to 5MB</small>
-                        </label>
+                        <div class="receipt-attachment-actions">
+                            <button type="button" class="attach-receipt-btn receipt-photo-action" id="chooseReceiptPhotoBtn" aria-controls="receiptImageInput">
+                                <i class="bi bi-upload"></i>
+                                <strong id="attachReceiptText">Choose Receipt Photo</strong>
+                                <small>Optional &bull; JPG, PNG, or WebP up to 5MB</small>
+                            </button>
+                            <button type="button" class="attach-receipt-btn receipt-photo-action capture-receipt-btn" id="takeReceiptPhotoBtn" aria-controls="receiptImageInput">
+                                <i class="bi bi-camera"></i>
+                                <strong>Take Photo</strong>
+                                <small>Use your phone camera</small>
+                            </button>
+                        </div>
                         <input type="file" name="receipt_image" id="receiptImageInput" accept="image/*" hidden>
                     </div>
 
@@ -1333,7 +1340,7 @@ window.salesAccess = {
 };
 </script>
 <script src="/NexGen/CODE/JS/header.js?v=5"></script>
-<script src="/NexGen/CODE/JS/sales_recording.js?v=9"></script>
+<script src="/NexGen/CODE/JS/sales_recording.js?v=10"></script>
 <script>
 const popupOverlay = document.getElementById("popupOverlay");
 if (popupOverlay) {

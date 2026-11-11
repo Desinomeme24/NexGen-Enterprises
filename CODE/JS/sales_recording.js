@@ -938,9 +938,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const attachReceiptText = document.getElementById("attachReceiptText");
     if (receiptImageInput) {
       receiptImageInput.value = "";
+      receiptImageInput.removeAttribute("capture");
     }
     if (attachReceiptText) {
-      attachReceiptText.textContent = "Attach Receipt Photo (optional)";
+      attachReceiptText.textContent = "Choose Receipt Photo";
     }
 
     syncOrderStatusWithPayment();
@@ -2029,20 +2030,40 @@ document.addEventListener("DOMContentLoaded", function () {
   /* ================= RECEIPT IMAGE ATTACH ================= */
   const receiptImageInput = document.getElementById("receiptImageInput");
   const attachReceiptText = document.getElementById("attachReceiptText");
+  const chooseReceiptPhotoBtn = document.getElementById("chooseReceiptPhotoBtn");
+  const takeReceiptPhotoBtn = document.getElementById("takeReceiptPhotoBtn");
 
-  if (receiptImageInput && attachReceiptText) {
+  if (receiptImageInput) {
+    chooseReceiptPhotoBtn?.addEventListener("click", function () {
+      receiptImageInput.removeAttribute("capture");
+      receiptImageInput.click();
+    });
+
+    takeReceiptPhotoBtn?.addEventListener("click", function () {
+      receiptImageInput.setAttribute("capture", "environment");
+      receiptImageInput.click();
+    });
+
     receiptImageInput.addEventListener("change", function () {
+      receiptImageInput.removeAttribute("capture");
       if (receiptImageInput.files && receiptImageInput.files[0]) {
         const file = receiptImageInput.files[0];
         if (file.size > 5 * 1024 * 1024) {
           receiptImageInput.value = "";
-          attachReceiptText.textContent = "Attach Receipt Photo (optional)";
+          if (attachReceiptText) {
+            attachReceiptText.textContent = "Choose Receipt Photo";
+          }
           showToast("Receipt photo must be 5MB or smaller.", "warning");
+          if (wizardCurrentStep === 3) {
+            renderWizardReview();
+          }
           return;
         }
-        attachReceiptText.textContent = file.name;
-      } else {
-        attachReceiptText.textContent = "Attach Receipt Photo (optional)";
+        if (attachReceiptText) {
+          attachReceiptText.textContent = file.name;
+        }
+      } else if (attachReceiptText) {
+        attachReceiptText.textContent = "Choose Receipt Photo";
       }
       if (wizardCurrentStep === 3) {
         renderWizardReview();

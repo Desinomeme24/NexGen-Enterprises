@@ -125,14 +125,19 @@ function openModal(modal) {
 function closeModal(modal) {
   if (!modal) {return;}
   modal.classList.remove("show");
-  document.body.style.overflow = "";
+  modal.classList.remove("batch-modal-elevated");
+  document.body.style.overflow = document.querySelector(".modal-overlay.show")
+    ? "hidden"
+    : "";
 }
 
 function closeEditBatchDateModal() {
   if (!editBatchDatesModal) {return;}
   editBatchDatesModal.classList.remove("show");
-  document.body.style.overflow =
-    batchesModal && batchesModal.classList.contains("show") ? "hidden" : "";
+  editBatchDatesModal.classList.remove("batch-modal-elevated");
+  document.body.style.overflow = document.querySelector(".modal-overlay.show")
+    ? "hidden"
+    : "";
 }
 
 /* PRODUCT WIZARDS (Add + Edit share the same step markup/classes) */
@@ -702,6 +707,12 @@ function renderBatchesTable(batches, productVersion) {
 function openBatchesModal(productId, productName, productVersion) {
   if (batchesProductName)
     {batchesProductName.textContent = productName || "Product";}
+  if (batchesModal) {
+    batchesModal.classList.toggle(
+      "batch-modal-elevated",
+      Boolean(editProductModal && editProductModal.classList.contains("show")),
+    );
+  }
   if (batchesModalBody) {
     batchesModalBody.innerHTML =
       '<tr><td colspan="6" class="batches-empty-state">Loading...</td></tr>';
@@ -980,6 +991,19 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const editProductBatchesButton = event.target.closest(
+    "[data-edit-product-batches]",
+  );
+  if (editProductBatchesButton) {
+    const productId = document.getElementById("edit_id");
+    const productName = document.getElementById("edit_product_name");
+    const productVersion = document.getElementById("edit_version");
+    if (productId && productName && productVersion) {
+      openBatchesModal(productId.value, productName.value, productVersion.value);
+    }
+    return;
+  }
+
   const stockButton = event.target.closest(".stock-btn");
   if (stockButton) {
     const productId = document.getElementById("stock_product_id");
@@ -1033,6 +1057,13 @@ document.addEventListener("click", (event) => {
     setValue("edit_batch_expiry_date", editBatchDatesButton.dataset.expiryDate);
     if (editBatchDatesNumber) {
       editBatchDatesNumber.textContent = editBatchDatesButton.dataset.editBatchNumber || "Batch";
+    }
+    if (
+      editBatchDatesModal &&
+      batchesModal &&
+      batchesModal.classList.contains("batch-modal-elevated")
+    ) {
+      editBatchDatesModal.classList.add("batch-modal-elevated");
     }
     openModal(editBatchDatesModal);
     return;

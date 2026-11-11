@@ -2354,6 +2354,29 @@ body::after {
   background: rgba(219, 234, 254, 0.18);
 }
 
+.receipt-attachment-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.receipt-photo-action {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+}
+
+.receipt-photo-action strong,
+.receipt-photo-action small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.receipt-photo-action strong {
+  white-space: nowrap;
+}
+
 .sale-total-inline {
   margin-top: 16px;
   max-width: 260px;
@@ -7171,6 +7194,26 @@ html[data-theme="light"] #saleModal .locked-payment-status i {
   border: 1px dashed rgba(112, 162, 255, 0.42);
   border-radius: 17px;
   background: rgba(22, 54, 141, 0.44);
+}
+
+#saleModal .receipt-photo-action {
+  min-height: 100px;
+  gap: 7px;
+  padding: 12px 8px;
+  text-align: center;
+}
+
+#saleModal .receipt-photo-action > i {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 12px;
+  font-size: 19px;
+}
+
+#saleModal .receipt-photo-action:focus-visible {
+  outline: 3px solid var(--sale-app-yellow);
+  outline-offset: 3px;
 }
 
 #saleModal .review-intro {
