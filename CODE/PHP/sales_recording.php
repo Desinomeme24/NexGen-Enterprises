@@ -461,7 +461,7 @@ unset($_SESSION['success'], $_SESSION['error']);
                 'All'             => ['class' => 'status-all',      'icon' => 'bi-asterisk'],
                 'Paid'            => ['class' => 'status-paid',     'icon' => 'bi-check-circle-fill'],
                 'Fulfilled'       => ['class' => 'status-fulfilled','icon' => 'bi-box-seam-fill'],
-                'Pending'         => ['class' => 'status-pending',  'icon' => 'bi-clock-fill'],
+              
             ];
             $salesBaseParams = [
                 'filter' => $filter,
@@ -866,7 +866,7 @@ unset($_SESSION['success'], $_SESSION['error']);
                                 <input type="hidden" name="payment_status" id="paymentStatus" value="Paid">
                                 <div class="locked-payment-status" aria-label="Payment status is locked to Paid">
                                     <input type="text" value="Paid" readonly tabindex="-1">
-                                    <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                                    
                                 </div>
                             </div>
                         </div>
