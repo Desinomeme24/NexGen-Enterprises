@@ -4973,15 +4973,15 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
         <ul class="footer-contact">
           <li>
             <span class="contact-icon"><i class="fas fa-envelope"></i></span>
-            <span><a href="#">nexgeneration2026@gmail.com</a></span>
+            <span><a href="#">bplo@cainta.gov.ph </a></span>
           </li>
           <li>
             <span class="contact-icon"><i class="fas fa-phone"></i></span>
-            <span><a href="#">0909 439 9525</a></span>
+            <span><a href="#">0968-294-6027</a></span>
           </li>
           <li>
             <span class="contact-icon"><i class="fas fa-location-dot"></i></span>
-            <span>Cainta, Rizal</span>
+            <span>Cainta Municipal Hall Street Cainta Calabarzon</span>
           </li>
         </ul>
       </div>

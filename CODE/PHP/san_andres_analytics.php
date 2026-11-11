@@ -9,14 +9,39 @@ if (empty($_SESSION['user_id']) || !nxIsAdminRole((string)($_SESSION['role'] ?? 
     exit();
 }
 
+$currentYear = (int)date('Y');
+$previousYear = $currentYear - 1;
+$requestedProfitMonth = $_GET['profit_month'] ?? date('n');
+$selectedProfitMonth = filter_var(
+    is_scalar($requestedProfitMonth) ? $requestedProfitMonth : false,
+    FILTER_VALIDATE_INT,
+    ['options' => ['min_range' => 1, 'max_range' => 12]]
+);
+if ($selectedProfitMonth === false) {
+    $selectedProfitMonth = (int)date('n');
+}
+$selectedProfitMonth = (int)$selectedProfitMonth;
+
+$yearStart = sprintf('%04d-01-01 00:00:00', $currentYear);
+$nextYearStart = sprintf('%04d-01-01 00:00:00', $currentYear + 1);
+$previousYearStart = sprintf('%04d-01-01 00:00:00', $previousYear);
+$monthStart = sprintf('%04d-%02d-01 00:00:00', $currentYear, $selectedProfitMonth);
+$monthEnd = (new DateTimeImmutable($monthStart))->modify('+1 month')->format('Y-m-d H:i:s');
+
 try {
-    $financialResult = $conn->query(
+    $financialStmt = $conn->prepare(
         "SELECT be.id AS business_entity_id,
             be.business_name,
             COALESCE(owners.owner_names, 'No owner assigned') AS owner_names,
             COALESCE(revenue.gross_revenue, 0) AS gross_revenue,
             COALESCE(costs.cost_of_goods_sold, 0) AS cost_of_goods_sold,
             COALESCE(revenue.gross_revenue, 0) - COALESCE(costs.cost_of_goods_sold, 0) AS net_profit,
+            COALESCE(revenue.monthly_gross_revenue, 0) AS monthly_gross_revenue,
+            COALESCE(costs.monthly_cost_of_goods_sold, 0) AS monthly_cost_of_goods_sold,
+            COALESCE(revenue.monthly_gross_revenue, 0) - COALESCE(costs.monthly_cost_of_goods_sold, 0) AS monthly_net_profit,
+            COALESCE(revenue.annual_gross_revenue, 0) AS annual_gross_revenue,
+            COALESCE(costs.annual_cost_of_goods_sold, 0) AS annual_cost_of_goods_sold,
+            COALESCE(revenue.annual_gross_revenue, 0) - COALESCE(costs.annual_cost_of_goods_sold, 0) AS annual_net_profit,
             be.permit_payment_status,
             be.permit_unpaid_since
      FROM business_entities be
@@ -42,21 +67,55 @@ try {
          GROUP BY business_owners.business_entity_id
      ) owners ON owners.business_entity_id = be.id
      LEFT JOIN (
-         SELECT b.business_entity_id, SUM(s.total_amount) AS gross_revenue
+         SELECT b.business_entity_id,
+                SUM(CASE WHEN s.sale_date >= ? AND s.sale_date < ? THEN s.total_amount ELSE 0 END) AS gross_revenue,
+                SUM(CASE WHEN s.sale_date >= ? AND s.sale_date < ? THEN s.total_amount ELSE 0 END) AS monthly_gross_revenue,
+                SUM(CASE WHEN s.sale_date >= ? AND s.sale_date < ? THEN s.total_amount ELSE 0 END) AS annual_gross_revenue
          FROM businesses b
          INNER JOIN sales s ON s.business_id = b.id
+         WHERE s.sale_date >= ? AND s.sale_date < ?
          GROUP BY b.business_entity_id
      ) revenue ON revenue.business_entity_id = be.id
      LEFT JOIN (
-         SELECT b.business_entity_id, SUM(p.cost_price * si.quantity) AS cost_of_goods_sold
+         SELECT b.business_entity_id,
+                SUM(CASE WHEN s.sale_date >= ? AND s.sale_date < ? THEN p.cost_price * si.quantity ELSE 0 END) AS cost_of_goods_sold,
+                SUM(CASE WHEN s.sale_date >= ? AND s.sale_date < ? THEN p.cost_price * si.quantity ELSE 0 END) AS monthly_cost_of_goods_sold,
+                SUM(CASE WHEN s.sale_date >= ? AND s.sale_date < ? THEN p.cost_price * si.quantity ELSE 0 END) AS annual_cost_of_goods_sold
          FROM businesses b
          INNER JOIN sales s ON s.business_id = b.id
          INNER JOIN sale_items si ON si.sale_id = s.id
          INNER JOIN products p ON p.id = si.product_id AND p.business_id = s.business_id
+         WHERE s.sale_date >= ? AND s.sale_date < ?
          GROUP BY b.business_entity_id
      ) costs ON costs.business_entity_id = be.id
-         ORDER BY gross_revenue DESC, be.business_name ASC, be.id ASC"
+         ORDER BY revenue.gross_revenue DESC, be.business_name ASC, be.id ASC"
     );
+    if (!$financialStmt) {
+        throw new RuntimeException('Unable to prepare analytics profit query: ' . $conn->error);
+    }
+    $financialStmt->bind_param(
+        'ssssssssssssssss',
+        $yearStart,
+        $nextYearStart,
+        $monthStart,
+        $monthEnd,
+        $previousYearStart,
+        $yearStart,
+        $previousYearStart,
+        $nextYearStart,
+        $yearStart,
+        $nextYearStart,
+        $monthStart,
+        $monthEnd,
+        $previousYearStart,
+        $yearStart,
+        $previousYearStart,
+        $nextYearStart
+    );
+    if (!$financialStmt->execute()) {
+        throw new RuntimeException('Unable to execute analytics profit query: ' . $financialStmt->error);
+    }
+    $financialResult = $financialStmt->get_result();
 } catch (Throwable $error) {
     error_log('NexGen San Andres analytics query failed: ' . $error->getMessage());
     http_response_code(503);
@@ -71,13 +130,20 @@ if (!$financialResult instanceof mysqli_result) {
 
 $businesses = [];
 $totalProfit = 0.0;
+$selectedMonthProfit = 0.0;
+$annualProfit = 0.0;
 while ($row = $financialResult->fetch_assoc()) {
     $row['gross_revenue'] = (float)$row['gross_revenue'];
     $row['cost_of_goods_sold'] = (float)$row['cost_of_goods_sold'];
     $row['net_profit'] = (float)$row['net_profit'];
+    $row['monthly_net_profit'] = (float)$row['monthly_net_profit'];
+    $row['annual_net_profit'] = (float)$row['annual_net_profit'];
     $totalProfit += $row['net_profit'];
+    $selectedMonthProfit += $row['monthly_net_profit'];
+    $annualProfit += $row['annual_net_profit'];
     $businesses[] = $row;
 }
+$financialStmt->close();
 $businessCount = count($businesses);
 $paidPermitCount = 0;
 $unpaidPermitCount = 0;
@@ -226,7 +292,7 @@ function nxAnalyticsMoney(float $amount): string
         .analytics-heading p { margin: 0; color: var(--muted); }
         .analytics-summary {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 18px;
             margin-bottom: 26px;
         }
@@ -279,6 +345,17 @@ function nxAnalyticsMoney(float $amount): string
         .analytics-metric:not(.analytics-filter-button)::before { background: #71aaff; }
         .analytics-filter-button[data-permit-filter="paid"]::before { background: #34d399; }
         .analytics-filter-button[data-permit-filter="unpaid"]::before { background: #ff9aa3; }
+        .analytics-month-form { margin-top: 10px; }
+        .analytics-month-select {
+            width: 100%;
+            min-height: 42px;
+            padding: 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            color: var(--text);
+            background: var(--card);
+            font: inherit;
+        }
         .analytics-panel-header {
             display: flex;
             align-items: center;
@@ -466,13 +543,14 @@ function nxAnalyticsMoney(float $amount): string
         }
         .analytics-modal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 20px 0 0; }
         .analytics-financial-grid {
-            grid-template-columns: minmax(220px, .75fr) minmax(300px, 1.25fr);
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             align-items: stretch;
         }
         .analytics-financial-grid .analytics-detail-card { min-height: 100px; }
         .analytics-financial-grid .analytics-detail-card h3 { color: var(--muted); font-size: .82rem; }
         .analytics-financial-grid .analytics-detail-card p { color: var(--text); font-size: 1.3rem; font-weight: 750; font-variant-numeric: tabular-nums; }
         .analytics-location-summary { display: flex; flex-direction: column; }
+        .analytics-financial-grid .analytics-location-summary { grid-column: 1 / -1; }
         .analytics-location-summary h3 { color: var(--muted); font-size: .82rem; }
         .analytics-location-list { display: grid; gap: 12px; }
         .analytics-location-item {
@@ -586,6 +664,7 @@ function nxAnalyticsMoney(float $amount): string
         }
         @media (max-width: 700px) {
             .analytics-financial-grid { grid-template-columns: 1fr; }
+            .analytics-financial-grid .analytics-location-summary { grid-column: auto; }
         }
         @media (max-width: 560px) {
             .analytics-summary { grid-template-columns: 1fr; }
@@ -617,16 +696,34 @@ function nxAnalyticsMoney(float $amount): string
             </div>
         </div>
 
-        <section class="analytics-summary" aria-label="Business and permit summary">
+        <section class="analytics-summary" aria-label="Profit, business, and permit summary">
+            <article class="analytics-metric">
+                <span>Total net profit (<?php echo $currentYear; ?>)</span>
+                <strong><?php echo e(nxAnalyticsMoney($totalProfit)); ?></strong>
+            </article>
+            <article class="analytics-metric">
+                <span>Monthly profit</span>
+                <form class="analytics-month-form" id="profitMonthForm" method="get" action="<?php echo e(nxAppUrl('san_andres_analytics.php')); ?>">
+                    <label class="analytics-sr-only" for="profitMonth">Select a month for profit review</label>
+                    <select class="analytics-month-select" id="profitMonth" name="profit_month">
+                        <?php for ($month = 1; $month <= 12; $month++): ?>
+                            <option value="<?php echo $month; ?>" <?php echo $selectedProfitMonth === $month ? 'selected' : ''; ?>>
+                                <?php echo e(date('F', mktime(0, 0, 0, $month, 1))); ?>
+                            </option>
+                        <?php endfor; ?>
+                    </select>
+                </form>
+                <strong><?php echo e(nxAnalyticsMoney($selectedMonthProfit)); ?></strong>
+            </article>
+            <article class="analytics-metric">
+                <span>Annual profit (<?php echo $previousYear; ?>)</span>
+                <strong><?php echo e(nxAnalyticsMoney($annualProfit)); ?></strong>
+            </article>
             <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="all" aria-pressed="true" aria-controls="analyticsBusinessRows">
                 <span>Registered businesses</span>
                 <strong><?php echo number_format($businessCount); ?></strong>
                
             </button>
-            <article class="analytics-metric">
-                <span>Total net profit</span>
-                <strong><?php echo e(nxAnalyticsMoney($totalProfit)); ?></strong>
-            </article>
             <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="paid" aria-pressed="false" aria-controls="analyticsBusinessRows">
                 <span>Paid business permits</span>
                 <strong><?php echo number_format($paidPermitCount); ?></strong>
@@ -658,7 +755,7 @@ function nxAnalyticsMoney(float $amount): string
                                 <tr>
                                     <th>Business</th>
                                     <th>Business Address</th>
-                                    <th>Net Profit</th>
+                                    <th>Net Profit (<?php echo $currentYear; ?>)</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
@@ -681,6 +778,11 @@ function nxAnalyticsMoney(float $amount): string
                                     'owner_names' => (string)$business['owner_names'],
                                     'locations' => $locationsByEntity[$entityId] ?? [],
                                     'net_profit' => (float)$business['net_profit'],
+                                    'monthly_net_profit' => (float)$business['monthly_net_profit'],
+                                    'annual_net_profit' => (float)$business['annual_net_profit'],
+                                    'profit_year' => $currentYear,
+                                    'profit_month' => date('F', mktime(0, 0, 0, $selectedProfitMonth, 1)),
+                                    'annual_profit_year' => $previousYear,
                                     'permit_status' => (string)$business['permit_payment_status'],
                                     'permit_unpaid_since' => $business['permit_unpaid_since'],
                                     'permit_tracking_ready' => $permitTrackingReady,
@@ -743,8 +845,16 @@ function nxAnalyticsMoney(float $amount): string
         </div>
         <div class="analytics-modal-grid analytics-financial-grid" id="businessDetailsFinancials">
             <article class="analytics-detail-card">
-                <h3>Net profit</h3>
+                <h3 id="businessDetailsYearProfitLabel"></h3>
                 <p id="businessDetailsNetProfit"></p>
+            </article>
+            <article class="analytics-detail-card">
+                <h3 id="businessDetailsMonthProfitLabel"></h3>
+                <p id="businessDetailsMonthlyProfit"></p>
+            </article>
+            <article class="analytics-detail-card">
+                <h3 id="businessDetailsAnnualProfitLabel"></h3>
+                <p id="businessDetailsAnnualProfit"></p>
             </article>
             <article class="analytics-detail-card analytics-location-summary">
                 <h3>Business location(s)</h3>
@@ -771,6 +881,7 @@ function nxAnalyticsMoney(float $amount): string
         var locations = document.getElementById('businessDetailsLocations');
         var quarters = document.getElementById('permitQuarterDetails');
         var controls = document.getElementById('permitAssessmentControls');
+        var profitMonthSelect = document.getElementById('profitMonth');
         var lastFocused = null;
         var dismissTimers = new WeakMap();
         var phpEndpoint = <?php echo json_encode(nxAppUrl('update_business_permit.php'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
@@ -820,6 +931,10 @@ function nxAnalyticsMoney(float $amount): string
             return form;
         }
 
+        profitMonthSelect.addEventListener('change', function () {
+            profitMonthSelect.form.submit();
+        });
+
         function openDetails(row) {
             var data;
             try {
@@ -836,7 +951,12 @@ function nxAnalyticsMoney(float $amount): string
                 permitStatus === 'paid' ? 'is-paid' : (permitStatus === 'unpaid' ? 'is-unpaid' : 'is-unknown')
             );
             permitBadge.textContent = permitStatus === 'paid' ? 'Permit paid' : (permitStatus === 'unpaid' ? 'Permit unpaid' : 'Status not set');
+            document.getElementById('businessDetailsYearProfitLabel').textContent = 'Net profit (' + data.profit_year + ')';
             document.getElementById('businessDetailsNetProfit').textContent = money(data.net_profit);
+            document.getElementById('businessDetailsMonthProfitLabel').textContent = data.profit_month + ' ' + data.profit_year + ' profit';
+            document.getElementById('businessDetailsMonthlyProfit').textContent = money(data.monthly_net_profit);
+            document.getElementById('businessDetailsAnnualProfitLabel').textContent = 'Annual profit (' + data.annual_profit_year + ')';
+            document.getElementById('businessDetailsAnnualProfit').textContent = money(data.annual_net_profit);
             locations.replaceChildren();
             if (!data.locations.length) {
                 var emptyLocation = document.createElement('span');
