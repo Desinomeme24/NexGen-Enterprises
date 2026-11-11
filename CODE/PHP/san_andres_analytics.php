@@ -456,10 +456,29 @@ function nxAnalyticsMoney(float $amount): string
             -webkit-backdrop-filter: blur(14px);
         }
         .analytics-summary .analytics-metric {
-            border-color: rgba(125, 211, 252, .28);
+            overflow: hidden;
+            border-color: var(--glass-border);
+            border-radius: 22px;
             color: #eef5ff;
-            background: linear-gradient(125deg, #4388f7 0%, #174bfb 48%, #0b2383 100%);
-            box-shadow: 0 12px 28px rgba(3, 3, 30, .4), inset 0 1px 0 rgba(255, 255, 255, .16);
+            background:
+                radial-gradient(circle at 92% 12%, rgba(255, 221, 85, .18), transparent 30%),
+                radial-gradient(circle at 10% 95%, rgba(59, 130, 246, .24), transparent 38%),
+                linear-gradient(145deg, rgba(11, 31, 115, .94), rgba(5, 11, 36, .94));
+            box-shadow: var(--shadow);
+        }
+        .analytics-summary .analytics-metric::before { display: none; }
+        .analytics-summary .analytics-metric::after,
+        .analytics-financial-grid .analytics-gradient-card::after,
+        .analytics-quarter-card::after,
+        .analytics-assessment-panel::after {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 42%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--gold, #ffdd55));
+            content: '';
+            pointer-events: none;
         }
         .analytics-metric::before {
             position: absolute;
@@ -733,9 +752,15 @@ function nxAnalyticsMoney(float $amount): string
         .analytics-financial-grid .analytics-detail-card h3 { color: var(--muted); font-size: .82rem; }
         .analytics-financial-grid .analytics-detail-card p { color: var(--text); font-size: 1.3rem; font-weight: 750; font-variant-numeric: tabular-nums; }
         .analytics-financial-grid .analytics-gradient-card {
-            border-color: rgba(125, 211, 252, .28);
-            background: linear-gradient(125deg, #4388f7 0%, #174bfb 48%, #0b2383 100%);
-            box-shadow: 0 10px 24px rgba(3, 3, 30, .34), inset 0 1px 0 rgba(255, 255, 255, .16);
+            position: relative;
+            overflow: hidden;
+            border-color: var(--glass-border);
+            border-radius: 22px;
+            background:
+                radial-gradient(circle at 92% 12%, rgba(255, 221, 85, .18), transparent 30%),
+                radial-gradient(circle at 10% 95%, rgba(59, 130, 246, .24), transparent 38%),
+                linear-gradient(145deg, rgba(11, 31, 115, .94), rgba(5, 11, 36, .94));
+            box-shadow: var(--shadow);
         }
         .analytics-financial-grid .analytics-gradient-card h3,
         .analytics-financial-grid .analytics-gradient-card p,
@@ -788,18 +813,19 @@ function nxAnalyticsMoney(float $amount): string
         .analytics-detail-card,
         .analytics-quarter-card {
             min-width: 0;
+            position: relative;
+            overflow: hidden;
             padding: 17px;
-            border: 1px solid var(--line);
-            border-radius: 15px;
-            background: #14264b;
-            box-shadow: 0 6px 16px rgba(0, 0, 0, .1);
+            border: 1px solid var(--glass-border);
+            border-radius: 22px;
+            background:
+                radial-gradient(circle at 92% 12%, rgba(255, 221, 85, .18), transparent 30%),
+                radial-gradient(circle at 10% 95%, rgba(59, 130, 246, .24), transparent 38%),
+                linear-gradient(145deg, rgba(11, 31, 115, .94), rgba(5, 11, 36, .94));
+            box-shadow: var(--shadow);
         }
-        html[data-theme="light"] .analytics-detail-card,
-        html[data-theme="light"] .analytics-quarter-card { background: #f6f8fc; }
-        html[data-theme="light"] .analytics-financial-grid .analytics-gradient-card {
-            background: linear-gradient(125deg, #4388f7 0%, #174bfb 48%, #0b2383 100%);
-            box-shadow: 0 10px 24px rgba(3, 3, 30, .34), inset 0 1px 0 rgba(255, 255, 255, .16);
-        }
+        .analytics-quarter-card h4,
+        .analytics-quarter-card p { color: #eef5ff; }
         .analytics-detail-card h3,
         .analytics-quarter-card h4 { margin: 0 0 8px; font-size: 1rem; }
         .analytics-detail-card p { margin: 0; overflow-wrap: anywhere; color: var(--muted); }
@@ -845,19 +871,25 @@ function nxAnalyticsMoney(float $amount): string
         .analytics-quarter-status.is-unpaid { color: #ff9aa3 !important; }
         .analytics-permit-empty { max-width: none; }
         .analytics-assessment-panel {
+            position: relative;
+            overflow: hidden;
             display: flex;
             justify-content: space-between;
             align-items: end;
             gap: 22px;
             margin-top: 16px;
             padding: 18px;
-            border: 1px solid var(--line);
-            border-radius: 15px;
-            background: var(--card);
+            border: 1px solid var(--glass-border);
+            border-radius: 22px;
+            background:
+                radial-gradient(circle at 92% 12%, rgba(255, 221, 85, .18), transparent 30%),
+                radial-gradient(circle at 10% 95%, rgba(59, 130, 246, .24), transparent 38%),
+                linear-gradient(145deg, rgba(11, 31, 115, .94), rgba(5, 11, 36, .94));
+            box-shadow: var(--shadow);
         }
-        .analytics-assessment-copy { max-width: 520px; }
+        .analytics-assessment-copy { max-width: 520px; color: #eef5ff; }
         .analytics-assessment-copy h4 { margin: 0 0 5px; font-size: .95rem; }
-        .analytics-assessment-copy p { margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.5; }
+        .analytics-assessment-copy p { margin: 0; color: rgba(238, 245, 255, .72); font-size: .82rem; line-height: 1.5; }
         .analytics-quarter-card p { margin: 6px 0; color: var(--muted); }
         .analytics-quarter-card form { margin-top: 12px; }
         .analytics-quarter-card button,
@@ -876,11 +908,41 @@ function nxAnalyticsMoney(float $amount): string
             padding: 10px;
             border: 1px solid var(--line);
             border-radius: 8px;
-            color: var(--text);
-            background: var(--card);
+            color: #eef5ff;
+            background: rgba(255, 255, 255, .055);
         }
         .analytics-permit-help { color: var(--muted); }
         .analytics-permit-help.analytics-assessment-note { margin: 10px 0 0; }
+        .analytics-quarter-card button,
+        .analytics-assessment-form button {
+            position: relative;
+            z-index: 1;
+            color: #eef5ff;
+            background: rgba(255, 255, 255, .12);
+        }
+        html[data-theme="light"] .analytics-summary .analytics-metric,
+        html[data-theme="light"] .analytics-financial-grid .analytics-gradient-card,
+        html[data-theme="light"] .analytics-quarter-card,
+        html[data-theme="light"] .analytics-assessment-panel {
+            color: #0b1f73;
+            background:
+                radial-gradient(circle at 92% 12%, rgba(255, 221, 85, .3), transparent 30%),
+                radial-gradient(circle at 10% 95%, rgba(59, 130, 246, .18), transparent 38%),
+                linear-gradient(145deg, rgba(235, 244, 255, .98), rgba(255, 255, 255, .98));
+        }
+        html[data-theme="light"] .analytics-summary .analytics-metric > span,
+        html[data-theme="light"] .analytics-summary .analytics-metric > strong,
+        html[data-theme="light"] .analytics-financial-grid .analytics-gradient-card h3,
+        html[data-theme="light"] .analytics-financial-grid .analytics-gradient-card p,
+        html[data-theme="light"] .analytics-quarter-card h4,
+        html[data-theme="light"] .analytics-assessment-copy { color: #0b1f73; }
+        html[data-theme="light"] .analytics-quarter-card p,
+        html[data-theme="light"] .analytics-assessment-copy p { color: #536786; }
+        html[data-theme="light"] .analytics-quarter-card button,
+        html[data-theme="light"] .analytics-assessment-form button {
+            color: #0b1f73;
+            background: rgba(11, 31, 115, .1);
+        }
         @media (max-width: 900px) {
             .analytics-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .analytics-panel-header { align-items: flex-start; flex-direction: column; }
