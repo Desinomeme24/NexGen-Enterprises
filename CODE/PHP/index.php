@@ -602,7 +602,7 @@ if (session_status() === PHP_SESSION_ACTIVE) {
     display: flex;
     align-items: center;
     gap: 24px;
-    margin-bottom: 0;
+    margin-bottom: 48px;
     flex-wrap: wrap;
     opacity: 0;
     transform: translateY(20px);
@@ -3341,9 +3341,6 @@ if (session_status() === PHP_SESSION_ACTIVE) {
   }
 
   /* small "silvery line" accents scattered through hero/footer/buttons */
-  html[data-theme="light"] .play-circle {
-    background: rgba(11, 31, 115, 0.04);
-  }
   html[data-theme="light"] .about-card-bar {
     background: rgba(11, 31, 115, 0.08);
   }
@@ -3359,9 +3356,6 @@ if (session_status() === PHP_SESSION_ACTIVE) {
   }
 
   html[data-theme="light"] .btn-ghost {
-    color: var(--text-main);
-  }
-  html[data-theme="light"] .play-link {
     color: var(--text-main);
   }
   html[data-theme="light"] .nav-toggle {
@@ -3385,9 +3379,6 @@ html[data-theme="light"] .cta-box .btn-ghost {
 html[data-theme="light"] .cta-box .btn-ghost:hover {
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.5);
-}
-html[data-theme="light"] .avatar-placeholder {
-  color: rgba(255, 255, 255, 0.7);
 }
 html[data-theme="light"] {
   --accent-ink: #9a6a12;
@@ -3925,17 +3916,6 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
 
   .nav-cta .btn {
     padding: 9px 14px;
-  }
-
-  .team-join {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-    max-width: 100%;
-  }
-
-  .team-join-label {
-    max-width: none;
   }
 
   .modal {
@@ -4493,38 +4473,12 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
         <span class="word"><span class="highlight">Excellence</span></span>
       </h1>
       <p class="hero-lead">
-        NexGen brings inventory, sales, and analytics together
+        NexGen brings inventory, sales, analytics, and chatbot support together
         in one connected system — so your business runs on clear numbers,
         not guesswork.
       </p>
       <div class="hero-actions">
         <button type="button" id="openLoginArea" class="btn btn-primary magnetic-btn">Sign Up Now!</button>
-        <button type="button" class="play-link" id="openVideoPlayer" aria-haspopup="dialog" aria-controls="videoPlayerDialog">
-          <span class="play-circle">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-          </span>
-          Watch Video
-        </button>
-      </div>
-      <div class="team-join">
-        <span class="team-join-label">Join Our Team Now!</span>
-        <div class="avatar-row">
-          <span class="avatar-placeholder">
-            <img src="../../IMAGES/matt.jpg" alt="Team member photo" draggable="false" oncontextmenu="return false">
-          </span>
-          <span class="avatar-placeholder">
-            <img src="../../IMAGES/viona.jpg" alt="Team member photo" draggable="false" oncontextmenu="return false">
-          </span>
-          <span class="avatar-placeholder">
-            <img src="../../IMAGES/isla.jpg" alt="Team member photo" draggable="false" oncontextmenu="return false">
-          </span>
-          <span class="avatar-placeholder">
-            <img src="../../IMAGES/sed.jpg" alt="Team member photo" draggable="false" oncontextmenu="return false">
-          </span>
-          <span class="avatar-placeholder">
-            <img src="../../IMAGES/wina.jpg" alt="Team member photo" draggable="false" oncontextmenu="return false">
-          </span>
-        </div>
       </div>
     </div>
 
@@ -4693,28 +4647,13 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
   </div>
 </section>
 
-<dialog class="video-player-dialog" id="videoPlayerDialog" aria-label="NexGen introduction video">
-  <div class="video-dialog-frame">
-    <button type="button" class="video-dialog-close" id="closeVideoPlayer" aria-label="Close video">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-    </button>
-    <video class="video-dialog-player" id="landingPageVideo" controls playsinline preload="metadata">
-      <source src="<?php echo e(nxProjectUrl('IMAGES/nexgen-intro.mp4')); ?>" type="video/mp4">
-      Your browser does not support HTML video.
-    </video>
-  </div>
-  <p class="video-dialog-message" id="videoPlayerMessage" role="status" aria-live="polite"></p>
-</dialog>
-
 <!-- ========== MARQUEE ========== -->
 <section class="marquee-section">
   <div class="marquee-track">
     <div class="marquee-item"><span class="dot"></span> Inventory Management</div>
     <div class="marquee-item"><span class="dot"></span> Sales Pipeline</div>
     <div class="marquee-item"><span class="dot"></span> Real-time Analytics</div>
-    <div class="marquee-item"><span class="dot"></span> Chatbot</div>
+    <div class="marquee-item"><span class="dot"></span> Business Chatbot</div>
     <div class="marquee-item"><span class="dot"></span> Dashboards</div>
     <div class="marquee-item"><span class="dot"></span> Automated Reports</div>
     <div class="marquee-item"><span class="dot"></span> Cloud Connected</div>
@@ -4723,7 +4662,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
     <div class="marquee-item"><span class="dot"></span> Inventory Management</div>
     <div class="marquee-item"><span class="dot"></span> Sales Pipeline</div>
     <div class="marquee-item"><span class="dot"></span> Real-time Analytics</div>
-    <div class="marquee-item"><span class="dot"></span> Chatbot</div>
+    <div class="marquee-item"><span class="dot"></span> Business Chatbot</div>
     <div class="marquee-item"><span class="dot"></span> Dashboards</div>
     <div class="marquee-item"><span class="dot"></span> Automated Reports</div>
     <div class="marquee-item"><span class="dot"></span> Cloud Connected</div>
@@ -4737,14 +4676,14 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
     <div class="stats-header reveal from-left">
       <span class="eyebrow">Built for Modern Business</span>
       <h2>Powering Your Operations from Day One</h2>
-      <p>NexGen was founded in 2026 with a clear mission — to give businesses an all-in-one platform for inventory, sales, and analytics.</p>
+      <p>NexGen was founded in 2026 with a clear mission — to give businesses an all-in-one platform for inventory, sales, analytics, and chatbot support.</p>
     </div>
     <div class="stats-grid">
       <div class="stat-card reveal from-scale">
         <div class="stat-icon"><i class="fas fa-code-branch"></i></div>
         <div class="stat-number"><span class="counter" data-target="4">0</span></div>
         <div class="stat-label">Core Business Modules</div>
-        <div class="stat-desc">Inventory, sales, and analytics in one platform.</div>
+        <div class="stat-desc">Inventory, sales, analytics, and chatbot support in one platform.</div>
       </div>
       <div class="stat-card reveal from-scale">
         <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
@@ -4756,7 +4695,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
         <div class="stat-icon"><i class="fas fa-comments"></i></div>
         <div class="stat-number"><span class="counter" data-target="1">0</span></div>
         <div class="stat-label">Business Assistant</div>
-        <div class="stat-desc">Get quick answers about inventory, sales, and analytics.</div>
+        <div class="stat-desc">Get quick answers about inventory, sales, analytics, and more.</div>
       </div>
       <div class="stat-card reveal from-scale">
         <div class="stat-icon"><i class="fas fa-shield-halved"></i></div>
@@ -4832,19 +4771,19 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
             </div>
           </div>
 
-          <!-- Card 4: Accounts Receivable -->
+          <!-- Card 4: Chatbot -->
           <div class="flip-card" data-flip>
             <div class="flip-inner">
               <div class="flip-front">
                 <div class="flip-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 14h8"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg>
                 </div>
-                <h4>Accounts Receivable</h4>
+                <h4>Business Chatbot</h4>
                 <span class="flip-hint">Click to explore</span>
               </div>
               <div class="flip-back">
-                <h4>Accounts Receivable</h4>
-                <p>Monitor outstanding balances, automate reminders, and speed up collections. Reduce days sales outstanding and improve your cash flow visibility.</p>
+                <h4>Business Chatbot</h4>
+                <p>Get quick answers about your business and guided help for common tasks. The rule-based assistant uses your permissions to keep business data access appropriately scoped.</p>
                 <span class="flip-hint-back">Click to go back</span>
               </div>
             </div>
@@ -4862,7 +4801,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
       <div class="about-left reveal">
         <span class="eyebrow">About Us</span>
         <h2>We Build What Businesses <span class="gradient-text">Actually Need</span></h2>
-        <p class="about-lead">Founded in 2026, NexGen was born from a simple observation — most businesses juggle disconnected tools for inventory, sales, and analytics. We built a unified platform so you stop guessing and start growing.</p>
+        <p class="about-lead">Founded in 2026, NexGen was born from a simple observation — most businesses juggle disconnected tools for inventory, sales, and analytics. We built a unified platform with built-in chatbot support so you stop guessing and start growing.</p>
 
         <div class="about-values">
           <div class="value-item reveal">
@@ -5003,7 +4942,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
           <img src="../../IMAGES/NGlogo.png" alt="NexGen logo" class="logo-img">
           NexGen
         </div>
-        <p>Bringing inventory, sales, and analytics together in one connected system for smarter business operations.</p>
+        <p>Bringing inventory, sales, analytics, and chatbot support together in one connected system for smarter business operations.</p>
         <div class="footer-social">
           <a href="https://www.facebook.com/share/1CuKN9qY3g/" target="_blank" rel="noopener"><i class="fab fa-facebook-f"></i></a>
           <a href="https://www.instagram.com/nexgen.enterprises26?igsh=MTB5bDNod3lubjhjdw==" target="_blank" rel="noopener"><i class="fab fa-instagram"></i></a>
@@ -5026,7 +4965,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
           <li><a href="#">Inventory</a></li>
           <li><a href="#">Sales</a></li>
           <li><a href="#">Analytics</a></li>
-          <li><a href="#">Receivables</a></li>
+          <li><a href="#">Chatbot</a></li>
         </ul>
       </div>
       <div class="footer-col footer-contact-col">
@@ -5197,7 +5136,6 @@ function startHeroAnimations() {
     }, '-=1.0')
     .to('.hero-lead', { opacity: 1, y: 0, duration: 1.4, ease: 'power3.out' }, '-=1.2')
     .to('.hero-actions', { opacity: 1, y: 0, scale: 1, duration: 1.4, ease: 'back.out(1.2)' }, '-=1.1')
-    .to('.team-join', { opacity: 1, y: 0, duration: 1.4 }, '-=1.1')
     .to('.hero-visual', { opacity: 1, scale: 1, duration: 2, ease: 'expo.out' }, '-=1.4')
     .add(() => animateChart(), '-=0.4')
     .add(() => animateSparks(), '-=0.3')
@@ -7311,62 +7249,6 @@ document.addEventListener('DOMContentLoaded', function () {
             setLandingTheme(event.newValue, false);
         }
     });
-})();
-</script>
-
-<script>
-(() => {
-  const openButton = document.getElementById("openVideoPlayer");
-  const closeButton = document.getElementById("closeVideoPlayer");
-  const dialog = document.getElementById("videoPlayerDialog");
-  const video = document.getElementById("landingPageVideo");
-  const message = document.getElementById("videoPlayerMessage");
-
-  if (
-    !(openButton instanceof HTMLButtonElement) ||
-    !(closeButton instanceof HTMLButtonElement) ||
-    !(dialog instanceof HTMLDialogElement) ||
-    !(video instanceof HTMLVideoElement) ||
-    !(message instanceof HTMLElement)
-  ) {
-    return;
-  }
-
-  let previousBodyOverflow = "";
-
-  openButton.addEventListener("click", () => {
-    if (dialog.open) {
-      return;
-    }
-
-    previousBodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    message.textContent = "";
-    dialog.showModal();
-
-    video.play().catch(() => {
-      message.textContent = "Press play on the video controls to start playback.";
-    });
-  });
-
-  closeButton.addEventListener("click", () => dialog.close());
-
-  dialog.addEventListener("click", (event) => {
-    if (event.target === dialog) {
-      dialog.close();
-    }
-  });
-
-  dialog.addEventListener("close", () => {
-    video.pause();
-    document.body.style.overflow = previousBodyOverflow;
-    message.textContent = "";
-    openButton.focus();
-  });
-
-  video.addEventListener("error", () => {
-    message.textContent = "The video could not be loaded. Please try again later.";
-  });
 })();
 </script>
 
