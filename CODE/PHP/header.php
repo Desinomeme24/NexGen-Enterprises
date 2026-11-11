@@ -4,7 +4,6 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once 'config.php';
-require_once __DIR__ . '/ar_helper.php';
 require_once __DIR__ . '/tenant_helper.php';
 
 /* SESSION SECURITY: enforce 10-minute timeout on protected user pages using header */
@@ -20,8 +19,7 @@ $isEmployee   = $role === 'employee';
 $canInventory = (int)($_SESSION['can_inventory'] ?? 0) === 1;
 $canSales = (int)($_SESSION['can_sales'] ?? 0) === 1;
 $canSalesAnalytics = (int)($_SESSION['can_sales_analytics'] ?? 0) === 1;
-$canAccountsReceivable = nxArEnabled();
-$hasAnyBusinessModule = $canInventory || $canSales || $canSalesAnalytics || $canAccountsReceivable;
+$hasAnyBusinessModule = $canInventory || $canSales || $canSalesAnalytics;
 $roleLabel = $isOwner ? 'Owner' : ($isEmployee ? 'Employee' : ucwords(str_replace('_', ' ', (string)$role)));
 $workspaceOptions = in_array($role, ['owner', 'employee'], true)
     ? nxGetAccessibleWorkspaces($conn, (int)($_SESSION['user_id'] ?? 0), $role)
@@ -52,7 +50,7 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
 
 $showCategoryOpen = in_array(
     $currentPage,
-    ['inventory_management.php', 'sales_recording.php', 'sales_analytics.php', 'accounts_receivable.php'],
+    ['inventory_management.php', 'sales_recording.php', 'sales_analytics.php'],
     true
 );
 ?>
@@ -128,12 +126,6 @@ window.NEXGEN_PATHS = <?php echo json_encode([
                     </a>
                 <?php endif; ?>
 
-                <?php if ($canAccountsReceivable): ?>
-                    <a href="<?php echo e(nxAppUrl('accounts_receivable.php')); ?>" class="<?php echo $currentPage === 'accounts_receivable.php' ? 'active-sub active-submenu' : ''; ?>">
-                        <i class="bi bi-wallet2"></i>
-                        <span>Accounts Receivable</span>
-                    </a>
-                <?php endif; ?>
             </div>
         </div>
         <?php endif; ?>

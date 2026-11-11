@@ -4,7 +4,7 @@
 
    Compatibility rule:
    - businesses.id remains the tenant/workspace key used by every existing
-     inventory, sales, analytics, and receivable query.
+     inventory, sales, and analytics query.
    - Related branches share a business_entity/business_code, but every branch
      keeps its own businesses.id and branch_code. Existing module isolation is
      therefore preserved without changing the operational table structure.

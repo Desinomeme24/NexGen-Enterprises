@@ -26,7 +26,6 @@ function nxcb_tool_error_reply(array $result): string {
         'permission_denied' => 'You do not have permission to access that NexGen data.',
         'missing_query' => 'Please tell me which product you want to search for.',
         'missing_product_query' => 'Please tell me which product you mean.',
-        'missing_customer_query' => 'Please tell me which customer you mean.',
         'database_error' => 'I could not read that data from NexGen right now.',
         'tool_exception' => 'I could not read that NexGen data right now. The technical error was logged for troubleshooting.',
         'tool_unavailable' => 'That NexGen chatbot component is not loaded correctly. The technical error was logged for troubleshooting.',
@@ -221,63 +220,6 @@ function nxcb_format_category_performance(array $result): string {
     return implode("\n", $lines);
 }
 
-function nxcb_format_receivables(array $result): string {
-    $view = $result['view'] ?? 'summary';
-
-    if ($view === 'summary') {
-        return 'Accounts Receivable: ' . nxcb_money($result['total_balance_due'] ?? 0)
-            . ' current balance due. There are ' . (int)($result['total_receivables'] ?? 0) . ' receivable record(s); '
-            . (int)($result['overdue_count'] ?? 0) . ' overdue, '
-            . (int)($result['unpaid_count'] ?? 0) . ' unpaid, and '
-            . (int)($result['partial_count'] ?? 0) . ' partially paid.';
-    }
-
-    $items = $result['items'] ?? [];
-    $count = (int)($result['count'] ?? count($items));
-    if ($count === 0) {
-        if ($view === 'overdue') return 'You currently have no overdue receivables.';
-        if ($view === 'followup_priority') return 'There are no outstanding customer accounts that need follow-up.';
-        if ($view === 'largest_balance') return 'There are no outstanding receivable balances.';
-        return 'No matching receivable records were found.';
-    }
-
-    if ($view === 'followup_priority') {
-        $first = $items[0];
-        $name = $first['customer_name'] ?? 'Customer';
-        $balance = nxcb_money($first['balance_due'] ?? 0);
-        $dueDate = $first['due_date'] ?? null;
-        $due = nxcb_pretty_date($dueDate);
-        $days = isset($first['days_overdue']) ? (int)$first['days_overdue'] : 0;
-        if ($days > 0) {
-            $why = "{$days} day" . ($days === 1 ? '' : 's') . ' overdue';
-        } elseif ($dueDate) {
-            $why = "due {$due}";
-        } else {
-            $why = 'an outstanding balance';
-        }
-        return "Follow up with {$name} first — {$balance} outstanding and {$why}.";
-    }
-
-    if ($view === 'largest_balance') {
-        $item = $items[0];
-        $name = $item['customer_name'] ?? 'Customer';
-        return "{$name} has the largest outstanding balance at " . nxcb_money($item['balance_due'] ?? 0) . ', due ' . nxcb_pretty_date($item['due_date'] ?? null) . '.';
-    }
-
-    $title = $view === 'overdue' ? 'Overdue receivables:' : ($view === 'customer_search' ? 'Matching customer receivables:' : 'Outstanding receivables:');
-    $lines = [$title];
-    foreach (array_slice($items, 0, 20) as $item) {
-        $name = $item['customer_name'] ?? 'Customer';
-        $balance = nxcb_money($item['balance_due'] ?? 0);
-        $status = $item['live_status'] ?? ucfirst($view);
-        $due = nxcb_pretty_date($item['due_date'] ?? null);
-        $salesNo = $item['sales_no'] ?? '';
-        $lines[] = "• {$name}" . ($salesNo ? " ({$salesNo})" : '') . " — {$balance}, {$status}, due {$due}";
-    }
-    if ($count >= 20) $lines[] = 'Showing up to 20 records. Open the module for the full list.';
-    return implode("\n", $lines);
-}
-
 function nxcb_format_alerts(array $result): string {
     $alerts = $result['alerts'] ?? [];
     if (!$alerts) return 'You have no current NexGen alerts.';
@@ -297,9 +239,6 @@ function nxcb_format_alerts(array $result): string {
                 break;
             case 'expiring_within_30_days':
                 $lines[] = '• ' . (int)$alert['count'] . ' product(s) expiring within 30 days';
-                break;
-            case 'overdue_receivables':
-                $lines[] = '• ' . (int)$alert['count'] . ' overdue receivable(s)';
                 break;
             case 'sales_below_yesterday_same_time':
                 $lines[] = '• Sales are ' . (float)($alert['percent_below'] ?? 0) . '% below yesterday at the same time ('
@@ -367,8 +306,6 @@ function nxcb_format_tool_result(string $tool, array $result): string {
             return nxcb_format_product_performance($result);
         case 'get_category_performance':
             return nxcb_format_category_performance($result);
-        case 'get_receivables':
-            return nxcb_format_receivables($result);
         case 'get_alerts':
             return nxcb_format_alerts($result);
         case 'forecast_business':
@@ -399,7 +336,7 @@ function nxcb_execute_and_format(string $tool, array $args, mysqli $conn, array 
 
     $actualOk = !empty($result['ok']);
     $error = (string)($result['error'] ?? '');
-    $softErrors = ['permission_denied', 'missing_query', 'missing_product_query', 'missing_customer_query', 'invalid_filter', 'unknown_module', 'invalid_workspace'];
+    $softErrors = ['permission_denied', 'missing_query', 'missing_product_query', 'invalid_filter', 'unknown_module', 'invalid_workspace'];
     $handledOk = $actualOk || in_array($error, $softErrors, true);
 
     $toolLog[] = [

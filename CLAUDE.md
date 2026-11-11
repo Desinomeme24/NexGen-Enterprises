@@ -32,8 +32,6 @@ Sales recording
 
 Sales analytics
 
-Accounts receivable
-
 Accounts masterlist
 
 User and administrator management
@@ -415,7 +413,7 @@ sales_recording.js
 
 sales_recording.css
 
-Sales operations may affect inventory and accounts receivable.
+Sales operations may affect inventory.
 
 Trace those relationships before changing transaction logic.
 
@@ -432,22 +430,6 @@ sales_analytics.js
 sales_analytics.css
 
 Preserve existing analytics calculations unless explicitly asked to change them.
-
-Accounts Receivable
-
-Handles receivables, customer balances, payments, and related financial records.
-
-Known files include:
-
-accounts_receivable.php
-
-receivable_payment.php
-
-receivable_view.php
-
-Accounts receivable may interact with sales and customer records.
-
-Do not alter financial calculations without tracing the complete data flow.
 
 Accounts Masterlist
 
@@ -525,15 +507,9 @@ products
 
 categories
 
-customers
-
 sales
 
 sale items
-
-accounts receivable
-
-receivable payments
 
 accounts masterlist
 
@@ -625,8 +601,6 @@ sales
 
 sales analytics
 
-accounts receivable
-
 Permission fields may include patterns such as:
 
 can_inventory
@@ -634,8 +608,6 @@ can_inventory
 can_sales
 
 can_sales_analytics
-
-can_accounts_receivable
 
 Verify actual field names from the repository/database before using them.
 
@@ -774,8 +746,6 @@ The developer may provide one existing module as the design/layout reference
 for another module.
 
 For example:
-
-"Make Accounts Receivable match the design of Sales."
 
 This means the reference module should normally be treated as a VISUAL and
 LAYOUT reference unless functionality is explicitly requested.

@@ -44,10 +44,10 @@ $profileImage = !empty($_SESSION['profile_image']) ? $_SESSION['profile_image'] 
                 <h2>About NexGen</h2>
                 <p>
                     NexGen is a web-based management system developed to help Small Enterprises efficiently 
-                    manage inventory, sales transactions, accounts receivable, and sales analytic reporting through one centralized platform.
+                    manage inventory, sales transactions, and sales analytic reporting through one centralized platform.
                 </p>
                 <p>
-                    The system integrates inventory monitoring, sales analytics, accounts receivable management, and a chatbot assistant that enables users to retrieve business information quickly using conversational commands.
+                    The system integrates inventory monitoring, sales analytics, and a chatbot assistant that enables users to retrieve business information quickly using conversational commands.
                 </p>
                 <p>
                     Designed to support the digital transformation of SEs, NexGen simplifies business operations, improves data accuracy, strengthens inventory control, and assists business owners in making informed decisions through modern web technologies.
@@ -78,7 +78,7 @@ $profileImage = !empty($_SESSION['profile_image']) ? $_SESSION['profile_image'] 
                 <span class="section-label">OUR GOAL</span>
                 <h2>Mission</h2>
                 <p>
-                   NexGen aims to provide Small Enterprises with a secure, efficient, and user-friendly web-based management system that streamlines inventory management, sales transactions, accounts receivable monitoring, sales analytic reporting, and business information retrieval.
+                   NexGen aims to provide Small Enterprises with a secure, efficient, and user-friendly web-based management system that streamlines inventory management, sales transactions, sales analytic reporting, and business information retrieval.
                 </p>
                 <p>
                    Through integrated management tools and a chatbot assistant, the system enables businesses to improve operational efficiency, support data-driven decision-making, enhance productivity, and embrace digital transformation.

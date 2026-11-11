@@ -115,7 +115,6 @@ function nxcb_fast_direct_reply(string $question, array $ctx = []): ?string {
         'inventory' => '/^(inventory|stock|products?|items?|imbentaryo)[?.! ]*$/ui',
         'sales' => '/^(sales|sale|benta)[?.! ]*$/ui',
         'sales_analytics' => '/^(analytics|sales analytics|reports?|ulat)[?.! ]*$/ui',
-        'accounts_receivable' => '/^(receivables?|accounts receivable|ar|utang|singilan)[?.! ]*$/ui',
     ];
     foreach ($areas as $area => $pattern) {
         if (preg_match($pattern, $q)) return nxcb_help_reply($ctx, $area);
@@ -134,8 +133,6 @@ function nxcb_clarification_suggestion(string $question): ?string {
             => 'Ipakita ang mga produktong walang stock',
         '/^(?:benta|sales)[?.! ]*$/ui'
             => 'Magkano ang benta ngayong araw?',
-        '/^(?:utang|receivable|receivables|ar)[?.! ]*$/ui'
-            => 'Ipakita ang mga overdue accounts',
     ];
     foreach ($suggestions as $pattern => $example) {
         if (preg_match($pattern, $q)) {
@@ -150,7 +147,6 @@ function nxcb_domain_clarification(string $question, array $ctx = []): string {
     $suggestion = nxcb_clarification_suggestion($q);
     if ($suggestion !== null) return $suggestion;
     $areas = [
-        'accounts_receivable' => ['receivable', 'receivables', 'customer', 'overdue', 'unpaid', 'utang', 'singil', 'balance', 'payment'],
         'sales_analytics' => ['analytics', 'profit', 'cogs', 'forecast', 'tantya', 'performance'],
         'inventory' => ['stock', 'inventory', 'imbentaryo', 'product', 'products', 'produkto', 'item', 'items', 'restock'],
         'sales' => ['sales', 'sale', 'transaction', 'transactions', 'benta'],
@@ -169,17 +165,16 @@ function nxcb_intent_route(string $question, array $ctx): ?array {
     $route = static fn(string $tool, array $args = []) => ['tool' => $tool, 'args' => $args];
 
     if (preg_match('/\b(open|go to|goto|navigate to|take me to|buksan|puntahan)\b/ui', $q)) {
-        $modules = ['analytics' => ['sales analytics', 'analytics'], 'receivables' => ['accounts receivable', 'receivables', 'receivable', 'ar'],
+        $modules = ['analytics' => ['sales analytics', 'analytics'],
             'inventory' => ['inventory'], 'sales' => ['sales', 'sale'], 'settings' => ['settings'], 'about' => ['about us'], 'dashboard' => ['dashboard', 'home']];
         foreach ($modules as $module => $words) if (nxcb_contains_any($q, $words)) return $route('open_module', ['module' => $module]);
     }
 
     // How-to questions are distinct from "What is my revenue today?".
     $how = preg_match('/\b(how do i|how to|how can i|where do i|where can i|steps? to|paano|saan ko|explain|meaning of|what does)\b/ui', $q)
-        || preg_match('/^(?:what is|what are|ano ang|ano yung)\s+(?:the\s+)?(?:cogs|net profit|gross revenue|accounts receivable|nexgen|inventory|reorder level)[?.! ]*$/ui', $q);
+        || preg_match('/^(?:what is|what are|ano ang|ano yung)\s+(?:the\s+)?(?:cogs|net profit|gross revenue|nexgen|inventory|reorder level)[?.! ]*$/ui', $q);
     if ($how) {
         $topics = ['analytics' => ['analytics', 'report', 'reports', 'cogs', 'profit', 'revenue'],
-            'receivables' => ['receivable', 'receivables', 'payment', 'customer balance', 'utang'],
             'categories' => ['category', 'categories'], 'sales' => ['sale', 'sales', 'benta'],
             'inventory' => ['inventory', 'stock', 'product', 'products'], 'security' => ['security', 'permission', 'permissions', 'login', 'password'],
             'navigation' => ['navigate', 'module', 'menu', 'branch', 'branches', 'workspace'], 'general' => ['nexgen', 'system', 'assistant']];
@@ -192,11 +187,6 @@ function nxcb_intent_route(string $question, array $ctx): ?array {
         return ['reply' => 'Please request each period separately, for example “sales this month” followed by “what about last month?”.'];
     }
 
-    // Specific names are extracted before broad words such as expired, sales or overdue.
-    if (preg_match('/\b(?:balance\s+(?:of|for)|receivables?\s+for|utang\s+ni)\s+(?:customer\s+)?(.+)$/ui', $question, $m)
-        || preg_match('/\b(?:find|search)\s+customer\s+(.+)$/ui', $question, $m)) {
-        return $route('get_receivables', ['view' => 'customer_search', 'customer_query' => nxcb_clean_query($m[1]), 'limit' => $limit]);
-    }
     if (preg_match('/\b(?:last stock[ -]?in|last restock|last sale)\s+(?:of|for)\b/ui', $q)) {
         return $route('get_product_history', ['event' => str_contains($q, 'last sale') ? 'last_sale' : 'last_stock_in', 'product_query' => nxcb_extract_product_query($question)]);
     }
@@ -228,16 +218,6 @@ function nxcb_intent_route(string $question, array $ctx): ?array {
             if ($filter === 'expiring') $args['days'] = nxcb_extract_days($q, 30);
             return $route('get_inventory_products', $args);
         }
-    }
-    $views = [
-        'followup_priority' => ['follow up first', 'follow-up first', 'followup first', 'follow up priority', 'collection priority', 'priority account', 'which customer account should i follow', 'sino ang uunahin', 'sino ang dapat kong i-follow up', 'dapat i-follow up'],
-        'largest_balance' => ['largest balance', 'highest balance', 'biggest balance', 'largest receivable', 'pinakamalaking utang'],
-        'overdue' => ['overdue', 'past due'],
-        'summary' => ['receivable summary', 'accounts receivable summary', 'ar summary', 'receivables summary', 'total receivables'],
-        'unpaid' => ['unpaid', 'outstanding receivables', 'outstanding accounts', 'outstanding balances', 'hindi pa bayad', 'may utang'],
-    ];
-    foreach ($views as $view => $words) {
-        if (nxcb_contains_any($q, $words)) return $route('get_receivables', ['view' => $view, 'limit' => $view === 'largest_balance' ? 1 : $limit]);
     }
     if (nxcb_contains_any($q, ['forecast', 'predict', 'projection', 'projected', 'tantya', 'tantiya'])) {
         if (preg_match('/\b(?:next month|next week|next year|tomorrow|bukas|\d{4}-\d{1,2}-\d{1,2})\b/ui', $q)) {
@@ -279,13 +259,12 @@ function nxcb_fast_route(string $question, array $ctx): ?array {
     if (!$route || isset($route['reply'])) return $route;
     $tool = $route['tool'];
     $isNamedLookup = ($tool === 'get_inventory_products' && ($route['args']['filter'] ?? '') === 'search')
-        || ($tool === 'get_receivables' && ($route['args']['view'] ?? '') === 'customer_search')
         || in_array($tool, ['get_product_history', 'forecast_business'], true);
     if (!$isNamedLookup && !in_array($tool, ['get_system_guide', 'open_module'], true)
         && preg_match('/\b(?:for|in|from|across|all)\s+(?:the\s+)?(?:branch(?:es)?|businesses|business)\b/ui', $question)) {
         return ['reply' => 'I check the active business branch only. Select the branch in NexGen’s workspace selector, then ask your question again.'];
     }
-    if (!$isNamedLookup && in_array($tool, ['get_inventory_products', 'get_receivables', 'get_alerts'], true)) {
+    if (!$isNamedLookup && in_array($tool, ['get_inventory_products', 'get_alerts'], true)) {
         $dates = nxcb_date_args($question);
         if (isset($dates['reply'])) return $dates;
         if (isset($dates['period']) && $dates['period'] !== 'today') {

@@ -13,7 +13,6 @@ function nxcb_execute_tool(string $name, array $args, mysqli $conn, array $ctx):
         'get_sales_summary' => 'nxcb_sales_summary',
         'get_product_performance' => 'nxcb_product_performance',
         'get_category_performance' => 'nxcb_category_performance',
-        'get_receivables' => 'nxcb_receivables',
         'get_alerts' => 'nxcb_alerts',
         'forecast_business' => 'nxcb_forecast_business',
         'get_system_guide' => 'nxcb_system_guide',
@@ -55,8 +54,6 @@ function nxcb_execute_tool(string $name, array $args, mysqli $conn, array $ctx):
                 return nxcb_product_performance($conn, $args, $ctx);
             case 'get_category_performance':
                 return nxcb_category_performance($conn, $args, $ctx);
-            case 'get_receivables':
-                return nxcb_receivables($conn, $args, $ctx);
             case 'get_alerts':
                 return nxcb_alerts($conn, $ctx);
             case 'forecast_business':

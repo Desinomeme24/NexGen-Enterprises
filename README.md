@@ -1,8 +1,8 @@
 # NexGen
 
 NexGen is a PHP/MySQL business management system with modules for dashboard
-analytics, inventory, sales, accounts receivable, user management, reporting,
-and administrative controls.
+analytics, inventory, sales, user management, reporting, and administrative
+controls.
 
 ## Technology
 

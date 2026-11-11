@@ -1,7 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/tenant_helper.php';
-require_once __DIR__ . '/ar_helper.php';
 
 /* SECURITY: config.php applies the hardened cookie settings and starts the
    session before any authenticated dashboard logic runs. */
@@ -58,8 +57,7 @@ $account = null;
 try {
     $accountStmt = $conn->prepare(
         'SELECT username, full_name, profile_image, role, account_status,
-                can_inventory, can_sales, can_sales_analytics,
-                can_accounts_receivable
+                can_inventory, can_sales, can_sales_analytics
          FROM users
          WHERE id = ?
          LIMIT 1'
@@ -95,7 +93,6 @@ $_SESSION['account_status'] = (string)$account['account_status'];
 $_SESSION['can_inventory'] = (int)$account['can_inventory'];
 $_SESSION['can_sales'] = (int)$account['can_sales'];
 $_SESSION['can_sales_analytics'] = (int)$account['can_sales_analytics'];
-$_SESSION['can_accounts_receivable'] = (int)$account['can_accounts_receivable'];
 
 if (nxIsAdminRole($role)) {
     header('Location: ' . nxAppUrl('admin_dashboard.php'));
@@ -152,11 +149,7 @@ $isOwner = $role === 'owner';
 $canInventory = $hasActiveWorkspace && !$businessPermitBlocked && (int)$account['can_inventory'] === 1;
 $canSales = $hasActiveWorkspace && !$businessPermitBlocked && (int)$account['can_sales'] === 1;
 $canSalesAnalytics = $hasActiveWorkspace && !$businessPermitBlocked && (int)$account['can_sales_analytics'] === 1;
-$canAccountsReceivable = $hasActiveWorkspace
-    && !$businessPermitBlocked
-    && (int)$account['can_accounts_receivable'] === 1
-    && nxArEnabled();
-$hasAnyBusinessModule = $canInventory || $canSales || $canSalesAnalytics || $canAccountsReceivable;
+$hasAnyBusinessModule = $canInventory || $canSales || $canSalesAnalytics;
 
 $popupMessage = "";
 $popupType = "";
@@ -324,19 +317,6 @@ $pageSubtitle = $isOwner
                     </a>
                 <?php endif; ?>
 
-                <?php if ($canAccountsReceivable): ?>
-                <a href="<?php echo htmlspecialchars(nxAppUrl('accounts_receivable.php'), ENT_QUOTES, 'UTF-8'); ?>" class="modern-module-card module-reveal">
-                    <div class="module-card-glow"></div>
-                    <div class="module-card-icon">
-                        <i class="bi bi-wallet2"></i>
-                    </div>
-                    <div class="module-card-content">
-                        <h3>Accounts Receivable</h3>
-                        <p>Monitor unpaid balances, overdue accounts, and customer receivable follow-ups.</p>
-                        <span class="module-card-link">Open Module <i class="bi bi-arrow-right"></i></span>
-                    </div>
-                </a>
-                <?php endif; ?>
             </div>
         </section>
 
@@ -386,7 +366,7 @@ $pageSubtitle = $isOwner
                         </button>
 
                         <div class="why-extra" id="whyExtra">
-                            <p>Founded to support growing businesses, NexGen brings together inventory management, sales recording, sales analytics, accounts receivable monitoring, and a chatbot assistant into one centralized web-based platform.</p>
+                            <p>Founded to support growing businesses, NexGen brings together inventory management, sales recording, sales analytics, and a chatbot assistant into one centralized web-based platform.</p>
                             <p>Our system reduces manual work, improves data accuracy, streamlines daily operations, and provides real-time business insights, allowing business owners to focus on making informed decisions and achieving sustainable growth.</p>
                         </div>
                     </div>

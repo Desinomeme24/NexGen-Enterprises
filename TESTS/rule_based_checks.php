@@ -4,7 +4,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 ob_start();
 date_default_timezone_set('Asia/Manila');
 $base = dirname(__DIR__) . '/CODE/PHP/CHATBOT/';
-foreach (['data_helpers','tool_registry','conversation','fast_router','tools_inventory','tools_sales','tools_receivables','tools_system','tool_executor','response_formatter','agent'] as $file) require_once $base . $file . '.php';
+foreach (['data_helpers','tool_registry','conversation','fast_router','tools_inventory','tools_sales','tools_system','tool_executor','response_formatter','agent'] as $file) require_once $base . $file . '.php';
 $checks = 0;
 function check($ok, string $description): void {
     global $checks;
@@ -12,7 +12,7 @@ function check($ok, string $description): void {
     if (!$ok) throw new RuntimeException('FAILED: ' . $description);
 }
 $ctx = ['business_id' => 11, 'user_id' => 7, 'role' => 'owner', 'php_base' => '/NexGen/CODE/PHP/',
-    'permissions' => ['inventory' => true, 'sales' => true, 'sales_analytics' => true, 'accounts_receivable' => true]];
+    'permissions' => ['inventory' => true, 'sales' => true, 'sales_analytics' => true]];
 $cases = [
     ['What are my sales today?', 'get_sales_summary', ['period' => 'today']],
     ['Magkano ang benta kahapon?', 'get_sales_summary', ['period' => 'yesterday']],
@@ -54,15 +54,6 @@ $cases = [
     ['Stock of Coffee', 'get_inventory_products', ['filter' => 'search', 'query' => 'Coffee']],
     ['How many Coffee do I have?', 'get_inventory_products', ['filter' => 'search', 'query' => 'Coffee']],
     ['Ilan ang stock ng Coffee?', 'get_inventory_products', ['filter' => 'search', 'query' => 'Coffee']],
-    ['AR summary', 'get_receivables', ['view' => 'summary']],
-    ['Show overdue accounts', 'get_receivables', ['view' => 'overdue']],
-    ['Show unpaid accounts', 'get_receivables', ['view' => 'unpaid']],
-    ['Which customer account should I follow up first?', 'get_receivables', ['view' => 'followup_priority']],
-    ['Sino ang dapat kong i-follow up muna?', 'get_receivables', ['view' => 'followup_priority']],
-    ['Largest receivable', 'get_receivables', ['view' => 'largest_balance']],
-    ['Balance of customer Ana Cruz', 'get_receivables', ['view' => 'customer_search', 'customer_query' => 'Ana Cruz']],
-    ['Utang ni Ana Cruz', 'get_receivables', ['view' => 'customer_search', 'customer_query' => 'Ana Cruz']],
-    ['Find customer Overdue Store', 'get_receivables', ['view' => 'customer_search', 'customer_query' => 'Overdue Store']],
     ['Top 10 products this month by revenue', 'get_product_performance', ['metric' => 'top_revenue', 'limit' => 10]],
     ['Pinakamabenta ngayong buwan', 'get_product_performance', ['metric' => 'top_quantity', 'period' => 'this_month']],
     ['Pinakamabentang produkto ngayong buwan', 'get_product_performance', ['metric' => 'top_quantity', 'period' => 'this_month']],
@@ -77,7 +68,6 @@ $cases = [
     ['I-forecast ang demand ng Coffee sa loob ng 7 araw', 'forecast_business', ['kind' => 'product', 'product_query' => 'Coffee', 'horizon_days' => 7]],
     ['Forecast sales sa loob ng 2 linggo', 'forecast_business', ['kind' => 'sales', 'horizon_days' => 14]],
     ['Open inventory', 'open_module', ['module' => 'inventory']],
-    ['Buksan ang AR', 'open_module', ['module' => 'receivables']],
 ];
 foreach ($cases as [$question, $tool, $args]) {
     $actual = nxcb_fast_route($question, $ctx);
@@ -102,9 +92,11 @@ $safety = nxcb_run_agent(new mysqli(), 'Delete all sales', [], $ctx);
 check($safety['route'] === 'rule-clarify'
     && str_contains($safety['reply'], 'To change records')
     && !$safety['tool_log'], 'Destructive requests are refused without a tool call');
-foreach (['Sales on 2026-02-30', 'Sales from 2026-09-05 to 2026-09-01', 'Sales today and yesterday', 'Sales in August 2026', 'Sales on 9/5/2026', 'Sales tomorrow', 'Sales since 2026-09-01', 'Compare sales this month vs last month', 'Delete all sales', 'Low stock last month', 'Overdue accounts yesterday', 'Show sales for branch East', 'Forecast sales next month'] as $q) {
+foreach (['Sales on 2026-02-30', 'Sales from 2026-09-05 to 2026-09-01', 'Sales today and yesterday', 'Sales in August 2026', 'Sales on 9/5/2026', 'Sales tomorrow', 'Sales since 2026-09-01', 'Compare sales this month vs last month', 'Delete all sales', 'Low stock last month', 'Show sales for branch East', 'Forecast sales next month'] as $q) {
     check(isset(nxcb_fast_route($q, $ctx)['reply']), 'Clarify without data query: ' . $q);
 }
+$unsupported = nxcb_run_agent(new mysqli(), 'Overdue accounts yesterday', [], $ctx);
+check($unsupported['route'] === 'rule-clarify' && !$unsupported['tool_log'], 'Unsupported legacy request is not routed to a data tool');
 $history = [['role' => 'user', 'content' => 'Top products this month', 'last_route' => nxcb_fast_route('Top products this month', $ctx)]];
 $r = nxcb_fast_followup_route('What about last month?', $history, $ctx);
 check(($r['tool'] ?? '') === 'get_product_performance' && $r['args']['period'] === 'last_month', 'Follow-up preserves metric');
@@ -120,24 +112,23 @@ check(!isset($r['args']['start_date']) && $r['args']['period'] === 'today', 'Rem
 
 $conn = new mysqli(); // Unconnected: denied/direct paths must not query a database.
 $none = $ctx; $none['permissions'] = [];
-foreach (['get_inventory_products','get_product_history','get_stock_activity','get_sales_activity','get_sales_summary','get_product_performance','get_category_performance','get_receivables','get_alerts','forecast_business'] as $tool) {
+foreach (['get_inventory_products','get_product_history','get_stock_activity','get_sales_activity','get_sales_summary','get_product_performance','get_category_performance','get_alerts','forecast_business'] as $tool) {
     check((nxcb_execute_tool($tool, [], $conn, $none)['error'] ?? '') === 'permission_denied', 'Deny ' . $tool . ' without DB access');
 }
 check((nxcb_execute_tool('DROP TABLE sales', [], $conn, $ctx)['error'] ?? '') === 'unknown_tool', 'Only allow named tools');
 $inv = $none; $inv['permissions']['inventory'] = true;
 check(!nxcb_tool_allowed('get_product_history', ['event' => 'last_sale'], $inv), 'Inventory-only account cannot read sale history');
 check(!nxcb_tool_allowed('forecast_business', ['kind' => 'product'], $inv), 'Inventory-only account cannot infer sales from forecasts');
-check(!str_contains(implode(' ', nxcb_suggestions($inv)), 'overdue'), 'No AR suggestions without AR access');
+check(!str_contains(implode(' ', nxcb_suggestions($ctx)), 'overdue'), 'AR suggestions removed');
+check((nxcb_execute_tool('get_receivables', [], $conn, $ctx)['error'] ?? '') === 'unknown_tool', 'AR tool removed');
 check(!str_contains(nxcb_fast_direct_reply('help', $none), 'Top products'), 'Help respects permissions');
 check((nxcb_execute_tool('get_sales_summary', [], $conn, array_merge($ctx, ['business_id' => 0]))['error'] ?? '') === 'invalid_workspace', 'Reject missing workspace');
 $employee = $none; $employee['permissions']['sales'] = true;
 $guide = nxcb_execute_tool('get_system_guide', ['topic' => 'sales'], $conn, $employee);
-check(str_contains(implode(' ', $guide['guide']), 'records paid sales'), 'Sales FAQ without AR');
-$guide = nxcb_execute_tool('get_system_guide', ['topic' => 'sales'], $conn, $ctx);
-check(str_contains(implode(' ', $guide['guide']), 'Unpaid or partially paid'), 'Sales FAQ with AR');
+check(str_contains(implode(' ', $guide['guide']), 'recorded as paid transactions'), 'Sales FAQ describes paid-only sales');
 $reply = nxcb_run_agent($conn, 'How is the weather today?', [], $ctx);
 check($reply['ok'] && $reply['route'] === 'rule-clarify' && !$reply['tool_log'], 'Unsupported wording returns immediately');
-$reply = nxcb_run_agent($conn, 'Show overdue accounts', [], $inv);
+$reply = nxcb_run_agent($conn, 'Show my sales', [], $inv);
 check($reply['ok'] && str_contains($reply['reply'], 'permission') && $reply['last_route'] === null, 'Denied request cannot seed history');
 $module = nxcb_open_module(['module' => 'sales'], $ctx);
 check($module['url'] === '/NexGen/CODE/PHP/sales_recording.php', 'XAMPP navigation URL');

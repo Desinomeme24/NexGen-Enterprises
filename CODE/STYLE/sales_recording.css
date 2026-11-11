@@ -645,36 +645,6 @@ body::after {
   box-shadow: 0 8px 18px rgba(16, 185, 129, 0.32);
 }
 
-.status-unpaid {
-  color: #be123c;
-  background: rgba(225, 29, 72, 0.09);
-  border-color: rgba(225, 29, 72, 0.26);
-}
-.status-unpaid:hover {
-  background: rgba(225, 29, 72, 0.15);
-}
-.status-unpaid.active {
-  background: linear-gradient(135deg, #fda4af, #e11d48);
-  border-color: transparent;
-  color: #ffffff;
-  box-shadow: 0 8px 18px rgba(225, 29, 72, 0.32);
-}
-
-.status-partial {
-  color: #92620a;
-  background: rgba(246, 203, 8, 0.14);
-  border-color: rgba(246, 203, 8, 0.32);
-}
-.status-partial:hover {
-  background: rgba(246, 203, 8, 0.2);
-}
-.status-partial.active {
-  background: linear-gradient(135deg, var(--gold-1), var(--gold-2));
-  border-color: transparent;
-  color: #4a3200;
-  box-shadow: 0 8px 18px rgba(246, 203, 8, 0.32);
-}
-
 .status-fulfilled {
   color: #0369a1;
   background: rgba(14, 165, 233, 0.1);
@@ -1263,12 +1233,6 @@ body::after {
 .sale-card:has(.badge.paid)::before {
   background: linear-gradient(90deg, #34d399, #10b981);
 }
-.sale-card:has(.badge.unpaid)::before {
-  background: linear-gradient(90deg, #fb7185, #e11d48);
-}
-.sale-card:has(.badge.partial)::before {
-  background: linear-gradient(90deg, var(--gold-1), var(--gold-2));
-}
 .sale-card:has(.badge.fulfilled)::before {
   background: linear-gradient(90deg, #a78bfa, #7c3aed);
 }
@@ -1316,13 +1280,6 @@ body::after {
     0 22px 40px rgba(0, 3, 61, 0.3),
     0 0 0 1px rgba(52, 211, 153, 0.22),
     0 0 26px rgba(16, 185, 129, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-.sale-card:has(.badge.unpaid):hover {
-  box-shadow:
-    0 22px 40px rgba(0, 3, 61, 0.3),
-    0 0 0 1px rgba(251, 113, 133, 0.24),
-    0 0 26px rgba(225, 29, 72, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 .sale-card:has(.badge.fulfilled):hover {
@@ -1736,27 +1693,6 @@ body::after {
   box-shadow: 0 0 16px rgba(52, 211, 153, 0.1);
 }
 
-.unpaid {
-  background: linear-gradient(
-    180deg,
-    rgba(251, 113, 133, 0.3) 0%,
-    rgba(225, 29, 72, 0.24) 100%
-  );
-  color: #ffe4e6;
-  border: 1px solid rgba(251, 113, 133, 0.36);
-  box-shadow: 0 0 16px rgba(225, 29, 72, 0.14);
-}
-
-.partial {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 221, 85, 0.26) 0%,
-    rgba(246, 203, 8, 0.22) 100%
-  );
-  color: #ffdd55;
-  border: 1px solid rgba(255, 221, 85, 0.32);
-  box-shadow: 0 0 16px rgba(255, 221, 85, 0.1);
-}
 
 .fulfilled {
   background: linear-gradient(
@@ -2001,10 +1937,6 @@ body::after {
 
 #saleModal.show {
   z-index: 9999;
-}
-
-#customerModal.show {
-  z-index: 10001;
 }
 
 .sale-modal {
@@ -3570,16 +3502,6 @@ html[data-theme="light"] .paid {
   background: rgba(16, 185, 129, 0.14);
   color: #047857;
   border-color: rgba(16, 185, 129, 0.35);
-}
-html[data-theme="light"] .unpaid {
-  background: rgba(225, 29, 72, 0.12);
-  color: #be123c;
-  border-color: rgba(225, 29, 72, 0.32);
-}
-html[data-theme="light"] .partial {
-  background: rgba(246, 203, 8, 0.18);
-  color: #92620a;
-  border-color: rgba(246, 203, 8, 0.4);
 }
 html[data-theme="light"] .fulfilled {
   background: rgba(124, 58, 237, 0.12);
@@ -5426,178 +5348,9 @@ html[data-theme="light"] #saleModal .attach-receipt-btn > i {
   }
 }
 
-/* Permission-aware receivable fields in Sale Info. */
-#saleModal .customer-info-card {
-  grid-column: 1 / -1;
-}
-
-#saleModal .customer-info-card[hidden],
-#saleModal .selected-customer-summary[hidden],
-#saleModal .new-customer-fields[hidden] {
-  display: none !important;
-}
-
-#saleModal .customer-info-card .wizard-card-title {
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
-
-#saleModal .receivable-required-badge {
-  display: inline-flex;
-  align-items: center;
-  margin-left: auto;
-  padding: 5px 10px;
-  border: 1px solid rgba(255, 221, 85, 0.35);
-  border-radius: 999px;
-  background: rgba(255, 221, 85, 0.12);
-  color: #ffea91;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-#saleModal .customer-info-help,
-#saleModal .payment-access-note {
-  display: block;
-  color: #b9d4f5;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.5;
-}
-
-#saleModal .customer-info-help {
-  margin: 0 0 20px;
-}
-
-#saleModal .payment-access-note {
-  margin-top: 8px;
-}
-
-#saleModal .customer-info-grid,
-#saleModal .new-customer-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-
-#saleModal .new-customer-fields {
-  margin-top: 18px;
-  padding-top: 18px;
-  border-top: 1px dashed rgba(143, 201, 255, 0.25);
-}
-
-#saleModal .selected-customer-summary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 18px;
-  padding: 16px;
-  border: 1px solid rgba(94, 170, 255, 0.25);
-  border-radius: 16px;
-  background: rgba(94, 170, 255, 0.08);
-}
-
-#saleModal .selected-customer-summary > div {
-  min-width: 0;
-}
-
-#saleModal .selected-customer-summary span,
-#saleModal .selected-customer-summary strong {
-  display: block;
-}
-
-#saleModal .selected-customer-summary span {
-  margin-bottom: 4px;
-  color: #9fc4ed;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-#saleModal .selected-customer-summary strong {
-  overflow-wrap: anywhere;
-  color: #eef5ff;
-  font-size: 14px;
-}
-
-#saleModal .form-group label small {
-  color: #9fc4ed;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-#saleModal .locked-payment-status {
-  position: relative;
-}
-
-#saleModal .locked-payment-status input {
-  width: 100%;
-  padding-right: 48px;
-  cursor: not-allowed;
-  opacity: 0.92;
-}
-
-#saleModal .locked-payment-status i {
-  position: absolute;
-  top: 50%;
-  right: 17px;
-  transform: translateY(-50%);
-  color: #ffdd55;
-  pointer-events: none;
-}
-
-#saleModal #amountPaidInput[readonly] {
-  cursor: not-allowed;
-  opacity: 0.82;
-}
-
-html[data-theme="light"] #saleModal .customer-info-help,
-html[data-theme="light"] #saleModal .payment-access-note,
-html[data-theme="light"] #saleModal .form-group label small {
-  color: #5b7190;
-}
-
-html[data-theme="light"] #saleModal .receivable-required-badge {
-  border-color: rgba(174, 125, 0, 0.3);
-  background: rgba(255, 214, 64, 0.18);
-  color: #795800;
-}
-
-html[data-theme="light"] #saleModal .selected-customer-summary {
-  border-color: rgba(74, 143, 224, 0.25);
-  background: rgba(74, 143, 224, 0.07);
-}
-
-html[data-theme="light"] #saleModal .selected-customer-summary span {
-  color: #5b7190;
-}
-
-html[data-theme="light"] #saleModal .selected-customer-summary strong {
-  color: #0b1f73;
-}
-
-html[data-theme="light"] #saleModal .locked-payment-status i {
-  color: #8b6800;
-}
-
-@media (max-width: 700px) {
-  #saleModal .customer-info-grid,
-  #saleModal .new-customer-fields,
-  #saleModal .selected-customer-summary {
-    grid-template-columns: 1fr;
-  }
-
-  #saleModal .receivable-required-badge {
-    margin-left: 0;
-  }
-}
-
 /* =========================================================
    NEW SALE RESPONSIVE APP SHELL
-   Presentation-only overrides. Sales, inventory, payment,
-   customer, and Accounts Receivable behavior remain in PHP/JS.
+   Presentation-only overrides for the sales workflow.
    ========================================================= */
 #saleModal .wizard-modal {
   max-width: 1280px;
@@ -5890,9 +5643,7 @@ html[data-theme="light"] #saleModal .locked-payment-status i {
     font-size: 17px;
   }
 
-  #saleModal .form-grid-single,
-  #saleModal .customer-info-grid,
-  #saleModal .new-customer-fields {
+  #saleModal .form-grid-single {
     gap: 13px;
   }
 
@@ -5920,30 +5671,13 @@ html[data-theme="light"] #saleModal .locked-payment-status i {
     font-size: 16px;
   }
 
-  #saleModal .verified-field input,
-  #saleModal .locked-payment-status input {
+  #saleModal .verified-field input {
     padding-right: 45px;
   }
 
-  #saleModal .verified-field-icon,
-  #saleModal .locked-payment-status i {
+  #saleModal .verified-field-icon {
     right: 14px;
     font-size: 18px;
-  }
-
-  #saleModal .customer-info-help {
-    margin-bottom: 14px;
-  }
-
-  #saleModal .selected-customer-summary,
-  #saleModal .new-customer-fields {
-    margin-top: 14px;
-    padding: 13px;
-  }
-
-  #saleModal .receivable-required-badge {
-    padding: 4px 8px;
-    font-size: 9.5px;
   }
 
   #saleModal .items-wizard-grid {
@@ -6818,89 +6552,11 @@ html[data-theme="light"] #saleModal .locked-payment-status i {
   font-size: 1.05em;
 }
 
-#saleModal .customer-info-card {
-  grid-column: 1 / -1;
-}
-
-#saleModal .customer-info-card[hidden],
-#saleModal .selected-customer-summary[hidden],
-#saleModal .new-customer-fields[hidden],
 #saleModal #amountPaidGroup[hidden] {
   display: none !important;
 }
 
-#saleModal .credit-requirement-callout {
-  margin: 0 0 18px;
-  padding: 14px 16px;
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  border: 1px solid rgba(255, 214, 46, 0.38);
-  border-radius: 16px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 214, 46, 0.14),
-    rgba(255, 214, 46, 0.055)
-  );
-}
-
-#saleModal .credit-requirement-callout > i {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 40px;
-  border-radius: 13px;
-  background: var(--sale-app-yellow);
-  color: #07184f;
-  font-size: 19px;
-}
-
-#saleModal .credit-requirement-callout div {
-  min-width: 0;
-}
-
-#saleModal .credit-requirement-callout strong,
-#saleModal .credit-requirement-callout span {
-  display: block;
-}
-
-#saleModal .credit-requirement-callout strong {
-  color: var(--sale-app-yellow);
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-#saleModal .credit-requirement-callout span {
-  margin-top: 3px;
-  color: #dbe5fa;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-#saleModal .customer-required-note {
-  margin: 14px 0 0;
-  padding: 10px 12px;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  border: 1px solid rgba(82, 217, 132, 0.25);
-  border-radius: 13px;
-  background: rgba(82, 217, 132, 0.07);
-  color: #bcd8ce;
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-#saleModal .customer-required-note i {
-  color: var(--sale-app-green);
-}
-
-#saleModal .form-grid-single,
-#saleModal .customer-info-grid,
-#saleModal .new-customer-fields {
+#saleModal .form-grid-single {
   gap: 14px;
 }
 
@@ -6946,8 +6602,7 @@ html[data-theme="light"] #saleModal .locked-payment-status i {
   box-shadow: 0 0 0 3px rgba(255, 214, 46, 0.13);
 }
 
-#saleModal .verified-field input,
-#saleModal .locked-payment-status input {
+#saleModal .verified-field input {
   color: #dbe7ff;
   background: rgba(38, 76, 161, 0.2);
 }
@@ -7174,8 +6829,7 @@ html[data-theme="light"] #saleModal .locked-payment-status i {
   line-height: 1;
 }
 
-#saleModal .change-due-card strong,
-#saleModal .change-due-card.is-balance strong {
+#saleModal .change-due-card strong {
   color: var(--sale-app-green);
 }
 
@@ -7258,14 +6912,6 @@ html[data-theme="light"] #saleModal .locked-payment-status i {
 
 #saleModal .review-row-sales-no {
   order: 1;
-}
-
-#saleModal .review-row-due-date {
-  order: 2;
-}
-
-#saleModal .review-row-customer {
-  order: 3;
 }
 
 #saleModal .review-row-cashier {
@@ -7639,36 +7285,6 @@ html[data-theme="light"] #saleModal .locked-payment-status i {
     margin-bottom: 11px;
     padding: 0;
     font-size: 15px;
-  }
-
-  #saleModal .credit-requirement-callout {
-    margin-bottom: 13px;
-    padding: 10px 11px;
-    gap: 10px;
-    border-radius: 14px;
-  }
-
-  #saleModal .credit-requirement-callout > i {
-    width: 34px;
-    height: 34px;
-    flex-basis: 34px;
-    border-radius: 11px;
-    font-size: 16px;
-  }
-
-  #saleModal .credit-requirement-callout strong {
-    font-size: 10px;
-  }
-
-  #saleModal .credit-requirement-callout span {
-    font-size: 10px;
-  }
-
-  #saleModal .customer-info-grid,
-  #saleModal .new-customer-fields,
-  #saleModal .selected-customer-summary {
-    grid-template-columns: 1fr;
-    gap: 10px;
   }
 
   #saleModal .form-group input,
@@ -8114,8 +7730,7 @@ html[data-theme="light"] #saleModal .form-group select,
 html[data-theme="light"] #saleModal .form-group textarea,
 html[data-theme="light"] #saleModal #productSearchInput,
 html[data-theme="light"] #saleModal #productEntryQty,
-html[data-theme="light"] #saleModal .verified-field input,
-html[data-theme="light"] #saleModal .locked-payment-status input {
+html[data-theme="light"] #saleModal .verified-field input {
   background: #f8fbff;
   color: #142a5f;
 }
@@ -8179,14 +7794,6 @@ html[data-theme="light"] #saleModal .review-payment-card,
 html[data-theme="light"] #saleModal .review-receipt-card,
 html[data-theme="light"] #saleModal .review-breakdown {
   background: rgba(241, 247, 255, 0.9);
-}
-
-html[data-theme="light"] #saleModal .credit-requirement-callout span {
-  color: #526384;
-}
-
-html[data-theme="light"] #saleModal .customer-required-note {
-  color: #496d5a;
 }
 
 @media (max-width: 600px) {

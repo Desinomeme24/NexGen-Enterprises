@@ -28,8 +28,8 @@ if (session_status() === PHP_SESSION_NONE) {
 
 /* SECURITY: prevent the browser from caching authenticated pages. Without
    this, hitting Back after logging out (or switching accounts on a shared
-   till/PC) can redisplay a previous user's cached page - including data
-   like Purchase Order History or receivables - straight from disk/memory
+   till/PC) can redisplay a previous user's cached page - including sensitive
+   business data - straight from disk/memory
    cache instead of re-requesting it from the server. */
 if (!headers_sent()) {
     header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');

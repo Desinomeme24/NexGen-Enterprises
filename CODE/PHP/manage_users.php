@@ -35,10 +35,6 @@ function moduleAccessSummary(array $user): string
         $modules[] = 'Sales Analytics';
     }
 
-    if (!empty($user['can_accounts_receivable'])) {
-        $modules[] = 'Accounts Receivable';
-    }
-
     return empty($modules) ? 'No Access' : implode(', ', $modules);
 }
 
@@ -92,9 +88,9 @@ function getDefaultModulePermissions(string $role): array
 {
     switch ($role) {
         case 'owner':
-            return [1, 1, 1, 1];
+            return [1, 1, 1];
         default:
-            return [0, 0, 0, 0];
+            return [0, 0, 0];
     }
 }
 
@@ -139,8 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_
             SET
                 can_inventory = ?,
                 can_sales = ?,
-                can_sales_analytics = ?,
-                can_accounts_receivable = ?
+                can_sales_analytics = ?
             WHERE id = ?
               AND role = 'owner'
         ");
@@ -166,20 +161,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_
             }
 
             if ($bulkAction === 'grant_access') {
-                [$canInventory, $canSales, $canSalesAnalytics, $canAccountsReceivable] = getDefaultModulePermissions($user['role']);
+                [$canInventory, $canSales, $canSalesAnalytics] = getDefaultModulePermissions($user['role']);
             } else {
                 $canInventory = 0;
                 $canSales = 0;
                 $canSalesAnalytics = 0;
-                $canAccountsReceivable = 0;
             }
 
             $updateStmt->bind_param(
-                "iiiii",
+                "iiii",
                 $canInventory,
                 $canSales,
                 $canSalesAnalytics,
-                $canAccountsReceivable,
                 $userId
             );
 
@@ -314,7 +307,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
     $canInventory          = isset($_POST['can_inventory']) ? 1 : 0;
     $canSales              = isset($_POST['can_sales']) ? 1 : 0;
     $canSalesAnalytics     = isset($_POST['can_sales_analytics']) ? 1 : 0;
-    $canAccountsReceivable = isset($_POST['can_accounts_receivable']) ? 1 : 0;
 
     try {
         if ($userId <= 0) {
@@ -388,8 +380,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
                 is_verified = ?,
                 can_inventory = ?,
                 can_sales = ?,
-                can_sales_analytics = ?,
-                can_accounts_receivable = ?
+                can_sales_analytics = ?
             WHERE id = ?
               AND role = 'owner'
         ");
@@ -399,7 +390,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
         }
 
         $stmt->bind_param(
-            "sssssssiiiiii",
+            "sssssssiiiii",
             $userFullName,
             $username,
             $email,
@@ -411,7 +402,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
             $canInventory,
             $canSales,
             $canSalesAnalytics,
-            $canAccountsReceivable,
             $userId
         );
 
@@ -439,7 +429,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
         }
 
         $workspaceLog = 'preserved business/branch assignment (business_id: ' . (int)($currentUser['business_id'] ?? 0) . ')';
-        $description = "Updated user #{$userId} ({$username}) - role: {$role}, workspace: {$workspaceLog}, status: {$accountStatus}, verified: {$isVerified}, inventory: {$canInventory}, sales: {$canSales}, analytics: {$canSalesAnalytics}, accounts_receivable: {$canAccountsReceivable}";
+        $description = "Updated user #{$userId} ({$username}) - role: {$role}, workspace: {$workspaceLog}, status: {$accountStatus}, verified: {$isVerified}, inventory: {$canInventory}, sales: {$canSales}, analytics: {$canSalesAnalytics}";
 
         logAdminActivitySecure($conn, $adminId, 'update_user_permissions', 'user', $userId, $description);
 
@@ -564,7 +554,6 @@ $sql = "
         u.can_inventory,
         u.can_sales,
         u.can_sales_analytics,
-        u.can_accounts_receivable,
         u.failed_login_attempts,
         u.locked_until,
         u.business_id,
@@ -607,7 +596,6 @@ if ($editId > 0) {
             u.can_inventory,
             u.can_sales,
             u.can_sales_analytics,
-            u.can_accounts_receivable,
             u.failed_login_attempts,
             u.locked_until,
             u.business_id,
@@ -1972,10 +1960,6 @@ $csrfManageUsers = generateCsrfToken('manage_users_action');
                                 <label for="can_sales_analytics">Sales Analytics</label>
                             </div>
 
-                            <div class="check-card">
-                                <input type="checkbox" id="can_accounts_receivable" name="can_accounts_receivable" <?php echo !empty($editUser['can_accounts_receivable']) ? 'checked' : ''; ?>>
-                                <label for="can_accounts_receivable">Accounts Receivable</label>
-                            </div>
                         </div>
 
                         <div class="role-note" id="roleNote">
@@ -2062,8 +2046,7 @@ function setModuleCheckboxState(disabled) {
     const ids = [
         'can_inventory',
         'can_sales',
-        'can_sales_analytics',
-        'can_accounts_receivable'
+        'can_sales_analytics'
     ];
 
     ids.forEach(function(id) {
@@ -2088,21 +2071,18 @@ function applyRoleDefaults() {
     const canInventory = document.getElementById('can_inventory');
     const canSales = document.getElementById('can_sales');
     const canSalesAnalytics = document.getElementById('can_sales_analytics');
-    const canAccountsReceivable = document.getElementById('can_accounts_receivable');
 
-    if (!canInventory || !canSales || !canSalesAnalytics || !canAccountsReceivable) return;
+    if (!canInventory || !canSales || !canSalesAnalytics) return;
 
     if (role.value === 'owner') {
         canInventory.checked = true;
         canSales.checked = true;
         canSalesAnalytics.checked = true;
-        canAccountsReceivable.checked = true;
         setModuleCheckboxState(false);
     } else {
         canInventory.checked = true;
         canSales.checked = true;
         canSalesAnalytics.checked = false;
-        canAccountsReceivable.checked = true;
         setModuleCheckboxState(false);
     }
 
@@ -2119,8 +2099,7 @@ function updateRoleNote() {
     const moduleInputs = [
         ['can_inventory', 'Inventory'],
         ['can_sales', 'Sales'],
-        ['can_sales_analytics', 'Sales Analytics'],
-        ['can_accounts_receivable', 'Accounts Receivable']
+        ['can_sales_analytics', 'Sales Analytics']
     ];
     const selectedModules = moduleInputs
         .filter(function(module) {
@@ -2165,8 +2144,7 @@ function bindEditModal() {
     [
         'can_inventory',
         'can_sales',
-        'can_sales_analytics',
-        'can_accounts_receivable'
+        'can_sales_analytics'
     ].forEach(function(id) {
         const permissionInput = document.getElementById(id);
         if (permissionInput && permissionInput.dataset.roleNoteBound !== '1') {

@@ -48,7 +48,7 @@
   );
 }
 
-/* ---- LIGHT MODE — same html[data-theme="light"] switch as accounts_receivable.css,
+/* ---- LIGHT MODE — same html[data-theme="light"] switch as the NexGen theme,
    so the one toggle in the topbar drives this page too ---- */
 html[data-theme="light"] {
   --lilac: #d1e8fc;

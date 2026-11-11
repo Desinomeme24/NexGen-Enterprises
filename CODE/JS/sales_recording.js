@@ -22,24 +22,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const saleDiscountValueLabel = document.getElementById("saleDiscountValueLabel");
   const checkoutSummaryGrid = document.querySelector(".checkout-summary-grid");
 
-  const salesAccess = window.salesAccess || {};
-  const hasAccountsReceivable = salesAccess.accountsReceivable === true;
-  const customers = Array.isArray(salesAccess.customers)
-    ? salesAccess.customers
-    : [];
-  const customerInfoCard = document.getElementById("customerInfoCard");
-  const customerChoice = document.getElementById("customerChoice");
-  const customerIdInput = document.getElementById("customerId");
-  const dueDateInput = document.getElementById("dueDateInput");
-  const selectedCustomerSummary = document.getElementById(
-    "selectedCustomerSummary",
-  );
-  const newCustomerFields = document.getElementById("newCustomerFields");
-  const customerNameInput = document.getElementById("customerNameInput");
-  const customerPhoneInput = document.getElementById("customerPhoneInput");
-  const customerEmailInput = document.getElementById("customerEmailInput");
-  const customerAddressInput = document.getElementById("customerAddressInput");
-
   const saleConfirmOverlay = document.getElementById("saleConfirmOverlay");
   const saleConfirmCancel = document.getElementById("saleConfirmCancel");
   const saleConfirmYes = document.getElementById("saleConfirmYes");
@@ -48,7 +30,6 @@ document.addEventListener("DOMContentLoaded", function () {
   let selectedProduct = null;
   let visibleSearchProducts = [];
   let activeSearchIndex = -1;
-  let previousPaymentStatus = paymentStatus?.value || "Paid";
   let saleModalReturnFocus = null;
   let saleConfirmReturnFocus = null;
   let saleSubmissionInProgress = false;
@@ -73,166 +54,6 @@ document.addEventListener("DOMContentLoaded", function () {
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
-  }
-
-  const customersById = new Map(
-    customers.map((customer) => [safeText(customer.id), customer]),
-  );
-
-  function isCreditSale() {
-    return (
-      hasAccountsReceivable &&
-      ["Unpaid", "Partially Paid"].includes(paymentStatus?.value || "Paid")
-    );
-  }
-
-  function clearNewCustomerInputs() {
-    [
-      customerNameInput,
-      customerPhoneInput,
-      customerEmailInput,
-      customerAddressInput,
-    ].forEach((input) => {
-      if (input) {
-        input.value = "";
-      }
-    });
-  }
-
-  function clearCustomerSelection() {
-    if (customerChoice) {
-      customerChoice.value = "";
-    }
-    if (customerIdInput) {
-      customerIdInput.value = "0";
-    }
-    if (dueDateInput) {
-      dueDateInput.value = "";
-    }
-    clearNewCustomerInputs();
-    if (selectedCustomerSummary) {
-      selectedCustomerSummary.hidden = true;
-    }
-    if (newCustomerFields) {
-      newCustomerFields.hidden = true;
-    }
-  }
-
-  function renderSelectedCustomer(customer) {
-    const fields = {
-      selectedCustomerName: customer?.customer_name || "—",
-      selectedCustomerPhone: customer?.phone || "Not provided",
-      selectedCustomerEmail: customer?.email || "Not provided",
-      selectedCustomerAddress: customer?.address || "Not provided",
-    };
-
-    Object.entries(fields).forEach(([id, value]) => {
-      const element = document.getElementById(id);
-      if (element) {
-        element.textContent = safeText(value);
-      }
-    });
-  }
-
-  function syncCustomerChoice() {
-    if (!customerChoice || !customerIdInput) {
-      return;
-    }
-
-    const selectedValue = customerChoice.value;
-    const isNewCustomer = selectedValue === "new";
-    const selectedCustomer = customersById.get(selectedValue);
-
-    customerIdInput.value = selectedCustomer ? selectedValue : "0";
-    if (newCustomerFields) {
-      newCustomerFields.hidden = !isNewCustomer;
-    }
-    if (selectedCustomerSummary) {
-      selectedCustomerSummary.hidden = !selectedCustomer;
-    }
-
-    if (selectedCustomer) {
-      renderSelectedCustomer(selectedCustomer);
-      clearNewCustomerInputs();
-    }
-
-    if (!isNewCustomer) {
-      clearNewCustomerInputs();
-    }
-
-    if (customerNameInput) {
-      customerNameInput.required = isNewCustomer;
-    }
-  }
-
-  function syncCustomerSection(clearWhenDisabled = false) {
-    if (!hasAccountsReceivable || !customerInfoCard) {
-      return;
-    }
-
-    const enabled = isCreditSale();
-    customerInfoCard.hidden = !enabled;
-    if (dueDateInput) {
-      dueDateInput.required = enabled;
-    }
-
-    if (!enabled && clearWhenDisabled) {
-      clearCustomerSelection();
-    } else if (enabled) {
-      syncCustomerChoice();
-    }
-  }
-
-  function validateCustomerDetails() {
-    if (!isCreditSale()) {
-      return true;
-    }
-
-    if (!dueDateInput?.value || !dueDateInput.checkValidity()) {
-      showToast("Choose a valid due date for this receivable.", "warning");
-      dueDateInput?.focus();
-      return false;
-    }
-
-    const choice = customerChoice?.value || "";
-    if (!choice) {
-      showToast(
-        "Select an existing customer or choose Create New Customer.",
-        "warning",
-      );
-      customerChoice?.focus();
-      return false;
-    }
-
-    if (choice === "new") {
-      const name = customerNameInput?.value.trim() || "";
-      if (name.length < 2) {
-        showToast("Enter the customer's full name.", "warning");
-        customerNameInput?.focus();
-        return false;
-      }
-
-      if (
-        customerPhoneInput?.value &&
-        !/^[0-9+().\- ]{7,20}$/.test(customerPhoneInput.value)
-      ) {
-        showToast("Enter a valid customer phone number.", "warning");
-        customerPhoneInput.focus();
-        return false;
-      }
-
-      if (customerEmailInput?.value && !customerEmailInput.checkValidity()) {
-        showToast("Enter a valid customer email address.", "warning");
-        customerEmailInput.focus();
-        return false;
-      }
-    } else if (!customersById.has(choice)) {
-      showToast("The selected customer is no longer available.", "warning");
-      customerChoice?.focus();
-      return false;
-    }
-
-    return true;
   }
 
   function getToastRoot() {
@@ -378,11 +199,9 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function syncOrderStatusWithPayment() {
-    if (!paymentStatus || !orderStatus) {
-      return;
+    if (orderStatus) {
+      orderStatus.value = "Fulfilled";
     }
-    const status = paymentStatus.value;
-    orderStatus.value = status === "Paid" ? "Fulfilled" : "Pending";
   }
 
   if (saleConfirmCancel) {
@@ -826,11 +645,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateChangeDue() {
     const total = getGrandTotalValue();
     const amountPaid = safeNumber(amountPaidInput?.value);
-    const status = paymentStatus?.value || "Paid";
-    const isPaid = status === "Paid";
-    const settlement = isPaid
-      ? Math.max(amountPaid - total, 0)
-      : Math.max(total - amountPaid, 0);
+    const settlement = Math.max(amountPaid - total, 0);
     const changeDueEl = document.getElementById("changeDue");
     const settlementLabel = document.getElementById("settlementLabel");
     const reviewSettlementLabel = document.getElementById(
@@ -842,12 +657,11 @@ document.addEventListener("DOMContentLoaded", function () {
       changeDueEl.textContent = formatMoney(settlement);
     }
     if (settlementLabel) {
-      settlementLabel.textContent = isPaid ? "Change Due" : "Balance Due";
+      settlementLabel.textContent = "Change Due";
     }
     if (reviewSettlementLabel) {
-      reviewSettlementLabel.textContent = isPaid ? "Change Due" : "Balance Due";
+      reviewSettlementLabel.textContent = "Change Due";
     }
-    settlementCard?.classList.toggle("is-balance", !isPaid);
     return settlement;
   }
 
@@ -946,7 +760,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     syncOrderStatusWithPayment();
     togglePaymentFields();
-    syncCustomerSection(true);
     updateChangeDue();
     renderLiveReceipt();
 
@@ -968,46 +781,26 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const total =
       typeof totalOverride === "number" ? totalOverride : getGrandTotalValue();
-    const status = paymentStatus.value || "Paid";
-    const statusChanged = status !== previousPaymentStatus;
-
     if (checkoutSummaryGrid) {
-      checkoutSummaryGrid.dataset.paymentStatus = status;
+      checkoutSummaryGrid.dataset.paymentStatus = "Paid";
     }
 
     if (amountPaidGroup) {
-      const shouldShow = status !== "Unpaid";
-      amountPaidGroup.hidden = !shouldShow;
-      amountPaidGroup.style.display = shouldShow ? "flex" : "none";
+      amountPaidGroup.hidden = false;
+      amountPaidGroup.style.display = "flex";
     }
 
     if (amountPaidInput) {
       const currentAmount = safeNumber(amountPaidInput.value);
-      amountPaidInput.readOnly = status === "Unpaid";
+      amountPaidInput.readOnly = false;
       amountPaidInput.removeAttribute("max");
-
-      if (status === "Paid") {
-        amountPaidInput.min = "0";
-        if (statusChanged || currentAmount < total || currentAmount <= 0) {
-          amountPaidInput.value = total > 0 ? formatMoney(total) : "0.00";
-        }
-      } else if (status === "Partially Paid") {
-        amountPaidInput.min = "0.01";
-        if (total > 0.01) {
-          amountPaidInput.max = formatMoney(total - 0.01);
-        }
-        if (statusChanged || currentAmount >= total) {
-          amountPaidInput.value = "0.00";
-        }
-      } else {
-        amountPaidInput.min = "0";
-        amountPaidInput.value = "0.00";
+      amountPaidInput.min = "0";
+      if (currentAmount < total || currentAmount <= 0) {
+        amountPaidInput.value = total > 0 ? formatMoney(total) : "0.00";
       }
     }
 
     syncOrderStatusWithPayment();
-    syncCustomerSection(statusChanged && status === "Paid");
-    previousPaymentStatus = status;
     updateChangeDue();
   }
 
@@ -1047,11 +840,6 @@ document.addEventListener("DOMContentLoaded", function () {
         saleDiscountValue?.focus();
         return false;
       }
-    }
-
-    if (!validateCustomerDetails()) {
-      goToWizardStep(1);
-      return false;
     }
 
     if (subtotal <= 0) {
@@ -1119,20 +907,6 @@ document.addEventListener("DOMContentLoaded", function () {
           "warning",
         );
         return false;
-      }
-    } else if (payment === "Partially Paid") {
-      if (amountPaid <= 0 || amountPaid >= total) {
-        showToast(
-          "For a partially paid sale, enter an amount greater than zero and lower than the total.",
-          "warning",
-        );
-        amountPaidInput?.focus();
-        goToWizardStep(2);
-        return false;
-      }
-    } else if (payment === "Unpaid" && amountPaid !== 0) {
-      if (amountPaidInput) {
-        amountPaidInput.value = "0.00";
       }
     }
 
@@ -1394,13 +1168,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  customerChoice?.addEventListener("change", function () {
-    syncCustomerChoice();
-    if (customerChoice.value === "new") {
-      customerNameInput?.focus();
-    }
-  });
-
   if (paymentStatus) {
     paymentStatus.addEventListener("change", function () {
       togglePaymentFields();
@@ -1414,10 +1181,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (amountPaidInput) {
     amountPaidInput.addEventListener("input", function () {
-      const status = paymentStatus ? paymentStatus.value : "Paid";
-      if (orderStatus) {
-        orderStatus.value = status === "Paid" ? "Fulfilled" : "Pending";
-      }
+      syncOrderStatusWithPayment();
       updateChangeDue();
       if (typeof wizardCurrentStep !== "undefined" && wizardCurrentStep === 3) {
         renderWizardReview();
@@ -1731,12 +1495,6 @@ document.addEventListener("DOMContentLoaded", function () {
     if (status === "Paid") {
       return "paid";
     }
-    if (status === "Unpaid") {
-      return "unpaid";
-    }
-    if (status === "Partially Paid") {
-      return "partial";
-    }
     return "";
   }
 
@@ -1766,7 +1524,6 @@ document.addEventListener("DOMContentLoaded", function () {
     setText("qvSalesNo", card.dataset.salesNo || "—");
     setText("qvDate", card.dataset.date || "—");
     setText("qvCashier", card.dataset.cashier || "—");
-    setText("qvCustomer", card.dataset.customer || "Walk-in customer");
     setText("qvQty", card.dataset.qty || "0");
     setText("qvMethod", card.dataset.paymentMethod || "—");
     setText("qvItems", card.dataset.items || "—");
@@ -1883,12 +1640,6 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function canOpenWizardStep(step) {
-    if (step > 1 && !validateCustomerDetails()) {
-      goToWizardStep(1);
-      customerInfoCard?.scrollIntoView({ behavior: "smooth", block: "center" });
-      return false;
-    }
-
     if (step >= 3 && !document.querySelector(".item-row")) {
       showToast(
         "Add at least one product before reviewing the sale.",
@@ -1913,24 +1664,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const methodVal = methodEl ? methodEl.value : "—";
     const salesNoVal = salesNoEl?.value || "—";
     const cashierVal = cashierEl?.value || "Current User";
-    const selectedCustomer = customersById.get(customerChoice?.value || "");
-    const customerVal =
-      selectedCustomer?.customer_name || customerNameInput?.value.trim() || "—";
-    const dueDateVal = dueDateInput?.value || "—";
-
-    const customerReviewRows = isCreditSale()
-      ? `
-            <div class="review-row review-row-customer"><i class="bi bi-person-vcard"></i><div><span>Customer</span><strong>${escapeHtml(customerVal)}</strong></div></div>
-            <div class="review-row review-row-due-date"><i class="bi bi-calendar-check"></i><div><span>Due Date</span><strong>${escapeHtml(dueDateVal)}</strong></div></div>
-        `
-      : "";
-
     reviewGrid.innerHTML = `
             <div class="review-row review-row-status"><i class="bi bi-credit-card"></i><div><span>Payment Status</span><strong>${escapeHtml(paymentVal)}</strong></div></div>
             <div class="review-row review-row-method"><i class="bi bi-cash-coin"></i><div><span>Payment Method</span><strong>${escapeHtml(methodVal)}</strong></div></div>
             <div class="review-row review-row-sales-no"><i class="bi bi-hash"></i><div><span>Sales No.</span><strong>${escapeHtml(salesNoVal)}</strong></div></div>
             <div class="review-row review-row-cashier"><i class="bi bi-person-badge"></i><div><span>Cashier</span><strong>${escapeHtml(cashierVal)}</strong></div></div>
-            ${customerReviewRows}
         `;
 
     const reviewItemsBody = document.getElementById("reviewItemsBody");
@@ -2082,7 +1820,6 @@ document.addEventListener("DOMContentLoaded", function () {
   updateItemsEmptyState();
   syncOrderStatusWithPayment();
   togglePaymentFields();
-  syncCustomerSection();
   syncDiscountControls();
   renderLiveReceipt();
   goToWizardStep(1);

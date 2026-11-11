@@ -7,9 +7,7 @@ if (!isset($_SESSION['user_id'])) {
 
 include 'config.php';
 require_once __DIR__ . '/tenant_helper.php';
-require_once __DIR__ . '/ar_helper.php';
 $businessId = nxRequireBusinessId($conn);
-$arEnabled = nxArEnabled();
 
 if ((int)($_SESSION['can_sales'] ?? 0) !== 1) {
     $_SESSION['error'] = 'You do not have access to Sales.';
@@ -60,152 +58,7 @@ function buildSaleViewUrl(int $saleId, array $params = []): string
 }
 
 function badgeClassPayment($status) {
-    return match($status) {
-        'Paid' => 'badge paid',
-        'Unpaid' => 'badge unpaid',
-        'Partially Paid' => 'badge partial',
-        default => 'badge'
-    };
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_payment'])) {
-    if (!$arEnabled) {
-        $_SESSION['error'] = 'You do not have access to Accounts Receivable.';
-        header("Location: " . buildSaleViewUrl($sale_id, $salesReturnParams));
-        exit();
-    }
-
-    if (!validateCsrfToken('sale_view_payment_form', $_POST['csrf_token'] ?? null)) {
-        $_SESSION['error'] = 'Your session expired. Please try again.';
-        header("Location: " . buildSaleViewUrl($sale_id, $salesReturnParams));
-        exit();
-    }
-
-    $additional_payment = (float)($_POST['additional_payment'] ?? 0);
-    $due_date = trim($_POST['due_date'] ?? '');
-
-    if ($additional_payment <= 0) {
-        $_SESSION['error'] = 'Please enter a valid payment amount.';
-        header("Location: " . buildSaleViewUrl($sale_id, $salesReturnParams));
-        exit();
-    }
-
-    $conn->begin_transaction();
-
-    try {
-        $saleCheckStmt = $conn->prepare("
-            SELECT id, customer_id, total_amount, payment_status, order_status
-            FROM sales
-            WHERE id = ? AND business_id = ?
-            LIMIT 1
-        ");
-        $saleCheckStmt->bind_param("ii", $sale_id, $businessId);
-        $saleCheckStmt->execute();
-        $saleCheckResult = $saleCheckStmt->get_result();
-
-        if ($saleCheckResult->num_rows === 0) {
-            throw new Exception('Sale not found.');
-        }
-
-        $saleRow = $saleCheckResult->fetch_assoc();
-        $saleCheckStmt->close();
-
-        if ($saleRow['payment_status'] === 'Paid') {
-            throw new Exception('This sale is already fully paid.');
-        }
-
-        $arStmt = $conn->prepare("
-            SELECT id, total_amount, amount_paid, balance_due, due_date, status
-            FROM accounts_receivable
-            WHERE sale_id = ? AND business_id = ?
-            ORDER BY id DESC
-            LIMIT 1
-        ");
-        $arStmt->bind_param("ii", $sale_id, $businessId);
-        $arStmt->execute();
-        $arResult = $arStmt->get_result();
-
-        if ($arResult->num_rows === 0) {
-            throw new Exception('No receivable record found for this sale.');
-        }
-
-        $receivable = $arResult->fetch_assoc();
-        $arStmt->close();
-
-        $currentAmountPaid = (float)$receivable['amount_paid'];
-        $totalAmount = (float)$receivable['total_amount'];
-        $newAmountPaid = $currentAmountPaid + $additional_payment;
-
-        if ($newAmountPaid < 0) {
-            $newAmountPaid = 0;
-        }
-
-        if ($newAmountPaid > $totalAmount) {
-            $newAmountPaid = $totalAmount;
-        }
-
-        $newBalance = max(0, $totalAmount - $newAmountPaid);
-
-        if ($newAmountPaid <= 0) {
-            $newPaymentStatus = 'Unpaid';
-            $newOrderStatus = 'Pending';
-            $newArStatus = 'Unpaid';
-        } elseif ($newAmountPaid < $totalAmount) {
-            $newPaymentStatus = 'Partially Paid';
-            $newOrderStatus = 'Pending';
-            $newArStatus = 'Partially Paid';
-        } else {
-            $newPaymentStatus = 'Paid';
-            $newOrderStatus = 'Fulfilled';
-            $newArStatus = 'Paid';
-            $due_date = '';
-        }
-
-        $finalDueDate = $receivable['due_date'];
-        if ($newPaymentStatus !== 'Paid' && $due_date !== '') {
-            $finalDueDate = $due_date;
-        }
-        if ($newPaymentStatus === 'Paid') {
-            $finalDueDate = null;
-        }
-
-        $updateAr = $conn->prepare("
-            UPDATE accounts_receivable
-            SET amount_paid = ?, balance_due = ?, due_date = ?, status = ?
-            WHERE id = ? AND business_id = ?
-        ");
-        $updateAr->bind_param(
-            "ddssii",
-            $newAmountPaid,
-            $newBalance,
-            $finalDueDate,
-            $newArStatus,
-            $receivable['id'],
-            $businessId
-        );
-        $updateAr->execute();
-        $updateAr->close();
-
-        $updateSale = $conn->prepare("
-            UPDATE sales
-            SET payment_status = ?, order_status = ?
-            WHERE id = ? AND business_id = ?
-        ");
-        $updateSale->bind_param("ssii", $newPaymentStatus, $newOrderStatus, $sale_id, $businessId);
-        $updateSale->execute();
-        $updateSale->close();
-
-        $conn->commit();
-        $_SESSION['success'] = 'Payment updated successfully.';
-        header("Location: " . buildSaleViewUrl($sale_id, $salesReturnParams));
-        exit();
-
-    } catch (Exception $e) {
-        $conn->rollback();
-        $_SESSION['error'] = $e->getMessage();
-        header("Location: " . buildSaleViewUrl($sale_id, $salesReturnParams));
-        exit();
-    }
+    return $status === 'Paid' ? 'badge paid' : 'badge';
 }
 
 $saleStmt = $conn->prepare("
@@ -238,29 +91,6 @@ $saleDiscountLabel = match ($sale['discount_type'] ?? 'none') {
 };
 $receiptPath = nxSaleReceiptPath($sale_id);
 
-/* Customer details are sensitive AR data. Only retrieve them for a user who
-   currently has AR access, and always keep the lookup inside the active
-   business so a malformed customer_id cannot expose another tenant's record. */
-$customerInfo = null;
-if ($arEnabled && (int)($sale['customer_id'] ?? 0) > 0) {
-    $customerStmt = $conn->prepare("
-        SELECT customer_code, customer_name, phone, email, address
-        FROM customers
-        WHERE id = ? AND business_id = ?
-        LIMIT 1
-    ");
-    $customerId = (int)$sale['customer_id'];
-    $customerStmt->bind_param("ii", $customerId, $businessId);
-    $customerStmt->execute();
-    $customerResult = $customerStmt->get_result();
-
-    if ($customerResult->num_rows > 0) {
-        $customerInfo = $customerResult->fetch_assoc();
-    }
-
-    $customerStmt->close();
-}
-
 $itemStmt = $conn->prepare("
     SELECT 
         si.quantity,
@@ -275,22 +105,6 @@ $itemStmt = $conn->prepare("
 $itemStmt->bind_param("i", $sale_id);
 $itemStmt->execute();
 $itemResult = $itemStmt->get_result();
-
-$arInfo = null;
-$arStmt = $conn->prepare("
-    SELECT id, total_amount, amount_paid, balance_due, due_date, status
-    FROM accounts_receivable
-    WHERE sale_id = ? AND business_id = ?
-    ORDER BY id DESC
-    LIMIT 1
-");
-$arStmt->bind_param("ii", $sale_id, $businessId);
-$arStmt->execute();
-$arResult = $arStmt->get_result();
-if ($arResult->num_rows > 0) {
-    $arInfo = $arResult->fetch_assoc();
-}
-$arStmt->close();
 
 $popupMessage = $_SESSION['success'] ?? $_SESSION['error'] ?? '';
 $popupType = isset($_SESSION['success']) ? 'success' : (isset($_SESSION['error']) ? 'error' : '');
@@ -391,82 +205,6 @@ unset($_SESSION['success'], $_SESSION['error']);
         }
 
         .info-box strong {
-            font-size: 18px;
-            color: #ffffff;
-        }
-
-        .customer-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px;
-        }
-
-        .customer-box {
-            min-width: 0;
-            position: relative;
-            overflow: hidden;
-            padding: 15px 16px 15px 19px;
-            border: 1px solid rgba(143, 201, 255, 0.18);
-            border-radius: 14px;
-            background: linear-gradient(155deg, rgba(143, 201, 255, 0.09), rgba(255, 255, 255, 0.035));
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-        }
-
-        .customer-box::before {
-            content: "";
-            position: absolute;
-            top: 10px;
-            bottom: 10px;
-            left: 0;
-            width: 4px;
-            border-radius: 0 4px 4px 0;
-            background: linear-gradient(180deg, #ffdd55, #3b82f6);
-        }
-
-        .customer-box small,
-        .customer-box strong {
-            display: block;
-        }
-
-        .customer-box small {
-            margin-bottom: 5px;
-            color: #b9d4f5;
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .customer-box strong {
-            color: #ffffff;
-            font-size: 16px;
-            line-height: 1.4;
-            overflow-wrap: anywhere;
-        }
-
-        .customer-address-box {
-            grid-column: 1 / -1;
-        }
-
-        .receivable-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-            gap: 14px;
-            margin-top: 12px;
-        }
-
-        .receivable-box {
-            background: rgba(59, 130, 246,0.08);
-            border: 1px solid rgba(59, 130, 246,0.22);
-            border-radius: 14px;
-            padding: 16px;
-        }
-
-        .receivable-box small {
-            display: block;
-            color: #dbeafe;
-            margin-bottom: 6px;
-        }
-
-        .receivable-box strong {
             font-size: 18px;
             color: #ffffff;
         }
@@ -590,39 +328,6 @@ unset($_SESSION['success'], $_SESSION['error']);
             font-weight: 800;
         }
 
-        .payment-form {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 16px;
-            align-items: end;
-            margin-top: 8px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #dbeafe;
-            font-weight: 700;
-            font-size: 14px;
-        }
-
-        .form-group input {
-            width: 100%;
-            height: 50px;
-            padding: 0 16px;
-            border-radius: 14px;
-            border: 1px solid rgba(255, 255, 255,0.10);
-            background: rgba(255, 255, 255,0.08);
-            color: #ffffff;
-            outline: none;
-        }
-
-        .form-note {
-            margin-top: 10px;
-            color: #dbeafe;
-            font-size: 13px;
-        }
-
         .empty-note {
             color: #dbeafe;
             font-size: 14px;
@@ -719,16 +424,6 @@ unset($_SESSION['success'], $_SESSION['error']);
                 width: calc(100vw - 24px);
             }
 
-            .customer-grid {
-                grid-template-columns: 1fr;
-                gap: 10px;
-            }
-
-            .customer-box,
-            .customer-address-box {
-                grid-column: auto;
-                padding: 13px 14px 13px 17px;
-            }
         }
 
         /* =========================================================
@@ -810,42 +505,6 @@ unset($_SESSION['success'], $_SESSION['error']);
         }
 
         html[data-theme="light"] .info-box strong {
-            color: #0b1f73;
-        }
-
-        html[data-theme="light"] .customer-box {
-            background: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(210, 231, 253, 0.62));
-            border-color: rgba(59, 130, 246, 0.2);
-            box-shadow:
-                inset 0 1px 0 rgba(255, 255, 255, 0.9),
-                0 8px 18px rgba(30, 64, 175, 0.07);
-        }
-
-        html[data-theme="light"] .customer-box small {
-            color: rgba(11, 31, 115, 0.62);
-        }
-
-        html[data-theme="light"] .customer-box strong {
-            color: #0b1f73;
-        }
-
-        html[data-theme="light"] .receivable-box {
-            background: linear-gradient(155deg, rgba(191, 219, 254, 0.5) 0%, rgba(255, 255, 255, 0.7) 100%);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            box-shadow: 0 8px 18px rgba(30, 64, 175, 0.08);
-            transition: transform 0.18s ease, box-shadow 0.18s ease;
-        }
-
-        html[data-theme="light"] .receivable-box:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 14px 26px rgba(30, 64, 175, 0.14);
-        }
-
-        html[data-theme="light"] .receivable-box small {
-            color: rgba(11, 31, 115, 0.62);
-        }
-
-        html[data-theme="light"] .receivable-box strong {
             color: #0b1f73;
         }
 
@@ -939,19 +598,6 @@ unset($_SESSION['success'], $_SESSION['error']);
             color: rgba(11, 31, 115, 0.72);
         }
 
-        html[data-theme="light"] .form-group input {
-            background: #ffffff;
-            border: 1px solid rgba(59, 130, 246, 0.25);
-            color: #0b1f73;
-            box-shadow: inset 0 1px 3px rgba(30, 64, 175, 0.06);
-        }
-
-        html[data-theme="light"] .form-group input:focus {
-            border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-        }
-
-        html[data-theme="light"] .form-note,
         html[data-theme="light"] .empty-note {
             color: rgba(11, 31, 115, 0.6);
         }
@@ -1084,18 +730,13 @@ unset($_SESSION['success'], $_SESSION['error']);
             box-shadow: 0 0 16px rgba(247, 201, 72, .28);
         }
 
-        .info-grid,
-        .receivable-grid { gap: 14px; }
+        .info-grid { gap: 14px; }
 
-        .info-box,
-        .receivable-box,
-        .customer-box {
+        .info-box {
             transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
         }
 
-        .info-box:hover,
-        .receivable-box:hover,
-        .customer-box:hover {
+        .info-box:hover {
             transform: translateY(-3px);
             border-color: rgba(119, 164, 255, .42);
             box-shadow: 0 14px 26px rgba(0, 0, 0, .18);
@@ -1109,21 +750,9 @@ unset($_SESSION['success'], $_SESSION['error']);
         }
 
         .info-box small,
-        .receivable-box small,
-        .customer-box small,
         .total-card small { color: var(--nx-muted); text-transform: uppercase; letter-spacing: .08em; font-size: 10px; }
 
-        .info-box strong,
-        .receivable-box strong { font-size: 17px; }
-
-        .receivable-box {
-            background: linear-gradient(145deg, rgba(59, 130, 246, .16), rgba(19, 37, 84, .48));
-            border-color: rgba(91, 140, 255, .25);
-        }
-
-        .customer-box {
-            background: linear-gradient(145deg, rgba(76, 126, 224, .14), rgba(255,255,255,.035));
-        }
+        .info-box strong { font-size: 17px; }
 
         .badge {
             min-width: 112px;
@@ -1254,106 +883,6 @@ unset($_SESSION['success'], $_SESSION['error']);
 
                 </div>
             </div>
-
-            <?php if ($arEnabled && $customerInfo): ?>
-                <div class="card customer-card">
-                    <div class="section-title">Customer Information</div>
-
-                    <div class="customer-grid">
-                        <div class="customer-box">
-                            <small>Customer Code</small>
-                            <strong><?php echo htmlspecialchars(!empty($customerInfo['customer_code']) ? $customerInfo['customer_code'] : 'N/A', ENT_QUOTES, 'UTF-8'); ?></strong>
-                        </div>
-
-                        <div class="customer-box">
-                            <small>Customer Name</small>
-                            <strong><?php echo htmlspecialchars(!empty($customerInfo['customer_name']) ? $customerInfo['customer_name'] : 'N/A', ENT_QUOTES, 'UTF-8'); ?></strong>
-                        </div>
-
-                        <div class="customer-box">
-                            <small>Phone Number</small>
-                            <strong><?php echo htmlspecialchars(!empty($customerInfo['phone']) ? $customerInfo['phone'] : 'Not provided', ENT_QUOTES, 'UTF-8'); ?></strong>
-                        </div>
-
-                        <div class="customer-box">
-                            <small>Email Address</small>
-                            <strong><?php echo htmlspecialchars(!empty($customerInfo['email']) ? $customerInfo['email'] : 'Not provided', ENT_QUOTES, 'UTF-8'); ?></strong>
-                        </div>
-
-                        <div class="customer-box customer-address-box">
-                            <small>Address</small>
-                            <strong><?php echo htmlspecialchars(!empty($customerInfo['address']) ? $customerInfo['address'] : 'Not provided', ENT_QUOTES, 'UTF-8'); ?></strong>
-                        </div>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <?php if ($arEnabled && $arInfo): ?>
-                <div class="card">
-                    <div class="section-title">Receivable Status</div>
-
-                    <div class="receivable-grid">
-                        <div class="receivable-box">
-                            <small>Total Amount</small>
-                            <strong>₱<?php echo number_format((float)$arInfo['total_amount'], 2); ?></strong>
-                        </div>
-
-                        <div class="receivable-box">
-                            <small>Amount Paid</small>
-                            <strong>₱<?php echo number_format((float)$arInfo['amount_paid'], 2); ?></strong>
-                        </div>
-
-                        <div class="receivable-box">
-                            <small>Balance Due</small>
-                            <strong>₱<?php echo number_format((float)$arInfo['balance_due'], 2); ?></strong>
-                        </div>
-
-                        <div class="receivable-box">
-                            <small>Receivable Status</small>
-                            <strong><?php echo htmlspecialchars($arInfo['status']); ?></strong>
-                        </div>
-
-                        <div class="receivable-box">
-                            <small>Due Date</small>
-                            <strong><?php echo !empty($arInfo['due_date']) ? htmlspecialchars($arInfo['due_date']) : 'N/A'; ?></strong>
-                        </div>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <?php if ($arEnabled && $arInfo && $sale['payment_status'] !== 'Paid'): ?>
-                <div class="card">
-                    <div class="section-title">Update Payment</div>
-
-                    <form method="POST" class="payment-form">
-                        <input type="hidden" name="update_payment" value="1">
-                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generateCsrfToken('sale_view_payment_form')); ?>">
-
-                        <div class="form-group">
-                            <label>Additional Payment</label>
-                            <input type="number" step="0.01" min="0.01" name="additional_payment" placeholder="Enter additional payment" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Due Date</label>
-                            <input type="date" name="due_date" value="<?php echo !empty($arInfo['due_date']) ? htmlspecialchars($arInfo['due_date']) : ''; ?>">
-                        </div>
-
-                        <div class="form-group">
-                            <button type="submit" class="btn btn-primary">Update Payment</button>
-                        </div>
-                    </form>
-
-                    <div class="form-note">
-                        Rule applied: Unpaid or Partially Paid stays <strong>Pending</strong>. Once fully paid, it automatically becomes <strong>Paid</strong> and <strong>Fulfilled</strong>.
-                    </div>
-                </div>
-            <?php elseif ($arEnabled && !$arInfo): ?>
-                <div class="card">
-                    <div class="section-title">Update Payment</div>
-                    <div class="empty-note">This sale has no accounts receivable record, so there is no payment update form available.</div>
-                </div>
-            <?php endif; ?>
 
             <div class="card">
                 <div class="section-title">Receipt</div>

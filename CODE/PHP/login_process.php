@@ -54,7 +54,7 @@ if ($username === '' || $password === '') {
 |--------------------------------------------------------------------------
 */
 $sql = "SELECT id, username, full_name, email, password, profile_image, role, account_status,
-               can_inventory, can_sales, can_sales_analytics, can_accounts_receivable,
+               can_inventory, can_sales, can_sales_analytics,
                failed_login_attempts, locked_until, business_id
         FROM users
         WHERE username = ?
@@ -379,7 +379,6 @@ $_SESSION['account_status'] = $user['account_status'];
 $_SESSION['can_inventory'] = (int)($user['can_inventory'] ?? 0);
 $_SESSION['can_sales'] = (int)($user['can_sales'] ?? 0);
 $_SESSION['can_sales_analytics'] = (int)($user['can_sales_analytics'] ?? 0);
-$_SESSION['can_accounts_receivable'] = (int)($user['can_accounts_receivable'] ?? 0);
 $_SESSION['login_portal'] = $loginPortal;
 
 /* TENANT ISOLATION: always set business_id fresh from the authenticated

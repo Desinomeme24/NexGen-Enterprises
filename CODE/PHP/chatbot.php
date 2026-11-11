@@ -17,7 +17,6 @@ $nxcbModules = [
     'tool_registry.php',
     'tools_inventory.php',
     'tools_sales.php',
-    'tools_receivables.php',
     'tools_system.php',
     'tool_executor.php',
     'fast_router.php',
@@ -76,7 +75,6 @@ $permissions = [
     'inventory' => (int)($_SESSION['can_inventory'] ?? 0) === 1,
     'sales' => (int)($_SESSION['can_sales'] ?? 0) === 1,
     'sales_analytics' => (int)($_SESSION['can_sales_analytics'] ?? 0) === 1,
-    'accounts_receivable' => (int)($_SESSION['can_accounts_receivable'] ?? 0) === 1,
 ];
 
 $businessId = nxRequireBusinessId($conn);

@@ -15,11 +15,8 @@ include 'config.php';
 // config.php sets both PHP and the MySQL connection to Asia/Manila.
 // Keep all sales date boundaries in the same Philippine business timezone.
 require_once __DIR__ . '/tenant_helper.php';
-require_once __DIR__ . '/ar_helper.php';
 $businessId = nxRequireBusinessId($conn);
 date_default_timezone_set('Asia/Manila');
-$user_id = (int)$_SESSION['user_id'];
-$arEnabled = nxArEnabled($conn, $user_id);
 $csrfSaleForm = generateCsrfToken('sale_form');
 
 $filter = isset($_GET['filter']) ? $_GET['filter'] : 'All';
@@ -91,7 +88,7 @@ $params = [$businessId];
 $types = "i";
 
 if ($filter !== 'All') {
-    if (in_array($filter, ['Paid', 'Unpaid', 'Partially Paid', 'Fulfilled', 'Pending'], true)) {
+    if (in_array($filter, ['Paid', 'Fulfilled', 'Pending'], true)) {
         $where .= " AND (s.payment_status = ? OR s.order_status = ?) ";
         $params[] = $filter;
         $params[] = $filter;
@@ -169,8 +166,6 @@ $summarySql = "
     SELECT
         COUNT(*) AS total_orders,
         SUM(CASE WHEN payment_status = 'Paid' THEN 1 ELSE 0 END) AS paid_count,
-        SUM(CASE WHEN payment_status = 'Unpaid' THEN 1 ELSE 0 END) AS unpaid_count,
-        SUM(CASE WHEN payment_status = 'Partially Paid' THEN 1 ELSE 0 END) AS partial_count,
         SUM(CASE WHEN order_status = 'Fulfilled' THEN 1 ELSE 0 END) AS fulfilled_count,
         SUM(CASE WHEN order_status = 'Pending' THEN 1 ELSE 0 END) AS pending_count,
         SUM(CASE WHEN payment_method = 'Cash' THEN 1 ELSE 0 END) AS cash_count,
@@ -187,8 +182,6 @@ $summaryResult = $summaryStmt->get_result();
 $summary = $summaryResult ? $summaryResult->fetch_assoc() : [
     'total_orders' => 0,
     'paid_count' => 0,
-    'unpaid_count' => 0,
-    'partial_count' => 0,
     'fulfilled_count' => 0,
     'pending_count' => 0,
     'cash_count' => 0,
@@ -229,25 +222,6 @@ if ($productStmt) {
     $productStmt->close();
 }
 
-$customerList = [];
-if ($arEnabled) {
-    $customerStmt = $conn->prepare(
-        "SELECT id, customer_code, customer_name, phone, email, address
-         FROM customers
-         WHERE business_id = ? AND status = 1
-         ORDER BY customer_name ASC, id ASC"
-    );
-    if ($customerStmt) {
-        $customerStmt->bind_param('i', $businessId);
-        $customerStmt->execute();
-        $customers = $customerStmt->get_result();
-        while ($row = $customers->fetch_assoc()) {
-            $customerList[] = $row;
-        }
-        $customerStmt->close();
-    }
-}
-
 $cashierList = [];
 $cashierStmt = $conn->prepare("
     SELECT id, full_name
@@ -272,8 +246,6 @@ function generateSalesNo() {
 function badgeClassPayment($status) {
     return match($status) {
         'Paid' => 'badge paid',
-        'Unpaid' => 'badge unpaid',
-        'Partially Paid' => 'badge partial',
         default => 'badge'
     };
 }
@@ -329,59 +301,6 @@ unset($_SESSION['success'], $_SESSION['error']);
         .cancel-btn {
             display: none !important;
         }
-        .customer-block {
-    position: relative;
-}
-
-.customer-block {
-    position: relative;
-}
-
-.customer-sticky-bar {
-    position: sticky;
-    top: 0;
-    z-index: 15;
-    background: linear-gradient(180deg, rgba(0, 51, 255, 0.98), rgba(0, 51, 255, 0.92));
-    padding: 0 0 12px 0;
-    margin-bottom: 6px;
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-    border-radius: 14px 14px 0 0;
-}
-
-.customer-sticky-bar .btn-primary {
-    min-width: 208px;
-}
-.customer-inline-group {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.customer-inline-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 220px;
-    gap: 12px;
-    align-items: center;
-    width: 100%;
-}
-
-.customer-inline-row select,
-.customer-inline-row .customer-inline-btn {
-    margin: 0;
-}
-
-.customer-inline-btn {
-    width: 100%;
-    min-width: 220px;
-    height: 52px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    white-space: nowrap;
-}
-
 .sale-confirm-overlay {
     position: fixed;
     inset: 0;
@@ -476,16 +395,6 @@ unset($_SESSION['success'], $_SESSION['error']);
     box-shadow: 0 10px 20px rgba(255, 221, 85, 0.25);
 }
 
-@media (max-width: 768px) {
-    .customer-inline-row {
-        grid-template-columns: 1fr;
-    }
-
-    .customer-inline-btn {
-        min-width: 100%;
-    }
-}
-
 .sales-ledger-subtitle {
     margin-top: 4px;
     font-size: 13px;
@@ -547,12 +456,10 @@ unset($_SESSION['success'], $_SESSION['error']);
     <div class="content">
 
         <?php
-            $filters = ['All', 'Paid', 'Unpaid', 'Partially Paid', 'Fulfilled', 'Pending'];
+            $filters = ['All', 'Paid', 'Fulfilled', 'Pending'];
             $statusMeta = [
                 'All'             => ['class' => 'status-all',      'icon' => 'bi-asterisk'],
                 'Paid'            => ['class' => 'status-paid',     'icon' => 'bi-check-circle-fill'],
-                'Unpaid'          => ['class' => 'status-unpaid',   'icon' => 'bi-x-circle-fill'],
-                'Partially Paid'  => ['class' => 'status-partial',  'icon' => 'bi-hourglass-split'],
                 'Fulfilled'       => ['class' => 'status-fulfilled','icon' => 'bi-box-seam-fill'],
                 'Pending'         => ['class' => 'status-pending',  'icon' => 'bi-clock-fill'],
             ];
@@ -586,21 +493,6 @@ unset($_SESSION['success'], $_SESSION['error']);
                     <strong><?php echo (int)($summary['paid_count'] ?? 0); ?></strong>
                 </div>
             </a>
-            <?php if ($arEnabled): ?>
-            <a href="<?php echo salesHref(['filter' => 'Unpaid'], $salesBaseParams); ?>" class="kpi-tile kpi-slate <?php echo ($filter === 'Unpaid') ? 'active' : ''; ?>">
-                <i class="bi bi-x-circle"></i>
-                <div>
-                    <small>Unpaid</small>
-                    <strong><?php echo (int)($summary['unpaid_count'] ?? 0); ?></strong>
-                </div>
-            </a>
-            <a href="<?php echo salesHref(['filter' => 'Partially Paid'], $salesBaseParams); ?>" class="kpi-tile kpi-gold <?php echo ($filter === 'Partially Paid') ? 'active' : ''; ?>">
-                <i class="bi bi-hourglass-split"></i>
-                <div>
-                    <small>Partially Paid</small>
-                    <strong><?php echo (int)($summary['partial_count'] ?? 0); ?></strong>
-                </div>
-            </a>
             <a href="<?php echo salesHref(['filter' => 'Fulfilled'], $salesBaseParams); ?>" class="kpi-tile kpi-gold <?php echo ($filter === 'Fulfilled') ? 'active' : ''; ?>">
                 <i class="bi bi-box-seam"></i>
                 <div>
@@ -615,7 +507,6 @@ unset($_SESSION['success'], $_SESSION['error']);
                     <strong><?php echo (int)($summary['pending_count'] ?? 0); ?></strong>
                 </div>
             </a>
-            <?php endif; ?>
             <span class="kpi-tile kpi-green kpi-static">
                 <i class="bi bi-cash-coin"></i>
                 <div>
@@ -647,7 +538,6 @@ unset($_SESSION['success'], $_SESSION['error']);
             </form>
 
             <div class="toolbar-icon-filters">
-                <?php if ($arEnabled): ?>
                 <div class="icon-filter-wrap">
                     <button type="button" class="icon-filter-btn <?php echo ($filter !== 'All') ? 'has-active' : ''; ?>" data-dropdown-toggle="statusFilterDropdown" aria-haspopup="true" aria-expanded="false" aria-label="Filter by status">
                         <i class="bi bi-funnel-fill"></i>
@@ -670,7 +560,6 @@ unset($_SESSION['success'], $_SESSION['error']);
                         </div>
                     </div>
                 </div>
-                <?php endif; ?>
 
                 <div class="icon-filter-wrap">
                     <button type="button" class="icon-filter-btn <?php echo ($period === 'range') ? 'has-active' : ''; ?>" data-dropdown-toggle="dateFilterDropdown" aria-haspopup="true" aria-expanded="false" aria-label="Filter by date">
@@ -974,133 +863,15 @@ unset($_SESSION['success'], $_SESSION['error']);
 
                             <div class="form-group">
                                 <label>Payment Status</label>
-                                <?php if ($arEnabled): ?>
-                                <select name="payment_status" id="paymentStatus" required>
-                                    <option value="Paid">Paid</option>
-                                    <option value="Partially Paid">Partially Paid</option>
-                                    <option value="Unpaid">Unpaid</option>
-                                </select>
-                                <?php else: ?>
                                 <input type="hidden" name="payment_status" id="paymentStatus" value="Paid">
                                 <div class="locked-payment-status" aria-label="Payment status is locked to Paid">
                                     <input type="text" value="Paid" readonly tabindex="-1">
                                     <i class="bi bi-lock-fill" aria-hidden="true"></i>
                                 </div>
-                                <?php endif; ?>
                             </div>
                         </div>
                     </section>
 
-                    <?php if ($arEnabled): ?>
-                    <section class="wizard-card customer-info-card" id="customerInfoCard" hidden>
-                        <div class="credit-requirement-callout">
-                            <i class="bi bi-shield-fill-check"></i>
-                            <div>
-                                <strong>Required for credit</strong>
-                                <span>This receivable sale needs a customer record and due date.</span>
-                            </div>
-                        </div>
-                        <div class="wizard-card-title">
-                            <i class="bi bi-person-vcard"></i> Customer Information
-                        </div>
-                        <p class="customer-info-help">
-                            Select an existing customer or create a customer record for this receivable.
-                        </p>
-
-                        <input type="hidden" name="customer_id" id="customerId" value="0">
-                        <div class="customer-info-grid">
-                            <div class="form-group customer-choice-group">
-                                <label for="customerChoice">Customer Record</label>
-                                <select id="customerChoice">
-                                    <option value="">Choose a customer</option>
-                                    <option value="new">+ Create New Customer</option>
-                                    <?php foreach ($customerList as $customer): ?>
-                                        <option value="<?php echo (int)$customer['id']; ?>">
-                                            <?php echo htmlspecialchars(
-                                                $customer['customer_name'] . ' — ' . $customer['customer_code'],
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="dueDateInput">Due Date</label>
-                                <input
-                                    type="date"
-                                    name="due_date"
-                                    id="dueDateInput"
-                                    min="<?php echo date('Y-m-d'); ?>"
-                                >
-                            </div>
-                        </div>
-
-                        <div class="selected-customer-summary" id="selectedCustomerSummary" hidden>
-                            <div><span>Name</span><strong id="selectedCustomerName">—</strong></div>
-                            <div><span>Phone</span><strong id="selectedCustomerPhone">—</strong></div>
-                            <div><span>Email</span><strong id="selectedCustomerEmail">—</strong></div>
-                            <div><span>Address</span><strong id="selectedCustomerAddress">—</strong></div>
-                        </div>
-
-                        <div class="new-customer-fields" id="newCustomerFields" hidden>
-                            <div class="form-group">
-                                <label for="customerNameInput">Customer Name</label>
-                                <input
-                                    type="text"
-                                    name="customer_name"
-                                    id="customerNameInput"
-                                    minlength="2"
-                                    maxlength="150"
-                                    autocomplete="name"
-                                    placeholder="Enter the customer's full name"
-                                >
-                            </div>
-                            <div class="form-group">
-                                <label for="customerPhoneInput">Phone Number <small>(optional)</small></label>
-                                <input
-                                    type="tel"
-                                    name="customer_phone"
-                                    id="customerPhoneInput"
-                                    maxlength="20"
-                                    autocomplete="tel"
-                                    placeholder="Example: 0912 345 6789"
-                                >
-                            </div>
-                            <div class="form-group">
-                                <label for="customerEmailInput">Email <small>(optional)</small></label>
-                                <input
-                                    type="email"
-                                    name="customer_email"
-                                    id="customerEmailInput"
-                                    maxlength="100"
-                                    autocomplete="email"
-                                    placeholder="customer@example.com"
-                                >
-                            </div>
-                            <div class="form-group">
-                                <label for="customerAddressInput">Address <small>(optional)</small></label>
-                                <textarea
-                                    name="customer_address"
-                                    id="customerAddressInput"
-                                    maxlength="500"
-                                    rows="2"
-                                    autocomplete="street-address"
-                                    placeholder="Customer address"
-                                ></textarea>
-                            </div>
-                        </div>
-
-                        <p class="customer-required-note">
-                            <i class="bi bi-info-circle"></i>
-                            Customer name and due date are required when creating a new credit customer.
-                        </p>
-                    </section>
-                    <?php else: ?>
-                    <input type="hidden" name="customer_id" value="0">
-                    <input type="hidden" name="due_date" value="">
-                    <?php endif; ?>
                 </div>
             </div>
 
@@ -1233,7 +1004,7 @@ unset($_SESSION['success'], $_SESSION['error']);
                                 <div class="form-group checkout-amount-field" id="amountPaidGroup">
                                     <label>Amount Paid</label>
                                     <input type="number" step="0.01" min="0" name="amount_paid" id="amountPaidInput" value="0">
-                                    <small>Enter the amount received from the customer.</small>
+                                    <small>Enter the amount received.</small>
                                 </div>
                             </section>
 
@@ -1264,7 +1035,7 @@ unset($_SESSION['success'], $_SESSION['error']);
                 </div>
 
                 <section class="review-details-card">
-                    <div class="review-items-title"><i class="bi bi-person-lines-fill"></i> Sale, Customer &amp; Payment</div>
+                    <div class="review-items-title"><i class="bi bi-person-lines-fill"></i> Sale &amp; Payment</div>
                     <div class="review-grid" id="reviewGrid"></div>
                 </section>
 
@@ -1334,10 +1105,6 @@ unset($_SESSION['success'], $_SESSION['error']);
 
 <script>
 window.products = <?php echo json_encode($productList, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
-window.salesAccess = {
-    accountsReceivable: <?php echo $arEnabled ? 'true' : 'false'; ?>,
-    customers: <?php echo json_encode($customerList, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
-};
 </script>
 <script src="/NexGen/CODE/JS/header.js?v=5"></script>
 <script src="/NexGen/CODE/JS/sales_recording.js?v=10"></script>

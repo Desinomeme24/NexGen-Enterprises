@@ -3,7 +3,6 @@ session_start();
 header('Content-Type: application/json; charset=UTF-8');
 require_once("config.php");
 require_once __DIR__ . '/tenant_helper.php';
-require_once __DIR__ . '/ar_helper.php';
 require_once __DIR__ . '/sale_discount_helper.php';
 
 if (!isset($_SESSION['user_id'])) {
@@ -39,7 +38,6 @@ if (!validateCsrfToken('sale_form', $_POST['csrf_token'] ?? null)) {
 }
 
 $user_id = (int) ($_SESSION['user_id'] ?? 0);
-$arEnabled = nxArEnabled($conn, $user_id);
 $activeWorkspace = nxInitializeUserWorkspace($conn);
 $businessId = (int)($activeWorkspace['business_id'] ?? 0);
 if ($businessId <= 0) {
@@ -82,24 +80,15 @@ $isBatchTrackedBusiness = nxIsBatchTrackedType($businessType);
 $blockExpiredBatches = nxBlocksExpiredBatches($businessType);
 
 $sales_no = trim($_POST['sales_no'] ?? '');
-$customer_id = (int) ($_POST['customer_id'] ?? 0);
-$customerInput = [
-    'customer_name' => trim((string)($_POST['customer_name'] ?? '')),
-    'customer_phone' => trim((string)($_POST['customer_phone'] ?? '')),
-    'customer_email' => trim((string)($_POST['customer_email'] ?? '')),
-    'customer_address' => trim((string)($_POST['customer_address'] ?? '')),
-];
 $payment_status = trim($_POST['payment_status'] ?? '');
 $payment_method = trim($_POST['payment_method'] ?? '');
-$due_date = trim($_POST['due_date'] ?? '');
-$amount_paid_input = (float) ($_POST['amount_paid'] ?? 0);
 $receiptUpload = $_FILES['receipt_image'] ?? null;
 
 $product_ids = $_POST['product_id'] ?? [];
 $quantities = $_POST['quantity'] ?? [];
 $unit_prices = $_POST['unit_price'] ?? [];
 
-$allowedPaymentStatus = ['Paid', 'Unpaid', 'Partially Paid'];
+$allowedPaymentStatus = ['Paid'];
 $allowedPaymentMethod = ['Cash', 'GCash', 'Gcash', 'Maya', 'Bank Transfer'];
 
 if ($sales_no === '') {
@@ -116,20 +105,6 @@ if (!in_array($payment_status, $allowedPaymentStatus, true)) {
         'message' => 'Invalid payment status.'
     ]);
     exit();
-}
-
-if ($payment_status !== 'Paid' && !$arEnabled) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'You do not have access to Accounts Receivable, so sales must be marked Paid.'
-    ]);
-    exit();
-}
-
-if (!$arEnabled) {
-    $customer_id = 0;
-    $customerInput = [];
-    $due_date = '';
 }
 
 if (!in_array($payment_method, $allowedPaymentMethod, true)) {
@@ -173,18 +148,6 @@ if (count($product_ids) !== count($quantities) || count($product_ids) !== count(
     echo json_encode([
         'success' => false,
         'message' => 'Sale item data is incomplete or mismatched.'
-    ]);
-    exit();
-}
-
-if (
-    in_array($payment_status, ['Unpaid', 'Partially Paid'], true)
-    && $customer_id <= 0
-    && $customerInput['customer_name'] === ''
-) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Customer is required for unpaid or partially paid sales.'
     ]);
     exit();
 }
@@ -304,45 +267,16 @@ try {
     }
 
     if ($payment_status === 'Paid') {
-        $amount_paid_input = $total_amount;
-        $due_date = null;
         $order_status = 'Fulfilled';
-    } elseif ($payment_status === 'Unpaid') {
-        $amount_paid_input = 0;
-        $order_status = 'Pending';
-
-        if ($due_date === '') {
-            throw new Exception('Due date is required for unpaid sales.');
-        }
-        $due_date = nxValidateReceivableDueDate($due_date);
     } else {
-        $order_status = 'Pending';
-
-        if ($amount_paid_input <= 0 || $amount_paid_input >= $total_amount) {
-            throw new Exception('For partially paid sales, amount paid must be greater than 0 and less than the total amount.');
-        }
-
-        if ($due_date === '') {
-            throw new Exception('Due date is required for partially paid sales.');
-        }
-        $due_date = nxValidateReceivableDueDate($due_date);
+        throw new Exception('Sales must be marked Paid.');
     }
-
-    $requiresReceivable = in_array($payment_status, ['Unpaid', 'Partially Paid'], true);
-    $customerParam = nxResolveSaleCustomer(
-        $conn,
-        $businessId,
-        $customer_id,
-        $customerInput,
-        $requiresReceivable
-    );
 
     $saleStmt = $conn->prepare("
         INSERT INTO sales (
             business_id,
             sales_no,
             salesperson_id,
-            customer_id,
             subtotal_amount,
             discount_type,
             discount_value,
@@ -351,7 +285,7 @@ try {
             payment_status,
             payment_method,
             order_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     if (!$saleStmt) {
@@ -359,11 +293,10 @@ try {
     }
 
     $saleStmt->bind_param(
-        "isiidsdddsss",
+        "isidsdddsss",
         $businessId,
         $sales_no,
         $user_id,
-        $customerParam,
         $discountTotals['subtotal_amount'],
         $discountTotals['discount_type'],
         $discountTotals['discount_value'],
@@ -481,48 +414,6 @@ try {
         }
 
         $movementStmt->close();
-    }
-
-    if ($payment_status === 'Unpaid' || $payment_status === 'Partially Paid') {
-        $amount_paid = max(0, min($amount_paid_input, $total_amount));
-        $balance_due = max(0, $total_amount - $amount_paid);
-
-        if ($amount_paid <= 0) {
-            $receivableStatus = 'Unpaid';
-        } elseif ($amount_paid < $total_amount) {
-            $receivableStatus = 'Partially Paid';
-        } else {
-            $receivableStatus = 'Paid';
-        }
-
-        $arStmt = $conn->prepare("
-            INSERT INTO accounts_receivable
-            (business_id, sale_id, customer_id, total_amount, amount_paid, balance_due, due_date, status, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
-
-        if (!$arStmt) {
-            throw new Exception('Failed to prepare accounts receivable insert query.');
-        }
-
-        $arStmt->bind_param(
-            "iiidddssi",
-            $businessId,
-            $sale_id,
-            $customerParam,
-            $total_amount,
-            $amount_paid,
-            $balance_due,
-            $due_date,
-            $receivableStatus,
-            $user_id
-        );
-
-        if (!$arStmt->execute()) {
-            throw new Exception('Failed to save accounts receivable record.');
-        }
-
-        $arStmt->close();
     }
 
     $conn->commit();

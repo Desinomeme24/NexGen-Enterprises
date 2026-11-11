@@ -14,7 +14,7 @@ h6 {
 }
 
 :root {
-  /* Matched 1:1 to accounts_receivable.css so both pages share one
+  /* Matched to the shared NexGen theme so both pages share one
      BLUE + GOLD identity. */
   --lilac: #dbeafe;
   --blush: #7dd3fc;
@@ -91,7 +91,7 @@ h6 {
   --modal-text: #ffffff;
 }
 
-/* ---- LIGHT MODE — same html[data-theme="light"] switch as accounts_receivable.css,
+/* ---- LIGHT MODE — same html[data-theme="light"] switch used across NexGen,
    so the one toggle in the topbar drives this page too ---- */
 html[data-theme="light"] {
   --lilac: #d1e8fc;

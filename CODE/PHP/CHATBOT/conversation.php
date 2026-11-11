@@ -3,7 +3,7 @@
 /** History belongs to one user, active branch, role and permission set. */
 function nxcb_context_key(array $ctx): string {
     $permissions = [];
-    foreach (['inventory', 'sales', 'sales_analytics', 'accounts_receivable'] as $key) {
+    foreach (['inventory', 'sales', 'sales_analytics'] as $key) {
         $permissions[$key] = nxcb_permission($ctx, $key);
     }
     return hash('sha256', json_encode([(int)($ctx['user_id'] ?? 0), (int)($ctx['business_id'] ?? 0),
@@ -12,7 +12,7 @@ function nxcb_context_key(array $ctx): string {
 
 function nxcb_session_context(): array {
     $permissions = [];
-    foreach (['inventory', 'sales', 'sales_analytics', 'accounts_receivable'] as $key) {
+    foreach (['inventory', 'sales', 'sales_analytics'] as $key) {
         $permissions[$key] = (int)($_SESSION['can_' . $key] ?? 0) === 1;
     }
     return ['user_id' => (int)($_SESSION['user_id'] ?? 0), 'business_id' => (int)($_SESSION['business_id'] ?? 0),

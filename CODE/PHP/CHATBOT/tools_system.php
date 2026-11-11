@@ -5,7 +5,7 @@ function nxcb_system_guide(array $args, array $ctx = []): array {
 
     $guides = [
         'general' => [
-            'NexGen manages inventory, sales recording, sales analytics, accounts receivable, alerts, and role-based access.',
+            'NexGen manages inventory, sales recording, sales analytics, alerts, and role-based access.',
             'Ask the assistant for live business data or for steps on using a module.'
         ],
         'inventory' => [
@@ -17,9 +17,7 @@ function nxcb_system_guide(array $args, array $ctx = []): array {
         'sales' => [
             "Open Sales and choose 'New Sale'.",
             'Complete Sale Info, add products and quantities in Items, then check Review and save the sale.',
-            nxcb_permission($ctx, 'accounts_receivable')
-                ? 'Enter customer details when needed. Unpaid or partially paid sales can be monitored in Accounts Receivable.'
-                : 'This account records paid sales. Customer credit and partial/unpaid options require Accounts Receivable access.'
+            'Sales are recorded as paid transactions.'
         ],
         'analytics' => [
             'Open Sales Analytics and select a period such as Today, This Week, This Month, or a custom range.',
@@ -27,16 +25,11 @@ function nxcb_system_guide(array $args, array $ctx = []): array {
             'COGS means cost of goods sold. This summary calculates it using product cost prices and quantities sold.',
             'In this summary, net profit means revenue minus COGS; operating expenses are excluded.'
         ],
-        'receivables' => [
-            'Open Accounts Receivable to review outstanding balances and overdue accounts.',
-            "Use 'Update Payment' when a customer makes a payment.",
-            'Follow-up priority should focus on overdue balances first, then other remaining balances.'
-        ],
         'categories' => [
             "Open Inventory Management and use 'Manage Categories' to add or update categories."
         ],
         'navigation' => [
-            'The assistant can prepare confirmation actions to open Dashboard, Inventory, Sales, Sales Analytics, Accounts Receivable, Settings, or About Us.'
+            'The assistant can prepare confirmation actions to open Dashboard, Inventory, Sales, Sales Analytics, Settings, or About Us.'
         ],
         'security' => [
             'NexGen uses the logged-in user session and module permissions to restrict chatbot data access.',
@@ -54,7 +47,6 @@ function nxcb_open_module(array $args, array $ctx): array {
         'inventory' => ['label' => 'Inventory Management', 'url' => 'inventory_management.php', 'permission' => 'inventory'],
         'sales' => ['label' => 'Sales', 'url' => 'sales_recording.php', 'permission' => 'sales'],
         'analytics' => ['label' => 'Sales Analytics', 'url' => 'sales_analytics.php', 'permission' => 'sales_analytics'],
-        'receivables' => ['label' => 'Accounts Receivable', 'url' => 'accounts_receivable.php', 'permission' => 'accounts_receivable'],
         'settings' => ['label' => 'Settings', 'url' => 'settings.php', 'permission' => null],
         'about' => ['label' => 'About Us', 'url' => 'about_us.php', 'permission' => null],
     ];
@@ -105,17 +97,6 @@ function nxcb_alerts(mysqli $conn, array $ctx): array {
         if ((int)($row['low_count'] ?? 0) > 0) $alerts[] = ['type' => 'low_stock', 'count' => (int)$row['low_count']];
         if ((int)($row['expired_count'] ?? 0) > 0) $alerts[] = ['type' => 'expired_products', 'count' => (int)$row['expired_count']];
         if ((int)($row['expiring_count'] ?? 0) > 0) $alerts[] = ['type' => 'expiring_within_30_days', 'count' => (int)$row['expiring_count']];
-    }
-
-    if (nxcb_permission($ctx, 'accounts_receivable')) {
-        $stmt = $conn->prepare("SELECT COUNT(*) AS cnt FROM accounts_receivable
-                                WHERE business_id = ? AND balance_due > 0
-                                  AND due_date IS NOT NULL AND due_date < CURDATE()");
-        $stmt->bind_param('i', $businessId);
-        $stmt->execute();
-        $count = (int)(($stmt->get_result()->fetch_assoc()['cnt'] ?? 0));
-        $stmt->close();
-        if ($count > 0) $alerts[] = ['type' => 'overdue_receivables', 'count' => $count];
     }
 
     if (nxcb_permission($ctx, 'sales_analytics')) {

@@ -378,7 +378,6 @@ try {
     $canInventory = 1;
     $canSales = 1;
     $canSalesAnalytics = $role === 'owner' ? 1 : 0;
-    $canAccountsReceivable = 0;
     $approvedAt = date('Y-m-d H:i:s');
     $employeeNo = trim((string) ($request['employee_no'] ?? ''));
     $employeeNoForDb = $employeeNo !== '' ? $employeeNo : null;
@@ -388,10 +387,10 @@ try {
             business_id, username, full_name, employee_no, email, phone, address,
             otp_preference, password, role, account_status, profile_image,
             valid_id_path, business_permit_path, is_verified, can_inventory, can_sales,
-            can_sales_analytics, can_accounts_receivable, approved_by, approved_at
+            can_sales_analytics, approved_by, approved_at
         ) VALUES (
             ?, ?, ?, ?, ?, ?, ?, 'email', ?, ?, 'active',
-            'IMAGES/default-avatar.png', ?, ?, 1, ?, ?, ?, ?, ?, ?
+            'IMAGES/default-avatar.png', ?, ?, 1, ?, ?, ?, ?, ?
         )"
     );
 
@@ -400,7 +399,7 @@ try {
     }
 
     $stmt->bind_param(
-        'issssssssssiiiiis',
+        'issssssssssiiiis',
         $businessId,
         $request['username'],
         $request['full_name'],
@@ -415,7 +414,6 @@ try {
         $canInventory,
         $canSales,
         $canSalesAnalytics,
-        $canAccountsReceivable,
         $adminId,
         $approvedAt
     );

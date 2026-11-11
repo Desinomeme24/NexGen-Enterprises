@@ -236,7 +236,6 @@
             "inventory_management.php",
             "sales_recording.php",
             "sales_analytics.php",
-            "accounts_receivable.php",
             "settings.php",
             "about_us.php",
           ];
