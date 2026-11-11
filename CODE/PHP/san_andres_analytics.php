@@ -42,7 +42,7 @@ $yearStart = sprintf('%04d-01-01 00:00:00', $currentYear);
 $nextYearStart = sprintf('%04d-01-01 00:00:00', $currentYear + 1);
 $annualYearStart = sprintf('%04d-01-01 00:00:00', $selectedAnnualYear);
 $nextAnnualYearStart = sprintf('%04d-01-01 00:00:00', $selectedAnnualYear + 1);
-$monthStart = sprintf('%04d-%02d-01 00:00:00', $currentYear, $selectedProfitMonth);
+$monthStart = sprintf('%04d-%02d-01 00:00:00', $selectedAnnualYear, $selectedProfitMonth);
 $monthEnd = (new DateTimeImmutable($monthStart))->modify('+1 month')->format('Y-m-d H:i:s');
 
 if ($isAnnualProfitRequest) {
@@ -108,9 +108,9 @@ if ($isAnnualProfitRequest) {
 
 if ($isMonthlyProfitRequest) {
     header('Content-Type: application/json; charset=UTF-8');
-    if ($invalidProfitMonth) {
+    if ($invalidProfitMonth || $invalidAnnualYear) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Select a valid month.']);
+        echo json_encode(['success' => false, 'message' => 'Select a valid month and year.']);
         exit();
     }
 
@@ -157,7 +157,7 @@ if ($isMonthlyProfitRequest) {
             'success' => true,
             'month' => $selectedProfitMonth,
             'month_label' => (new DateTimeImmutable($monthStart))->format('F'),
-            'year' => $currentYear,
+            'year' => $selectedAnnualYear,
             'total_profit' => $monthlyProfitTotal,
             'business_profits' => $monthlyBusinessProfits,
         ], JSON_THROW_ON_ERROR);
@@ -869,7 +869,7 @@ function nxAnalyticsMoney(float $amount): string
                 <strong><?php echo e(nxAnalyticsMoney($totalProfit)); ?></strong>
             </article>
             <article class="analytics-metric">
-                <span>Monthly profit</span>
+                <span id="monthlyProfitYearLabel">Monthly profit (<?php echo $selectedAnnualYear; ?>)</span>
                 <form class="analytics-month-form" id="profitMonthForm" method="get" action="<?php echo e(nxAppUrl('san_andres_analytics.php')); ?>">
                     <label class="analytics-sr-only" for="profitMonth">Select a month for profit review</label>
                     <select class="analytics-month-select" id="profitMonth" name="profit_month">
@@ -959,7 +959,7 @@ function nxAnalyticsMoney(float $amount): string
                                     'net_profit' => (float)$business['net_profit'],
                                     'monthly_net_profit' => (float)$business['monthly_net_profit'],
                                     'annual_net_profit' => (float)$business['annual_net_profit'],
-                                    'profit_year' => $currentYear,
+                                    'profit_year' => $selectedAnnualYear,
                                     'profit_month' => date('F', mktime(0, 0, 0, $selectedProfitMonth, 1)),
                                     'annual_profit_year' => $selectedAnnualYear,
                                     'permit_status' => (string)$business['permit_payment_status'],
@@ -1064,6 +1064,7 @@ function nxAnalyticsMoney(float $amount): string
         var annualProfitYearSelect = document.getElementById('annualProfitYear');
         var monthlyProfitTotal = document.getElementById('monthlyProfitTotal');
         var monthlyProfitStatus = document.getElementById('monthlyProfitStatus');
+        var monthlyProfitYearLabel = document.getElementById('monthlyProfitYearLabel');
         var annualProfitTotal = document.getElementById('annualProfitTotal');
         var annualProfitStatus = document.getElementById('annualProfitStatus');
         var annualProfitLabel = document.getElementById('annualProfitLabel');
@@ -1127,7 +1128,8 @@ function nxAnalyticsMoney(float $amount): string
             var requestId = ++monthlyProfitRequestId;
             var params = new URLSearchParams({
                 ajax: 'monthly_profit',
-                profit_month: requestedMonth
+                profit_month: requestedMonth,
+                annual_year: annualProfitYearSelect.value
             });
             monthlyProfitStatus.classList.remove('is-error');
             monthlyProfitStatus.textContent = 'Loading monthly profit...';
@@ -1150,6 +1152,7 @@ function nxAnalyticsMoney(float $amount): string
                     if (requestId !== monthlyProfitRequestId) return;
 
                     monthlyProfitTotal.textContent = money(data.total_profit);
+                    monthlyProfitYearLabel.textContent = 'Monthly profit (' + data.year + ')';
                     document.querySelectorAll('[data-business-row]').forEach(function (row) {
                         try {
                             var businessData = JSON.parse(row.getAttribute('data-business'));
@@ -1248,6 +1251,7 @@ function nxAnalyticsMoney(float $amount): string
             updateMonthlyProfit();
         });
         annualProfitYearSelect.addEventListener('change', updateAnnualProfit);
+        annualProfitYearSelect.addEventListener('change', updateMonthlyProfit);
         annualProfitYearSelect.form.addEventListener('submit', function (event) {
             event.preventDefault();
             updateAnnualProfit();
