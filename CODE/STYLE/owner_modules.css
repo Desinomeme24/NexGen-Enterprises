@@ -635,7 +635,7 @@ html[data-theme="light"] .owner-module-integrity.invalid {
     margin-bottom: 0;
   }
 
-  .owner-module-table.owner-employee-table td {
+  .owner-module-table.owner-employee-table tbody tr.owner-employee-card > td {
     display: none;
     min-width: 0;
     width: 100%;
