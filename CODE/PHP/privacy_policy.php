@@ -399,7 +399,6 @@ if ($returnTo === 'about_us') {
                 <img src="/NexGen/IMAGES/NGlogo.png" alt="NexGen Logo">
                 <div class="privacy-logo-text">
                     <h1>Privacy Policy</h1>
-                    <p>NexGen Micro-Enterprise System</p>
                 </div>
             </div>
         </header>

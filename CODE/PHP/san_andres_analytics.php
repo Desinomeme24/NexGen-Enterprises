@@ -11,12 +11,28 @@ if (empty($_SESSION['user_id']) || !nxIsAdminRole((string)($_SESSION['role'] ?? 
 
 $currentYear = (int)date('Y');
 $previousYear = $currentYear - 1;
+$annualYearMinimum = min(2015, $currentYear);
+$requestedAnnualYear = $_GET['annual_year'] ?? $previousYear;
+$selectedAnnualYear = filter_var(
+    is_scalar($requestedAnnualYear) ? $requestedAnnualYear : false,
+    FILTER_VALIDATE_INT,
+    ['options' => ['min_range' => $annualYearMinimum, 'max_range' => $currentYear]]
+);
+$invalidAnnualYear = $selectedAnnualYear === false;
+if ($invalidAnnualYear) {
+    $selectedAnnualYear = max($annualYearMinimum, min($previousYear, $currentYear));
+}
+$selectedAnnualYear = (int)$selectedAnnualYear;
+$ajaxRequest = is_scalar($_GET['ajax'] ?? null) ? (string)$_GET['ajax'] : '';
+$isMonthlyProfitRequest = $ajaxRequest === 'monthly_profit';
+$isAnnualProfitRequest = $ajaxRequest === 'annual_profit';
 $requestedProfitMonth = $_GET['profit_month'] ?? date('n');
 $selectedProfitMonth = filter_var(
     is_scalar($requestedProfitMonth) ? $requestedProfitMonth : false,
     FILTER_VALIDATE_INT,
     ['options' => ['min_range' => 1, 'max_range' => 12]]
 );
+$invalidProfitMonth = $selectedProfitMonth === false;
 if ($selectedProfitMonth === false) {
     $selectedProfitMonth = (int)date('n');
 }
@@ -24,9 +40,134 @@ $selectedProfitMonth = (int)$selectedProfitMonth;
 
 $yearStart = sprintf('%04d-01-01 00:00:00', $currentYear);
 $nextYearStart = sprintf('%04d-01-01 00:00:00', $currentYear + 1);
-$previousYearStart = sprintf('%04d-01-01 00:00:00', $previousYear);
+$annualYearStart = sprintf('%04d-01-01 00:00:00', $selectedAnnualYear);
+$nextAnnualYearStart = sprintf('%04d-01-01 00:00:00', $selectedAnnualYear + 1);
 $monthStart = sprintf('%04d-%02d-01 00:00:00', $currentYear, $selectedProfitMonth);
 $monthEnd = (new DateTimeImmutable($monthStart))->modify('+1 month')->format('Y-m-d H:i:s');
+
+if ($isAnnualProfitRequest) {
+    header('Content-Type: application/json; charset=UTF-8');
+    if ($invalidAnnualYear) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Select a valid annual profit year.']);
+        exit();
+    }
+
+    try {
+        $annualProfitStmt = $conn->prepare(
+            "SELECT b.business_entity_id,
+                    SUM(s.total_amount) AS gross_revenue,
+                    SUM(COALESCE(sale_costs.cost_of_goods_sold, 0)) AS cost_of_goods_sold
+             FROM businesses b
+             INNER JOIN sales s ON s.business_id = b.id
+             LEFT JOIN (
+                 SELECT sales_for_cost.id AS sale_id,
+                        SUM(p.cost_price * si.quantity) AS cost_of_goods_sold
+                 FROM sales sales_for_cost
+                 INNER JOIN sale_items si ON si.sale_id = sales_for_cost.id
+                 INNER JOIN products p
+                    ON p.id = si.product_id
+                   AND p.business_id = sales_for_cost.business_id
+                 WHERE sales_for_cost.sale_date >= ? AND sales_for_cost.sale_date < ?
+                 GROUP BY sales_for_cost.id
+             ) sale_costs ON sale_costs.sale_id = s.id
+             WHERE s.sale_date >= ? AND s.sale_date < ?
+             GROUP BY b.business_entity_id"
+        );
+        if (!$annualProfitStmt) {
+            throw new RuntimeException('Unable to prepare annual profit query: ' . $conn->error);
+        }
+        $annualProfitStmt->bind_param('ssss', $annualYearStart, $nextAnnualYearStart, $annualYearStart, $nextAnnualYearStart);
+        if (!$annualProfitStmt->execute()) {
+            throw new RuntimeException('Unable to execute annual profit query: ' . $annualProfitStmt->error);
+        }
+
+        $annualProfitResult = $annualProfitStmt->get_result();
+        $annualBusinessProfits = [];
+        $annualProfitTotal = 0.0;
+        while ($profitRow = $annualProfitResult->fetch_assoc()) {
+            $businessProfit = (float)$profitRow['gross_revenue'] - (float)$profitRow['cost_of_goods_sold'];
+            $annualBusinessProfits[(string)(int)$profitRow['business_entity_id']] = $businessProfit;
+            $annualProfitTotal += $businessProfit;
+        }
+        $annualProfitStmt->close();
+
+        echo json_encode([
+            'success' => true,
+            'year' => $selectedAnnualYear,
+            'total_profit' => $annualProfitTotal,
+            'business_profits' => $annualBusinessProfits,
+        ], JSON_THROW_ON_ERROR);
+    } catch (Throwable $error) {
+        error_log('NexGen San Andres annual analytics request failed: ' . $error->getMessage());
+        http_response_code(503);
+        echo json_encode(['success' => false, 'message' => 'Annual profit is temporarily unavailable.']);
+    }
+    exit();
+}
+
+if ($isMonthlyProfitRequest) {
+    header('Content-Type: application/json; charset=UTF-8');
+    if ($invalidProfitMonth) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Select a valid month.']);
+        exit();
+    }
+
+    try {
+        $monthlyProfitStmt = $conn->prepare(
+            "SELECT b.business_entity_id,
+                    SUM(s.total_amount) AS gross_revenue,
+                    SUM(COALESCE(sale_costs.cost_of_goods_sold, 0)) AS cost_of_goods_sold
+             FROM businesses b
+             INNER JOIN sales s ON s.business_id = b.id
+             LEFT JOIN (
+                 SELECT sales_for_cost.id AS sale_id,
+                        SUM(p.cost_price * si.quantity) AS cost_of_goods_sold
+                 FROM sales sales_for_cost
+                 INNER JOIN sale_items si ON si.sale_id = sales_for_cost.id
+                 INNER JOIN products p
+                    ON p.id = si.product_id
+                   AND p.business_id = sales_for_cost.business_id
+                 WHERE sales_for_cost.sale_date >= ? AND sales_for_cost.sale_date < ?
+                 GROUP BY sales_for_cost.id
+             ) sale_costs ON sale_costs.sale_id = s.id
+             WHERE s.sale_date >= ? AND s.sale_date < ?
+             GROUP BY b.business_entity_id"
+        );
+        if (!$monthlyProfitStmt) {
+            throw new RuntimeException('Unable to prepare monthly profit query: ' . $conn->error);
+        }
+        $monthlyProfitStmt->bind_param('ssss', $monthStart, $monthEnd, $monthStart, $monthEnd);
+        if (!$monthlyProfitStmt->execute()) {
+            throw new RuntimeException('Unable to execute monthly profit query: ' . $monthlyProfitStmt->error);
+        }
+
+        $monthlyProfitResult = $monthlyProfitStmt->get_result();
+        $monthlyBusinessProfits = [];
+        $monthlyProfitTotal = 0.0;
+        while ($profitRow = $monthlyProfitResult->fetch_assoc()) {
+            $businessProfit = (float)$profitRow['gross_revenue'] - (float)$profitRow['cost_of_goods_sold'];
+            $monthlyBusinessProfits[(string)(int)$profitRow['business_entity_id']] = $businessProfit;
+            $monthlyProfitTotal += $businessProfit;
+        }
+        $monthlyProfitStmt->close();
+
+        echo json_encode([
+            'success' => true,
+            'month' => $selectedProfitMonth,
+            'month_label' => (new DateTimeImmutable($monthStart))->format('F'),
+            'year' => $currentYear,
+            'total_profit' => $monthlyProfitTotal,
+            'business_profits' => $monthlyBusinessProfits,
+        ], JSON_THROW_ON_ERROR);
+    } catch (Throwable $error) {
+        error_log('NexGen San Andres monthly analytics request failed: ' . $error->getMessage());
+        http_response_code(503);
+        echo json_encode(['success' => false, 'message' => 'Monthly profit is temporarily unavailable.']);
+    }
+    exit();
+}
 
 try {
     $financialStmt = $conn->prepare(
@@ -73,7 +214,8 @@ try {
                 SUM(CASE WHEN s.sale_date >= ? AND s.sale_date < ? THEN s.total_amount ELSE 0 END) AS annual_gross_revenue
          FROM businesses b
          INNER JOIN sales s ON s.business_id = b.id
-         WHERE s.sale_date >= ? AND s.sale_date < ?
+         WHERE (s.sale_date >= ? AND s.sale_date < ?)
+            OR (s.sale_date >= ? AND s.sale_date < ?)
          GROUP BY b.business_entity_id
      ) revenue ON revenue.business_entity_id = be.id
      LEFT JOIN (
@@ -85,7 +227,8 @@ try {
          INNER JOIN sales s ON s.business_id = b.id
          INNER JOIN sale_items si ON si.sale_id = s.id
          INNER JOIN products p ON p.id = si.product_id AND p.business_id = s.business_id
-         WHERE s.sale_date >= ? AND s.sale_date < ?
+         WHERE (s.sale_date >= ? AND s.sale_date < ?)
+            OR (s.sale_date >= ? AND s.sale_date < ?)
          GROUP BY b.business_entity_id
      ) costs ON costs.business_entity_id = be.id
          ORDER BY revenue.gross_revenue DESC, be.business_name ASC, be.id ASC"
@@ -94,23 +237,27 @@ try {
         throw new RuntimeException('Unable to prepare analytics profit query: ' . $conn->error);
     }
     $financialStmt->bind_param(
-        'ssssssssssssssss',
+        'ssssssssssssssssssss',
         $yearStart,
         $nextYearStart,
         $monthStart,
         $monthEnd,
-        $previousYearStart,
+        $annualYearStart,
+        $nextAnnualYearStart,
         $yearStart,
-        $previousYearStart,
         $nextYearStart,
+        $annualYearStart,
+        $nextAnnualYearStart,
         $yearStart,
         $nextYearStart,
         $monthStart,
         $monthEnd,
-        $previousYearStart,
+        $annualYearStart,
+        $nextAnnualYearStart,
         $yearStart,
-        $previousYearStart,
-        $nextYearStart
+        $nextYearStart,
+        $annualYearStart,
+        $nextAnnualYearStart
     );
     if (!$financialStmt->execute()) {
         throw new RuntimeException('Unable to execute analytics profit query: ' . $financialStmt->error);
@@ -269,7 +416,7 @@ function nxAnalyticsMoney(float $amount): string
     <meta charset="UTF-8">
     <?php include __DIR__ . '/nexgen_favicon/favicon.php'; ?>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cainta Analytics | NexGen</title>
+    <title>San Andres Analytics | NexGen</title>
     <script>
         (function () {
             try {
@@ -301,10 +448,12 @@ function nxAnalyticsMoney(float $amount): string
             min-width: 0;
             min-height: 132px;
             padding: 22px;
-            border: 1px solid var(--glass-border, var(--line));
+            border: 1px solid var(--glass-border);
             border-radius: 18px;
-            background: linear-gradient(145deg, var(--panel, var(--card)), var(--card));
-            box-shadow: 0 12px 28px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .045);
+            background: var(--glass);
+            box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, .06);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
         }
         .analytics-metric::before {
             position: absolute;
@@ -327,7 +476,7 @@ function nxAnalyticsMoney(float $amount): string
         .analytics-filter-button[aria-pressed="true"] {
             border-color: color-mix(in srgb, var(--gold, #eab75e) 70%, var(--line));
             outline: none;
-            box-shadow: 0 16px 34px rgba(0, 0, 0, .23), 0 0 0 2px color-mix(in srgb, var(--gold, #eab75e) 25%, transparent);
+            box-shadow: var(--shadow-lg), 0 0 0 2px var(--gold-soft);
         }
         .analytics-filter-button:hover { transform: translateY(-2px); }
         .analytics-filter-button:focus-visible { outline: 2px solid var(--gold, #eab75e); outline-offset: 2px; }
@@ -342,11 +491,29 @@ function nxAnalyticsMoney(float $amount): string
             line-height: 1.15;
             letter-spacing: -.025em;
         }
-        .analytics-metric:not(.analytics-filter-button)::before { background: #71aaff; }
+        .analytics-metric:not(.analytics-filter-button)::before { background: var(--tone-info-b); }
         .analytics-filter-button[data-permit-filter="paid"]::before { background: #34d399; }
         .analytics-filter-button[data-permit-filter="unpaid"]::before { background: #ff9aa3; }
+        .analytics-month-status {
+            min-height: 1.2em;
+            margin-top: 7px;
+            color: var(--muted);
+            font-size: .78rem;
+        }
+        .analytics-month-status.is-error { color: #ff9aa3; }
         .analytics-month-form { margin-top: 10px; }
         .analytics-month-select {
+            width: 100%;
+            min-height: 42px;
+            padding: 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            color: var(--text);
+            background: var(--card);
+            font: inherit;
+        }
+        .analytics-annual-form { margin-top: 10px; }
+        .analytics-annual-select {
             width: 100%;
             min-height: 42px;
             padding: 8px 10px;
@@ -713,11 +880,23 @@ function nxAnalyticsMoney(float $amount): string
                         <?php endfor; ?>
                     </select>
                 </form>
-                <strong><?php echo e(nxAnalyticsMoney($selectedMonthProfit)); ?></strong>
+                <strong id="monthlyProfitTotal"><?php echo e(nxAnalyticsMoney($selectedMonthProfit)); ?></strong>
+                <span class="analytics-month-status" id="monthlyProfitStatus" role="status" aria-live="polite"></span>
             </article>
             <article class="analytics-metric">
-                <span>Annual profit (<?php echo $previousYear; ?>)</span>
-                <strong><?php echo e(nxAnalyticsMoney($annualProfit)); ?></strong>
+                <span id="annualProfitLabel">Annual profit (<?php echo $selectedAnnualYear; ?>)</span>
+                <form class="analytics-annual-form" id="annualProfitForm" method="get" action="<?php echo e(nxAppUrl('san_andres_analytics.php')); ?>">
+                    <label class="analytics-sr-only" for="annualProfitYear">Select a year for annual profit review</label>
+                    <select class="analytics-annual-select" id="annualProfitYear" name="annual_year">
+                        <?php for ($year = $currentYear; $year >= $annualYearMinimum; $year--): ?>
+                            <option value="<?php echo $year; ?>" <?php echo $selectedAnnualYear === $year ? 'selected' : ''; ?>>
+                                <?php echo $year; ?>
+                            </option>
+                        <?php endfor; ?>
+                    </select>
+                </form>
+                <strong id="annualProfitTotal"><?php echo e(nxAnalyticsMoney($annualProfit)); ?></strong>
+                <span class="analytics-month-status" id="annualProfitStatus" role="status" aria-live="polite"></span>
             </article>
             <button type="button" class="analytics-metric analytics-filter-button" data-permit-filter="all" aria-pressed="true" aria-controls="analyticsBusinessRows">
                 <span>Registered businesses</span>
@@ -782,7 +961,7 @@ function nxAnalyticsMoney(float $amount): string
                                     'annual_net_profit' => (float)$business['annual_net_profit'],
                                     'profit_year' => $currentYear,
                                     'profit_month' => date('F', mktime(0, 0, 0, $selectedProfitMonth, 1)),
-                                    'annual_profit_year' => $previousYear,
+                                    'annual_profit_year' => $selectedAnnualYear,
                                     'permit_status' => (string)$business['permit_payment_status'],
                                     'permit_unpaid_since' => $business['permit_unpaid_since'],
                                     'permit_tracking_ready' => $permitTrackingReady,
@@ -882,9 +1061,21 @@ function nxAnalyticsMoney(float $amount): string
         var quarters = document.getElementById('permitQuarterDetails');
         var controls = document.getElementById('permitAssessmentControls');
         var profitMonthSelect = document.getElementById('profitMonth');
+        var annualProfitYearSelect = document.getElementById('annualProfitYear');
+        var monthlyProfitTotal = document.getElementById('monthlyProfitTotal');
+        var monthlyProfitStatus = document.getElementById('monthlyProfitStatus');
+        var annualProfitTotal = document.getElementById('annualProfitTotal');
+        var annualProfitStatus = document.getElementById('annualProfitStatus');
+        var annualProfitLabel = document.getElementById('annualProfitLabel');
         var lastFocused = null;
+        var activeBusinessRow = null;
+        var lastSuccessfulProfitMonth = profitMonthSelect.value;
+        var monthlyProfitRequestId = 0;
+        var lastSuccessfulAnnualYear = annualProfitYearSelect.value;
+        var annualProfitRequestId = 0;
         var dismissTimers = new WeakMap();
         var phpEndpoint = <?php echo json_encode(nxAppUrl('update_business_permit.php'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+        var analyticsEndpoint = <?php echo json_encode(nxAppUrl('san_andres_analytics.php'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
         function dismissAfterOneSecond(element) {
             if (!element) return;
@@ -931,8 +1122,135 @@ function nxAnalyticsMoney(float $amount): string
             return form;
         }
 
-        profitMonthSelect.addEventListener('change', function () {
-            profitMonthSelect.form.submit();
+        function updateMonthlyProfit() {
+            var requestedMonth = profitMonthSelect.value;
+            var requestId = ++monthlyProfitRequestId;
+            var params = new URLSearchParams({
+                ajax: 'monthly_profit',
+                profit_month: requestedMonth
+            });
+            monthlyProfitStatus.classList.remove('is-error');
+            monthlyProfitStatus.textContent = 'Loading monthly profit...';
+
+            fetch(analyticsEndpoint + '?' + params.toString(), {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin'
+            })
+                .then(function (response) {
+                    return response.json().catch(function () {
+                        throw new Error('Monthly profit could not be updated. Please try again.');
+                    }).then(function (data) {
+                        if (!response.ok || !data.success) {
+                            throw new Error(data.message || 'Monthly profit is temporarily unavailable.');
+                        }
+                        return data;
+                    });
+                })
+                .then(function (data) {
+                    if (requestId !== monthlyProfitRequestId) return;
+
+                    monthlyProfitTotal.textContent = money(data.total_profit);
+                    document.querySelectorAll('[data-business-row]').forEach(function (row) {
+                        try {
+                            var businessData = JSON.parse(row.getAttribute('data-business'));
+                            businessData.monthly_net_profit = data.business_profits[String(businessData.business_entity_id)] || 0;
+                            businessData.profit_month = data.month_label;
+                            businessData.profit_year = data.year;
+                            row.setAttribute('data-business', JSON.stringify(businessData));
+                            if (row === activeBusinessRow) {
+                                document.getElementById('businessDetailsMonthProfitLabel').textContent =
+                                    data.month_label + ' ' + data.year + ' profit';
+                                document.getElementById('businessDetailsMonthlyProfit').textContent =
+                                    money(businessData.monthly_net_profit);
+                            }
+                        } catch (error) {
+                            console.error('Unable to update business monthly profit details.', error);
+                        }
+                    });
+
+                    lastSuccessfulProfitMonth = requestedMonth;
+                    var currentUrl = new URL(window.location.href);
+                    currentUrl.searchParams.set('profit_month', requestedMonth);
+                    window.history.replaceState(null, '', currentUrl.pathname + currentUrl.search + currentUrl.hash);
+                    monthlyProfitStatus.textContent = 'Updated for ' + data.month_label + ' ' + data.year + '.';
+                })
+                .catch(function (error) {
+                    if (requestId !== monthlyProfitRequestId) return;
+                    profitMonthSelect.value = lastSuccessfulProfitMonth;
+                    monthlyProfitStatus.classList.add('is-error');
+                    monthlyProfitStatus.textContent = error.message || 'Monthly profit could not be updated. Please try again.';
+                });
+        }
+
+        function updateAnnualProfit() {
+            var requestedYear = annualProfitYearSelect.value;
+            var requestId = ++annualProfitRequestId;
+            var params = new URLSearchParams({
+                ajax: 'annual_profit',
+                annual_year: requestedYear
+            });
+            annualProfitStatus.classList.remove('is-error');
+            annualProfitStatus.textContent = 'Loading annual profit...';
+
+            fetch(analyticsEndpoint + '?' + params.toString(), {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin'
+            })
+                .then(function (response) {
+                    return response.json().catch(function () {
+                        throw new Error('Annual profit could not be updated. Please try again.');
+                    }).then(function (data) {
+                        if (!response.ok || !data.success) {
+                            throw new Error(data.message || 'Annual profit is temporarily unavailable.');
+                        }
+                        return data;
+                    });
+                })
+                .then(function (data) {
+                    if (requestId !== annualProfitRequestId) return;
+
+                    annualProfitTotal.textContent = money(data.total_profit);
+                    annualProfitLabel.textContent = 'Annual profit (' + data.year + ')';
+                    document.querySelectorAll('[data-business-row]').forEach(function (row) {
+                        try {
+                            var businessData = JSON.parse(row.getAttribute('data-business'));
+                            businessData.annual_net_profit = data.business_profits[String(businessData.business_entity_id)] || 0;
+                            businessData.annual_profit_year = data.year;
+                            row.setAttribute('data-business', JSON.stringify(businessData));
+                            if (row === activeBusinessRow) {
+                                document.getElementById('businessDetailsAnnualProfitLabel').textContent =
+                                    'Annual profit (' + data.year + ')';
+                                document.getElementById('businessDetailsAnnualProfit').textContent =
+                                    money(businessData.annual_net_profit);
+                            }
+                        } catch (error) {
+                            console.error('Unable to update business annual profit details.', error);
+                        }
+                    });
+
+                    lastSuccessfulAnnualYear = requestedYear;
+                    var currentUrl = new URL(window.location.href);
+                    currentUrl.searchParams.set('annual_year', requestedYear);
+                    window.history.replaceState(null, '', currentUrl.pathname + currentUrl.search + currentUrl.hash);
+                    annualProfitStatus.textContent = 'Updated for ' + data.year + '.';
+                })
+                .catch(function (error) {
+                    if (requestId !== annualProfitRequestId) return;
+                    annualProfitYearSelect.value = lastSuccessfulAnnualYear;
+                    annualProfitStatus.classList.add('is-error');
+                    annualProfitStatus.textContent = error.message || 'Annual profit could not be updated. Please try again.';
+                });
+        }
+
+        profitMonthSelect.addEventListener('change', updateMonthlyProfit);
+        profitMonthSelect.form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            updateMonthlyProfit();
+        });
+        annualProfitYearSelect.addEventListener('change', updateAnnualProfit);
+        annualProfitYearSelect.form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            updateAnnualProfit();
         });
 
         function openDetails(row) {
@@ -942,6 +1260,7 @@ function nxAnalyticsMoney(float $amount): string
             } catch (error) {
                 return;
             }
+            activeBusinessRow = row;
             lastFocused = document.activeElement;
             document.getElementById('businessDetailsTitle').textContent = data.business_name;
             document.getElementById('businessDetailsOwner').textContent = 'Owner(s): ' + data.owner_names;
@@ -1110,6 +1429,7 @@ function nxAnalyticsMoney(float $amount): string
         function closeDetails() {
             backdrop.hidden = true;
             document.body.style.overflow = '';
+            activeBusinessRow = null;
             if (lastFocused && typeof lastFocused.focus === 'function') {
                 lastFocused.focus();
             }

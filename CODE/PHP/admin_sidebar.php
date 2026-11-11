@@ -96,7 +96,7 @@ $pendingPageActive = in_array(
     <nav class="admin-menu admin-menu-custom">
         <div class="admin-menu-main">
             <a href="<?php echo e(nxAppUrl('admin_dashboard.php')); ?>" class="<?php echo $currentPage === 'admin_dashboard.php' ? 'active' : ''; ?>"><i class="bi bi-house"></i><span>Dashboard</span></a>
-            <a href="<?php echo e(nxAppUrl('san_andres_analytics.php')); ?>" class="<?php echo $currentPage === 'san_andres_analytics.php' ? 'active' : ''; ?>"><i class="bi bi-graph-up-arrow"></i><span>Cainta Analytics</span></a>
+            <a href="<?php echo e(nxAppUrl('san_andres_analytics.php')); ?>" class="<?php echo $currentPage === 'san_andres_analytics.php' ? 'active' : ''; ?>"><i class="bi bi-graph-up-arrow"></i><span>San Andres Analytics</span></a>
             <a href="<?php echo e(nxAppUrl('pending_requests.php')); ?>" class="<?php echo $pendingPageActive ? 'active' : ''; ?>">
                 <i class="bi bi-clock-history"></i><span>Pending Requests</span>
                 <?php if ($pendingRequestCount > 0): ?>

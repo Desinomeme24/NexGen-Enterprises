@@ -1124,40 +1124,6 @@ body {
   margin-bottom: 12px;
 }
 
-.footer-social {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  margin: 6px 0 18px;
-}
-
-.footer-social a {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  color: #ffffff;
-  font-size: 18px;
-  text-decoration: none;
-  transition:
-    background 0.3s ease,
-    transform 0.3s ease,
-    color 0.3s ease,
-    border-color 0.3s ease;
-}
-
-.footer-social a:hover {
-  background: #f7ca84;
-  color: #0a1128;
-  border-color: #f7ca84;
-  transform: translateY(-3px);
-}
-
 .footer-copy {
   font-size: 14px;
   font-weight: 700;
@@ -1706,9 +1672,6 @@ body {
     opacity: 0.35;
   }
 
-  .footer-social {
-    gap: 12px;
-  }
 }
 
 @media (max-width: 576px) {
@@ -1889,18 +1852,6 @@ body {
   .footer-logo img {
     width: 46px;
     margin-bottom: 8px;
-  }
-
-  .footer-social {
-    gap: 10px;
-    margin: 4px 0 12px;
-  }
-
-  .footer-social a {
-    width: 36px;
-    height: 36px;
-    font-size: 15px;
-    border-radius: 10px;
   }
 
   .footer-copy {
@@ -2478,17 +2429,6 @@ html[data-theme="light"] .footer-top-line {
 html[data-theme="light"] .footer-copy {
   color: #0b1f73;
 }
-html[data-theme="light"] .footer-social a {
-  background: rgba(11, 31, 115, 0.05);
-  border-color: rgba(11, 31, 115, 0.16);
-  color: #2d4570;
-}
-html[data-theme="light"] .footer-social a:hover {
-  background: #f7ca84;
-  color: #0a1128;
-  border-color: #f7ca84;
-}
-
 /* Keep native select menus readable in the default dark theme.
    The workspace picker is rendered by the shared header, so these
    rules intentionally target selects anywhere on the dashboard page. */

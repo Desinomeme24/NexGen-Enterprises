@@ -335,44 +335,6 @@ if (session_status() === PHP_SESSION_ACTIVE) {
   }
   .nav-links a:hover { color: var(--text-main); }
   .nav-links a:hover::after { width: 100%; }
-  .nav-links .has-dropdown { display: flex; align-items: center; gap: 5px; position: relative; cursor: pointer; }
-  .dropdown-menu {
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%) translateY(10px);
-    background: var(--bg-mid);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    padding: 15px;
-    display: flex;
-    gap: 15px;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    z-index: 100;
-  }
-  .has-dropdown:hover .dropdown-menu,
-  .has-dropdown.active .dropdown-menu {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(-50%) translateY(0);
-  }
-  .dropdown-menu a {
-    color: var(--text-muted);
-    font-size: 20px;
-    transition: color 0.3s ease, transform 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .dropdown-menu a:hover {
-    color: var(--accent);
-    transform: translateY(-3px);
-  }
-  .dropdown-menu a::after { display: none !important; }
-
   .nav-cta { display: flex; align-items: center; gap: 18px; }
 
 .landing-theme-toggle {
@@ -1178,8 +1140,6 @@ if (session_status() === PHP_SESSION_ACTIVE) {
     line-height: 1.6;
   }
 
-  .about-cta { margin-top: 8px; }
-
   /* Right visual */
   .about-right {
     position: relative;
@@ -1506,35 +1466,6 @@ if (session_status() === PHP_SESSION_ACTIVE) {
     max-width: 280px;
     line-height: 1.7;
   }
-  .footer-social {
-    display: flex;
-    gap: 12px;
-    margin-top: 20px;
-  }
-  .footer-social a {
-    width: 40px; height: 40px;
-    border-radius: 10px;
-    background: rgba(200, 205, 210,0.05);
-    border: 1px solid var(--line);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
-    color: var(--text-muted);
-    transition: all 0.3s ease;
-  }
-  .footer-social a:hover {
-    background: var(--accent);
-    color: #0A1128;
-    border-color: var(--accent);
-    animation: iconWave 0.6s ease;
-  }
-  @keyframes iconWave {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    20% { transform: translateY(-6px) rotate(-14deg); }
-    40% { transform: translateY(-2px) rotate(10deg); }
-    60% { transform: translateY(-5px) rotate(-6deg); }
-    80% { transform: translateY(0) rotate(3deg); }
-  }
-
   /* ========== BACK TO TOP ========== */
   .back-to-top {
     position: fixed;
@@ -1766,30 +1697,6 @@ if (session_status() === PHP_SESSION_ACTIVE) {
       border-bottom: 1px solid var(--line);
     }
     .nav-links a::after { display: none; }
-
-    .nav-links .has-dropdown {
-      flex-direction: column;
-      align-items: flex-start;
-      width: 100%;
-    }
-    .nav-links .has-dropdown > a { border-bottom: none; padding-bottom: 6px; }
-    .has-dropdown .dropdown-menu {
-      position: static;
-      transform: none;
-      opacity: 1;
-      visibility: visible;
-      display: none;
-      box-shadow: none;
-      border: none;
-      background: transparent;
-      padding: 4px 0 10px 4px;
-      gap: 12px;
-    }
-    .nav-links .has-dropdown.active .dropdown-menu {
-      display: flex;
-      transform: none;
-      flex-wrap: wrap;
-    }
 
     .nav-overlay {
       position: fixed;
@@ -3348,9 +3255,6 @@ if (session_status() === PHP_SESSION_ACTIVE) {
     background: rgba(11, 31, 115, 0.06);
     border-color: rgba(11, 31, 115, 0.2);
   }
-  html[data-theme="light"] .footer-social a {
-    background: rgba(11, 31, 115, 0.05);
-  }
   html[data-theme="light"] .footer-contact .contact-icon {
     background: rgba(11, 31, 115, 0.05);
   }
@@ -4093,7 +3997,7 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
                             <label for="requestedRole">Requested Role</label>
                             <select name="requested_role" id="requestedRole" required>
                                 <option value="">Select role</option>
-                                <option value="owner">SME Owner</option>
+                                <option value="owner">Business Owner</option>
                                 <option value="employee">Employee / Staff</option>
                             </select>
                         </div>
@@ -4427,16 +4331,6 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
       <li><a href="#home">Home</a></li>
       <li><a href="#about">About Us</a></li>
       <li><a href="#services">Services</a></li>
-      <li class="has-dropdown">
-        <a href="javascript:void(0)">Pages ▾</a>
-        <div class="dropdown-menu">
-          <a href="https://www.facebook.com/share/1CuKN9qY3g/" title="Facebook"><i class="fab fa-facebook-f"></i></a>
-          <a href="https://x.com/NexGenX2026" title="Twitter"><i class="fab fa-x-twitter"></i></a>
-          <a href="https://www.instagram.com/nexgen.enterprises26?igsh=MTB5bDNod3lubjhjdw==" title="Instagram"><i class="fab fa-instagram"></i></a>
-          <a href="https://www.tiktok.com/@nexgen.enterprise4?_r=1&_t=ZS-98Vx2jSAL3q
-" title="TikTok"><i class="fab fa-tiktok"></i></a>
-        </div>
-      </li>
       <li><a href="#footer">Contact Us</a></li>
     </ul>
     <div class="nav-cta">
@@ -4820,7 +4714,6 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
           </div>
         </div>
 
-        <a href="#quote" class="btn btn-primary about-cta"><i class="fas fa-rocket"></i> Join Our Journey</a>
       </div>
 
       <!-- Right Panel - Visual -->
@@ -4912,7 +4805,6 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
     
       <div class="cta-buttons">
         <button type="button" id="openLoginFromBot" class="btn btn-primary btn-glow magnetic-btn">Let's Get Started</button>
-        <button type="button" class="btn btn-ghost magnetic-btn" disabled aria-disabled="true">Come In!</button>
       </div>
     </div>
   </div>
@@ -4943,12 +4835,6 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
           NexGen
         </div>
         <p>Bringing inventory, sales, analytics, and chatbot support together in one connected system for smarter business operations.</p>
-        <div class="footer-social">
-          <a href="https://www.facebook.com/share/1CuKN9qY3g/" target="_blank" rel="noopener"><i class="fab fa-facebook-f"></i></a>
-          <a href="https://www.instagram.com/nexgen.enterprises26?igsh=MTB5bDNod3lubjhjdw==" target="_blank" rel="noopener"><i class="fab fa-instagram"></i></a>
-          <a href="https://x.com/NexGenX2026" target="_blank" rel="noopener"><i class="fab fa-x-twitter"></i></a>
-          <a href="https://www.tiktok.com/@nexgen.enterprise4?_r=1&_t=ZS-98Vx2jSAL3q" target="_blank" rel="noopener"><i class="fab fa-tiktok"></i></a>
-        </div>
       </div>
       <div class="footer-col footer-menu">
         <h4>Menu</h4>
@@ -4956,7 +4842,6 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
           <li><a href="#home">Home</a></li>
           <li><a href="#about">About Us</a></li>
           <li><a href="#services">Services</a></li>
-          <li><a href="#pages">Pages</a></li>
         </ul>
       </div>
       <div class="footer-col footer-modules">
@@ -4973,15 +4858,22 @@ html[data-theme="light"] .signup-modern-box .signup-form-panel input[type="file"
         <ul class="footer-contact">
           <li>
             <span class="contact-icon"><i class="fas fa-envelope"></i></span>
-            <span><a href="#">bplo@cainta.gov.ph </a></span>
+            <span>Email: <a href="mailto:bplo@cainta.gov.ph">bplo@cainta.gov.ph</a></span>
           </li>
           <li>
             <span class="contact-icon"><i class="fas fa-phone"></i></span>
-            <span><a href="#">0968-294-6027</a></span>
+            <span>Phone: <a href="tel:+639682946027">0968-294-6027</a></span>
+          </li>
+          <li>
+            <span class="contact-icon"><i class="fas fa-phone"></i></span>
+            <span><a href="tel:86962572">Hotline: 8696-2572</a></span>
           </li>
           <li>
             <span class="contact-icon"><i class="fas fa-location-dot"></i></span>
-            <span>Cainta Municipal Hall Street Cainta Calabarzon</span>
+            <span>Location: Cainta Municipal Hall Street Cainta Calabarzon</span>
+          </li>
+          <li>
+            <span>Facebook: One Cainta BPLO - Business Permit and Licensing Office</span>
           </li>
         </ul>
       </div>
@@ -6906,19 +6798,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Toggle dropdown on click
-    const dropdownTrigger = document.querySelector('.has-dropdown');
-    if (dropdownTrigger) {
-        dropdownTrigger.addEventListener('click', function(e) {
-            e.stopPropagation();
-            this.classList.toggle('active');
-        });
-    }
-    document.addEventListener('click', () => {
-        const activeDropdown = document.querySelector('.has-dropdown.active');
-        if (activeDropdown) activeDropdown.classList.remove('active');
-    });
-
     // ========== MOBILE NAV DRAWER ==========
     const navToggleBtn = document.getElementById('navToggle');
     const navLinksEl = document.getElementById('navLinks');
@@ -6940,8 +6819,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.classList.remove('nav-open');
         navToggleBtn.setAttribute('aria-expanded', 'false');
         navToggleBtn.textContent = '☰';
-        const activeDropdown = document.querySelector('.has-dropdown.active');
-        if (activeDropdown) activeDropdown.classList.remove('active');
     }
 
     if (navToggleBtn && navLinksEl) {
@@ -6961,10 +6838,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (navLinksEl) {
         navLinksEl.querySelectorAll('a').forEach(function(link) {
-            const isDropdownTrigger = link.parentElement && link.parentElement.classList.contains('has-dropdown');
-            if (!isDropdownTrigger) {
-                link.addEventListener('click', closeMobileNav);
-            }
+            link.addEventListener('click', closeMobileNav);
         });
     }
 
