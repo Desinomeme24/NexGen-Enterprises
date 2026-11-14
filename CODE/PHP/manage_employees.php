@@ -613,9 +613,6 @@ unset($_SESSION['flash']);
             <button class="owner-employee-access-close" type="button" data-modal-close aria-label="Close dialog">
                 <i class="bi bi-x-lg" aria-hidden="true"></i>
             </button>
-            <div class="owner-employee-access-icon" aria-hidden="true">
-                <i class="bi bi-person-lock" data-modal-icon></i>
-            </div>
             <h2 id="employeeAccessModalTitle" data-modal-title>Manage employee access</h2>
             <p id="employeeAccessModalDescription" data-modal-description></p>
             <form method="POST" action="<?php echo e(nxAppUrl('manage_employees.php')); ?>" data-employee-access-form>
@@ -644,7 +641,6 @@ unset($_SESSION['flash']);
     const modalAction = accessModal.querySelector('[data-modal-action]');
     const modalEmployeeId = accessModal.querySelector('[data-modal-employee-id]');
     const modalConfirm = accessModal.querySelector('[data-modal-confirm]');
-    const modalIcon = accessModal.querySelector('[data-modal-icon]');
     let activeActionTrigger = null;
 
     const closeAccessModal = () => {
@@ -663,23 +659,19 @@ unset($_SESSION['flash']);
             let action;
             let actionLabel;
             let description;
-            let icon;
 
             if (isLocked) {
                 action = 'unlock_employee';
                 actionLabel = 'Unlock Account';
                 description = 'Unlock this employee account and reset its failed login attempts. This will not change whether the account is enabled or disabled.';
-                icon = 'bi-unlock';
             } else if (accountStatus === 'active') {
                 action = 'disable_employee';
                 actionLabel = 'Disable Account';
                 description = 'This employee will no longer be able to sign in until the account is enabled again.';
-                icon = 'bi-person-x';
             } else if (accountStatus === 'inactive' || accountStatus === 'disabled') {
                 action = 'enable_employee';
                 actionLabel = 'Enable Account';
                 description = 'This restores sign-in access for the employee account.';
-                icon = 'bi-person-check';
             } else {
                 return;
             }
@@ -691,7 +683,6 @@ unset($_SESSION['flash']);
             modalEmployeeId.value = trigger.dataset.employeeId;
             modalConfirm.textContent = actionLabel;
             modalConfirm.dataset.actionKind = action;
-            modalIcon.className = 'bi ' + icon;
             accessModal.hidden = false;
             document.body.classList.add('owner-employee-modal-open');
             accessDialog.focus();

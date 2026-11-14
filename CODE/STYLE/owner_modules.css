@@ -58,7 +58,7 @@ html[data-theme="light"] .owner-module-shell {
 .owner-module-main {
   width: min(1540px, 100%);
   margin: 0 auto;
-  padding: 0 clamp(18px, 2.4vw, 34px) 48px;
+  padding: 24px clamp(18px, 2.4vw, 34px) 48px;
 }
 
 .owner-module-heading {
@@ -548,7 +548,7 @@ html[data-theme="light"] .owner-module-integrity.invalid {
 
 @media (max-width: 1000px) {
   .owner-module-main {
-    padding: 0 20px 44px;
+    padding: 24px 20px 44px;
   }
 
   .owner-module-heading {
@@ -894,7 +894,7 @@ html[data-theme="light"] .owner-module-integrity.invalid {
 
 @media (max-width: 600px) {
   .owner-module-main {
-    padding: 0 14px 32px;
+    padding: 72px 14px 32px;
   }
 
   .owner-module-heading {
@@ -1107,10 +1107,10 @@ html[data-theme="light"] .owner-module-integrity.invalid {
 
 .owner-employee-access-dialog {
   position: relative;
-  width: min(460px, 100%);
+  width: min(400px, 100%);
   max-height: min(90vh, 620px);
   overflow-y: auto;
-  padding: 30px;
+  padding: 24px;
   border: 1px solid rgba(125, 211, 252, 0.3);
   border-radius: 20px;
   background: var(--bg-page);
@@ -1133,21 +1133,8 @@ html[data-theme="light"] .owner-module-integrity.invalid {
   cursor: pointer;
 }
 
-.owner-employee-access-icon {
-  display: grid;
-  width: 48px;
-  height: 48px;
-  margin-bottom: 18px;
-  place-items: center;
-  border: 1px solid rgba(246, 203, 8, 0.35);
-  border-radius: 15px;
-  background: rgba(246, 203, 8, 0.12);
-  color: var(--owner-admin-gold);
-  font-size: 1.25rem;
-}
-
 .owner-employee-access-dialog h2 {
-  margin: 0 40px 10px 0;
+  margin: 0 40px 8px 0;
   color: var(--text-heading);
   font: 800 1.25rem var(--font-display);
 }
@@ -1163,7 +1150,7 @@ html[data-theme="light"] .owner-module-integrity.invalid {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 24px;
+  margin-top: 18px;
 }
 
 .owner-employee-access-cancel,
@@ -1207,7 +1194,7 @@ html[data-theme="light"] .owner-employee-access-dialog {
 
 @media (max-width: 480px) {
   .owner-employee-access-dialog {
-    padding: 24px 20px;
+    padding: 20px 18px;
   }
 
   .owner-employee-access-buttons {
