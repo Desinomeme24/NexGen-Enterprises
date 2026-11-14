@@ -37,6 +37,180 @@ if (!function_exists('e')) {
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'employee_access_action') {
+    $csrfToken = $_POST['csrf_token'] ?? null;
+    if (!is_string($csrfToken) || !validateCsrfToken('manage_employees_action', $csrfToken)) {
+        $_SESSION['flash'] = [
+            'type' => 'notice-error',
+            'message' => 'Your session expired. Please try again.',
+        ];
+    } else {
+        $employeeIdInput = $_POST['employee_id'] ?? '';
+        $employeeAction = $_POST['employee_action'] ?? '';
+        $employeeId = is_string($employeeIdInput) && ctype_digit($employeeIdInput)
+            ? (int)$employeeIdInput
+            : 0;
+
+        if (
+            $employeeId <= 0
+            || !is_string($employeeAction)
+            || !in_array($employeeAction, ['disable_employee', 'enable_employee', 'unlock_employee'], true)
+        ) {
+            $_SESSION['flash'] = [
+                'type' => 'notice-error',
+                'message' => 'Invalid employee access action.',
+            ];
+        } else {
+            $transactionOpen = false;
+            try {
+                $ownedEntityIds = nxGetOwnedBusinessEntityIds($conn, $ownerId);
+                if ($ownedEntityIds === []) {
+                    throw new DomainException('Employee account was not found in your business.');
+                }
+                if (!$conn->begin_transaction()) {
+                    throw new RuntimeException('Unable to begin the employee account update.');
+                }
+                $transactionOpen = true;
+
+                $placeholders = implode(',', array_fill(0, count($ownedEntityIds), '?'));
+                $targetStmt = $conn->prepare(
+                    "SELECT u.id, u.username, u.account_status, u.locked_until
+                     FROM users u
+                     INNER JOIN businesses b ON b.id = u.business_id
+                     INNER JOIN business_entities be ON be.id = b.business_entity_id
+                     WHERE u.id = ?
+                       AND u.role = 'employee'
+                       AND be.id IN ({$placeholders})
+                     LIMIT 1
+                     FOR UPDATE"
+                );
+                if (!$targetStmt) {
+                    throw new RuntimeException('Unable to prepare the employee account lookup: ' . $conn->error);
+                }
+                $targetParams = array_merge([$employeeId], $ownedEntityIds);
+                $targetStmt->bind_param('i' . str_repeat('i', count($ownedEntityIds)), ...$targetParams);
+                if (!$targetStmt->execute()) {
+                    throw new RuntimeException('Unable to load the employee account: ' . $targetStmt->error);
+                }
+                $targetEmployee = $targetStmt->get_result()->fetch_assoc();
+                $targetStmt->close();
+
+                if (!$targetEmployee) {
+                    throw new DomainException('Employee account was not found in your business.');
+                }
+
+                $storedAccountStatus = strtolower(trim((string)$targetEmployee['account_status']));
+                $isLocked = isUserLocked($targetEmployee);
+                $targetStatus = '';
+
+                if ($employeeAction === 'unlock_employee') {
+                    if (!$isLocked) {
+                        throw new DomainException('This employee account is not currently locked.');
+                    }
+
+                    $updateStmt = $conn->prepare(
+                        "UPDATE users
+                         SET failed_login_attempts = 0,
+                             locked_until = NULL,
+                             last_failed_login_at = NULL
+                         WHERE id = ? AND role = 'employee'"
+                    );
+                    if (!$updateStmt) {
+                        throw new RuntimeException('Unable to prepare the employee unlock: ' . $conn->error);
+                    }
+                    $updateStmt->bind_param('i', $employeeId);
+                    $activityAction = 'unlock_employee_account';
+                    $successMessage = 'Employee account unlocked and failed login attempts reset.';
+                    $activityVerb = 'Unlocked';
+                } else {
+                    if ($isLocked) {
+                        throw new DomainException('Unlock this employee account before changing its access status.');
+                    }
+
+                    if ($employeeAction === 'disable_employee') {
+                        if ($storedAccountStatus !== 'active') {
+                            throw new DomainException('This employee account is no longer active.');
+                        }
+                        $targetStatus = 'disabled';
+                        $activityAction = 'disable_employee_account';
+                        $successMessage = 'Employee account disabled.';
+                        $activityVerb = 'Disabled';
+                    } else {
+                        if (!in_array($storedAccountStatus, ['inactive', 'disabled'], true)) {
+                            throw new DomainException('This employee account is not disabled.');
+                        }
+                        $targetStatus = 'active';
+                        $activityAction = 'enable_employee_account';
+                        $successMessage = 'Employee account enabled.';
+                        $activityVerb = 'Enabled';
+                    }
+
+                    $updateStmt = $conn->prepare(
+                        "UPDATE users
+                         SET account_status = ?
+                         WHERE id = ? AND role = 'employee' AND account_status = ?"
+                    );
+                    if (!$updateStmt) {
+                        throw new RuntimeException('Unable to prepare the employee access update: ' . $conn->error);
+                    }
+                    $updateStmt->bind_param('sis', $targetStatus, $employeeId, $storedAccountStatus);
+                }
+
+                if (!$updateStmt->execute()) {
+                    throw new RuntimeException('Unable to update the employee account: ' . $updateStmt->error);
+                }
+                if ($updateStmt->affected_rows !== 1) {
+                    $updateStmt->close();
+                    throw new DomainException('The employee account changed. Refresh the page and try again.');
+                }
+                $updateStmt->close();
+
+                $description = "{$activityVerb} employee account #{$employeeId} ({$targetEmployee['username']}).";
+                if (!logAdminActivitySecure(
+                    $conn,
+                    $ownerId,
+                    $activityAction,
+                    'user',
+                    $employeeId,
+                    $description
+                )) {
+                    throw new RuntimeException('Unable to record the employee account action.');
+                }
+                if (!$conn->commit()) {
+                    throw new RuntimeException('Unable to complete the employee account update.');
+                }
+                $transactionOpen = false;
+                $_SESSION['flash'] = [
+                    'type' => 'notice-success',
+                    'message' => $successMessage,
+                ];
+            } catch (DomainException $error) {
+                if ($transactionOpen) {
+                    $conn->rollback();
+                }
+                $_SESSION['flash'] = [
+                    'type' => 'notice-error',
+                    'message' => $error->getMessage(),
+                ];
+            } catch (Throwable $error) {
+                if ($transactionOpen) {
+                    $conn->rollback();
+                }
+                error_log('NexGen Manage Employees access action failed: ' . $error->getMessage());
+                $_SESSION['flash'] = [
+                    'type' => 'notice-error',
+                    'message' => 'Unable to update the employee account. Please try again.',
+                ];
+            }
+        }
+    }
+
+    header('Location: ' . nxAppUrl('manage_employees.php'));
+    exit();
+}
+
+$employeeActionToken = generateCsrfToken('manage_employees_action');
+
 $status = (string)($_GET['status'] ?? 'all');
 $status = in_array($status, ['all', 'pending', 'resubmit'], true) ? $status : 'all';
 $search = trim((string)($_GET['search'] ?? ''));
@@ -131,7 +305,8 @@ try {
 
         $employeeSql =
             "SELECT u.id, u.full_name, u.username, u.employee_no, u.email, u.phone,
-                    u.last_login_at, {$employeeActivitySql} AS activity_status,
+                    u.last_login_at, u.account_status, u.locked_until,
+                    {$employeeActivitySql} AS activity_status,
                     be.business_name, be.business_code, b.branch_name, b.branch_code
              FROM users u
              INNER JOIN businesses b ON b.id = u.business_id
@@ -358,10 +533,21 @@ unset($_SESSION['flash']);
                         <?php foreach ($employees as $employee): ?>
                             <?php
                             $activityStatus = strtolower((string)$employee['activity_status']);
-                            $statusClass = in_array($activityStatus, ['active', 'inactive'], true)
-                                ? $activityStatus
-                                : 'disabled';
-                            $statusLabel = ucwords(str_replace('_', ' ', $activityStatus));
+                            $storedAccountStatus = strtolower(trim((string)$employee['account_status']));
+                            $isLocked = isUserLocked($employee);
+                            $statusClass = $isLocked
+                                ? 'locked'
+                                : (in_array($activityStatus, ['active', 'inactive'], true) ? $activityStatus : 'disabled');
+                            $statusLabel = $isLocked
+                                ? 'Locked Out'
+                                : ucwords(str_replace('_', ' ', $activityStatus));
+                            $statusIcon = $isLocked
+                                ? 'bi-lock-fill'
+                                : ($statusClass === 'active'
+                                    ? 'bi-check-circle-fill'
+                                    : ($statusClass === 'inactive' ? 'bi-clock-history' : 'bi-slash-circle-fill'));
+                            $canManageAccount = $isLocked
+                                || in_array($storedAccountStatus, ['active', 'inactive', 'disabled'], true);
                             ?>
                             <tr class="owner-employee-card">
                                 <td data-label="Employee">
@@ -386,10 +572,26 @@ unset($_SESSION['flash']);
                                         : 'Not Yet Logged In'; ?>
                                 </td>
                                 <td data-label="Status">
-                                    <span class="owner-module-status <?php echo e($statusClass); ?>">
-                                        <i class="bi <?php echo $statusClass === 'active' ? 'bi-check-circle-fill' : ($statusClass === 'inactive' ? 'bi-clock-history' : 'bi-slash-circle-fill'); ?>" aria-hidden="true"></i>
-                                        <?php echo e($statusLabel); ?>
-                                    </span>
+                                    <div class="owner-employee-status-actions">
+                                        <span class="owner-module-status <?php echo e($statusClass); ?>">
+                                            <i class="bi <?php echo e($statusIcon); ?>" aria-hidden="true"></i>
+                                            <?php echo e($statusLabel); ?>
+                                        </span>
+                                        <?php if ($canManageAccount): ?>
+                                            <button
+                                                class="owner-employee-action-trigger"
+                                                type="button"
+                                                data-employee-action-trigger
+                                                data-employee-id="<?php echo (int)$employee['id']; ?>"
+                                                data-employee-name="<?php echo e($employee['full_name']); ?>"
+                                                data-account-status="<?php echo e($storedAccountStatus); ?>"
+                                                data-account-locked="<?php echo $isLocked ? 'true' : 'false'; ?>"
+                                                aria-label="Manage access for <?php echo e($employee['full_name']); ?>"
+                                                aria-haspopup="dialog">
+                                                <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -399,12 +601,153 @@ unset($_SESSION['flash']);
             </div>
         </section>
     </main>
+
+    <div class="owner-employee-access-modal" data-employee-access-modal hidden>
+        <section
+            class="owner-employee-access-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="employeeAccessModalTitle"
+            aria-describedby="employeeAccessModalDescription"
+            tabindex="-1">
+            <button class="owner-employee-access-close" type="button" data-modal-close aria-label="Close dialog">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+            <div class="owner-employee-access-icon" aria-hidden="true">
+                <i class="bi bi-person-lock" data-modal-icon></i>
+            </div>
+            <h2 id="employeeAccessModalTitle" data-modal-title>Manage employee access</h2>
+            <p id="employeeAccessModalDescription" data-modal-description></p>
+            <form method="POST" action="<?php echo e(nxAppUrl('manage_employees.php')); ?>" data-employee-access-form>
+                <input type="hidden" name="csrf_token" value="<?php echo e($employeeActionToken); ?>">
+                <input type="hidden" name="action" value="employee_access_action">
+                <input type="hidden" name="employee_action" data-modal-action>
+                <input type="hidden" name="employee_id" data-modal-employee-id>
+                <div class="owner-employee-access-buttons">
+                    <button class="owner-employee-access-cancel" type="button" data-modal-close>Cancel</button>
+                    <button class="owner-employee-access-confirm" type="submit" data-modal-confirm></button>
+                </div>
+            </form>
+        </section>
+    </div>
 </div>
 <script src="<?php echo e(nxCodeUrl('JS/header.js')); ?>" defer></script>
 <script>
 (() => {
     const scrollKey = 'nexgen.manageEmployees.filterScroll';
     const filterForms = document.querySelectorAll('form[data-auto-submit-filters]');
+    const accessModal = document.querySelector('[data-employee-access-modal]');
+    const accessDialog = accessModal.querySelector('[role="dialog"]');
+    const accessForm = accessModal.querySelector('[data-employee-access-form]');
+    const modalTitle = accessModal.querySelector('[data-modal-title]');
+    const modalDescription = accessModal.querySelector('[data-modal-description]');
+    const modalAction = accessModal.querySelector('[data-modal-action]');
+    const modalEmployeeId = accessModal.querySelector('[data-modal-employee-id]');
+    const modalConfirm = accessModal.querySelector('[data-modal-confirm]');
+    const modalIcon = accessModal.querySelector('[data-modal-icon]');
+    let activeActionTrigger = null;
+
+    const closeAccessModal = () => {
+        accessModal.hidden = true;
+        document.body.classList.remove('owner-employee-modal-open');
+        if (activeActionTrigger) {
+            activeActionTrigger.focus();
+            activeActionTrigger = null;
+        }
+    };
+
+    document.querySelectorAll('[data-employee-action-trigger]').forEach((trigger) => {
+        trigger.addEventListener('click', () => {
+            const accountStatus = trigger.dataset.accountStatus;
+            const isLocked = trigger.dataset.accountLocked === 'true';
+            let action;
+            let actionLabel;
+            let description;
+            let icon;
+
+            if (isLocked) {
+                action = 'unlock_employee';
+                actionLabel = 'Unlock Account';
+                description = 'Unlock this employee account and reset its failed login attempts. This will not change whether the account is enabled or disabled.';
+                icon = 'bi-unlock';
+            } else if (accountStatus === 'active') {
+                action = 'disable_employee';
+                actionLabel = 'Disable Account';
+                description = 'This employee will no longer be able to sign in until the account is enabled again.';
+                icon = 'bi-person-x';
+            } else if (accountStatus === 'inactive' || accountStatus === 'disabled') {
+                action = 'enable_employee';
+                actionLabel = 'Enable Account';
+                description = 'This restores sign-in access for the employee account.';
+                icon = 'bi-person-check';
+            } else {
+                return;
+            }
+
+            activeActionTrigger = trigger;
+            modalTitle.textContent = actionLabel + ' for ' + (trigger.dataset.employeeName || 'this employee') + '?';
+            modalDescription.textContent = description;
+            modalAction.value = action;
+            modalEmployeeId.value = trigger.dataset.employeeId;
+            modalConfirm.textContent = actionLabel;
+            modalConfirm.dataset.actionKind = action;
+            modalIcon.className = 'bi ' + icon;
+            accessModal.hidden = false;
+            document.body.classList.add('owner-employee-modal-open');
+            accessDialog.focus();
+        });
+    });
+
+    accessModal.querySelectorAll('[data-modal-close]').forEach((button) => {
+        button.addEventListener('click', closeAccessModal);
+    });
+
+    accessModal.addEventListener('click', (event) => {
+        if (event.target === accessModal) {
+            closeAccessModal();
+        }
+    });
+
+    accessForm.addEventListener('submit', () => {
+        modalConfirm.disabled = true;
+        modalConfirm.textContent = 'Processing...';
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (accessModal.hidden) {
+            return;
+        }
+        if (event.key === 'Escape') {
+            closeAccessModal();
+            return;
+        }
+        if (event.key !== 'Tab') {
+            return;
+        }
+
+        const focusableElements = Array.from(accessDialog.querySelectorAll(
+            'button:not(:disabled), input:not([type="hidden"]):not(:disabled), [tabindex]:not([tabindex="-1"])'
+        ));
+        if (focusableElements.length === 0) {
+            event.preventDefault();
+            accessDialog.focus();
+            return;
+        }
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+        if (!accessDialog.contains(document.activeElement)) {
+            event.preventDefault();
+            firstElement.focus();
+            return;
+        }
+        if (event.shiftKey && (document.activeElement === firstElement || document.activeElement === accessDialog)) {
+            event.preventDefault();
+            lastElement.focus();
+        } else if (!event.shiftKey && document.activeElement === lastElement) {
+            event.preventDefault();
+            firstElement.focus();
+        }
+    });
 
     filterForms.forEach((form) => {
         form.addEventListener('submit', () => {
