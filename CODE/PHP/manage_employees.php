@@ -231,7 +231,7 @@ unset($_SESSION['flash']);
             <div class="owner-module-section-heading">
                 <div>
                     <h2 id="employeeRequestsHeading"><i class="bi bi-person-lines-fill"></i> Access Requests</h2>
-                    <p>Review and decide on employee applications for your business branches.</p>
+                   
                 </div>
             </div>
             <div class="owner-module-toolbar">
@@ -305,7 +305,7 @@ unset($_SESSION['flash']);
             <div class="owner-module-section-heading">
                 <div>
                     <h2 id="enrolledEmployeesHeading"><i class="bi bi-people-fill" aria-hidden="true"></i> Enrolled Employees</h2>
-                    <p>Employees assigned to your business branches, including inactive and disabled accounts.</p>
+               
                 </div>
             </div>
             <div class="owner-module-toolbar">
@@ -383,7 +383,7 @@ unset($_SESSION['flash']);
                                 <td data-label="Last Sign-in">
                                     <?php echo !empty($employee['last_login_at'])
                                         ? e(date('M d, Y h:i A', strtotime((string)$employee['last_login_at'])))
-                                        : 'Never'; ?>
+                                        : 'Not Yet Logged In'; ?>
                                 </td>
                                 <td data-label="Status">
                                     <span class="owner-module-status <?php echo e($statusClass); ?>">

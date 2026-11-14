@@ -58,7 +58,7 @@ html[data-theme="light"] .owner-module-shell {
 .owner-module-main {
   width: min(1540px, 100%);
   margin: 0 auto;
-  padding: 108px clamp(18px, 2.4vw, 34px) 48px;
+  padding: 82px clamp(18px, 2.4vw, 34px) 48px;
 }
 
 .owner-module-heading {
@@ -491,7 +491,7 @@ html[data-theme="light"] .owner-module-integrity.invalid {
 
 @media (max-width: 1000px) {
   .owner-module-main {
-    padding: 104px 20px 44px;
+    padding: 82px 20px 44px;
   }
 
   .owner-module-heading {
@@ -832,7 +832,7 @@ html[data-theme="light"] .owner-module-integrity.invalid {
 
 @media (max-width: 600px) {
   .owner-module-main {
-    padding: 88px 14px 32px;
+    padding: 72px 14px 32px;
   }
 
   .owner-module-heading {
