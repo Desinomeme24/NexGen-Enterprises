@@ -642,7 +642,7 @@ function nxAnalyticsMoney(float $amount): string
             outline: 3px solid color-mix(in srgb, var(--gold, #eab75e) 20%, transparent);
         }
         .analytics-table-wrap {
-            max-height: 600px;
+            max-height: 572px;
             overflow: auto;
             border: 1px solid var(--line);
             border-radius: 14px;
@@ -1281,7 +1281,7 @@ function nxAnalyticsMoney(float $amount): string
                 </select>
                 <p id="businessDetailsAnnualProfit"></p>
             </article>
-            <p class="analytics-business-profit-note">Profit shown is for this business entity and is not divided among multiple owners.</p>
+            
             <p class="analytics-business-profit-status" id="businessDetailsProfitStatus" role="status" aria-live="polite"></p>
             <article class="analytics-detail-card analytics-gradient-card analytics-location-summary">
                 <h3>Business location(s)</h3>

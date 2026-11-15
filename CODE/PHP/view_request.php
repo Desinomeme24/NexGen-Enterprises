@@ -982,7 +982,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                     <p class="notice">
                         <?php echo $isOwnerReview
                             ? 'Review the employee information and submitted business and branch codes before granting workspace access.'
-                            : 'Verify the applicant and business permit against BPLO records before approving this small-enterprise account.'; ?>
+                            : 'Verify the applicant and business permit.'; ?>
                     </p>
                     <div class="notice request-action-feedback" id="requestActionFeedback" role="status"></div>
 
@@ -1040,7 +1040,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
                         <div class="modern-field">
                             <label>
                                 <input type="checkbox" name="small_enterprise_confirmed" value="1" id="smallEnterpriseConfirmed">
-                                I verified this business qualifies as a small enterprise.
+                                I verified this business qualifications.
                             </label>
                         </div>
                         <?php endif; ?>

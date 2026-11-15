@@ -833,7 +833,7 @@ if ($currentStatusForTab === '') {
                     <i class="bi bi-archive"></i>
                     <span><?php echo $totalProducts; ?> registered products</span>
                     <span class="meta-divider">|</span>
-                    <span class="inventory-subtitle">Store, Manage, and Adjust your Inventory Items Easily</span>
+                    
                 </div>
             </div>
 

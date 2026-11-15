@@ -148,7 +148,7 @@ if (whySectionToggleBtn && whySection) {
 
     const label = whySectionToggleBtn.querySelector("span");
     if (label) {
-      label.textContent = isOpen ? "Hide" : "Why NextGen?";
+      label.textContent = isOpen ? "Hide" : "Why NexGen?";
     }
 
     if (isOpen) {

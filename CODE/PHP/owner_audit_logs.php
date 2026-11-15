@@ -125,7 +125,6 @@ $stmt->close();
         <div class="owner-module-heading">
             <h1><i class="bi bi-journal-check"></i> Audit Logs</h1>
             <div>
-                <p>Review and verify actions performed from your owner account.
             </div>
         </div>
 

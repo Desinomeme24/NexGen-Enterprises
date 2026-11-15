@@ -190,7 +190,7 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
         <section class="settings-panel active-panel" id="account-panel">
             <div class="panel-header">
                 <h1>Account Settings</h1>
-                <p class="panel-subtitle">View your personal information and how it's displayed.</p>
+                <p class="panel-subtitle">View your personal information.</p>
             </div>
 
             <div class="account-form">
@@ -393,7 +393,7 @@ $workspaceCsrfToken = generateCsrfToken('workspace_action');
             <div class="panel-header panel-header-accent">
                 <h2>Personalization</h2>
                 <span class="panel-accent-bar"></span>
-                <p class="panel-subtitle">Choose how NexGen looks.</p>
+                <p class="panel-subtitle">Set your preferred theme. </p>
             </div>
 
             <div class="theme-card-group" id="themeChoiceGroup">

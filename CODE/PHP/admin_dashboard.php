@@ -142,11 +142,6 @@ $activeBranches = adminDashboardCount(
                 AND be.permit_unpaid_since > DATE_SUB(NOW(), INTERVAL 20 DAY)))"
 );
 
-$adminLogEntries = adminDashboardCount(
-    $conn,
-    'SELECT COUNT(*) AS total FROM admin_logs'
-);
-
 $activeUserRate = $managedUsers > 0
     ? min(100, (int)round(($recentlyActiveUsers / $managedUsers) * 100))
     : 0;
@@ -712,7 +707,11 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
         }
 
         .dashboard-readiness-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
             min-width: 0;
+            min-height: 110px;
             padding: 12px;
             border: 1px solid var(--line, rgba(255, 255, 255, 0.1));
             border-radius: 13px;
@@ -722,10 +721,12 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
         .dashboard-readiness-status {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 7px;
             color: var(--white, #fff);
             font-size: 0.72rem;
             font-weight: 800;
+            text-align: center;
         }
 
         .dashboard-status-dot {
@@ -740,14 +741,6 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
         .dashboard-status-dot.warning {
             background: var(--warning, #fbbf24);
             box-shadow: 0 0 10px rgba(251, 191, 36, 0.42);
-        }
-
-        .dashboard-readiness-item small {
-            display: block;
-            margin-top: 6px;
-            color: var(--muted, #b9d4f5);
-            font-size: 0.65rem;
-            line-height: 1.35;
         }
 
         .dashboard-section { margin-top: 22px; }
@@ -1428,7 +1421,7 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
                     </div>
                     <div class="dashboard-activity-copy">
                         <strong><?php echo $recentlyActiveUsers; ?></strong>
-                        <span>recently active users</span>
+                        <span>Recently active users</span>
                         <small>of <?php echo $managedUsers; ?> managed SE account(s)</small>
                     </div>
                 </div>
@@ -1461,31 +1454,28 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
                     <span class="dashboard-security-orb"><i class="bi bi-shield-lock" aria-hidden="true"></i></span>
                     <div class="dashboard-security-count">
                         <strong><?php echo $lockedUsers; ?></strong>
-                        <span><?php echo $lockedUsers === 1 ? 'account is currently locked' : 'accounts are currently locked'; ?></span>
+                        <span><?php echo $lockedUsers === 1 ? 'account is currently locked' : 'Accounts are currently locked'; ?></span>
                     </div>
                 </div>
 
-                <div class="dashboard-readiness-list" aria-label="Security and system readiness">
+                <div class="dashboard-readiness-list" aria-label="Security and system readiness">s
                     <div class="dashboard-readiness-item">
                         <span class="dashboard-readiness-status">
                             <span class="dashboard-status-dot" aria-hidden="true"></span>
                             Session protection
                         </span>
-                        <small>Hardened timeout controls are enabled.</small>
                     </div>
                     <div class="dashboard-readiness-item">
                         <span class="dashboard-readiness-status">
                             <span class="dashboard-status-dot<?php echo $workspaceRequestsReady ? '' : ' warning'; ?>" aria-hidden="true"></span>
                             Workspace workflow
                         </span>
-                        <small><?php echo $workspaceRequestsReady ? 'Request schema is ready.' : 'Database migration is required.'; ?></small>
                     </div>
                     <div class="dashboard-readiness-item">
                         <span class="dashboard-readiness-status">
                             <span class="dashboard-status-dot" aria-hidden="true"></span>
                             Audit trail
                         </span>
-                        <small><?php echo $adminLogEntries; ?> administrative action(s) recorded.</small>
                     </div>
                 </div>
             </article>

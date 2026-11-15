@@ -1059,7 +1059,7 @@ unset($_SESSION['flash'], $_SESSION['success'], $_SESSION['error']);
 
         <section class="panel">
             <div class="panel-header">
-                <h2>Requests Awaiting BPLO Review</h2>
+                
             </div>
             <div class="panel-body">
                 <form method="GET" class="filters pending-request-filters" id="requestFilterForm">

@@ -968,13 +968,8 @@ if (isset($_SESSION['success'])) {
                         </section>
 
                         <div class="appendices-card appendices-card-light">
-                            <div class="appendices-search">
-                                <i class="bi bi-search"></i>
-                                <input type="text" id="appendicesSearchInput" placeholder="Search components, e.g. &quot;Top Products&quot;">
-                            </div>
-
-                            <div class="row g-3 appendices-grid" id="appendicesGrid">
-                                <div class="col-md-6 appendix-col">
+                            <div class="row g-3 appendices-grid">
+                                <div class="col-md-6">
                                     <div class="appendix-item appendix-item-light accent-blue">
                                         <div class="appendix-icon-badge"><i class="bi bi-box-seam"></i></div>
                                         <h3>Sales Summary</h3>
@@ -988,7 +983,7 @@ if (isset($_SESSION['success'])) {
                                     </div>
                                 </div>
 
-                                <div class="col-md-6 appendix-col">
+                                <div class="col-md-6">
                                     <div class="appendix-item appendix-item-light accent-teal">
                                         <div class="appendix-icon-badge"><i class="bi bi-calendar3"></i></div>
                                         <h3>Time Filters</h3>
@@ -1001,7 +996,7 @@ if (isset($_SESSION['success'])) {
                                     </div>
                                 </div>
 
-                                <div class="col-md-6 appendix-col">
+                                <div class="col-md-6">
                                     <div class="appendix-item appendix-item-light accent-purple">
                                         <div class="appendix-icon-badge"><i class="bi bi-bar-chart-line"></i></div>
                                         <h3>Sales Trends</h3>
@@ -1014,7 +1009,7 @@ if (isset($_SESSION['success'])) {
                                     </div>
                                 </div>
 
-                                <div class="col-md-6 appendix-col">
+                                <div class="col-md-6">
                                     <div class="appendix-item appendix-item-light accent-gold">
                                         <div class="appendix-icon-badge"><i class="bi bi-trophy-fill"></i></div>
                                         <h3>Performance Analysis</h3>
@@ -1026,12 +1021,6 @@ if (isset($_SESSION['success'])) {
                                         </ul>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div class="appendices-empty d-none" id="appendicesEmptyState">
-                                <div class="empty-icon"><i class="bi bi-search"></i></div>
-                                <h5>No matching components</h5>
-                                <p>Try a different search term.</p>
                             </div>
 
                             <div class="appendices-actions">
@@ -1156,28 +1145,6 @@ window.salesAnalyticsData = {
 };
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Key Components live search
-    var searchInput = document.getElementById('appendicesSearchInput');
-    if (searchInput) {
-        searchInput.addEventListener('input', function () {
-            var term = this.value.trim().toLowerCase();
-            var cols = document.querySelectorAll('#appendicesGrid .appendix-col');
-            var visibleCount = 0;
-
-            cols.forEach(function (col) {
-                var text = col.textContent.toLowerCase();
-                var matches = text.indexOf(term) !== -1;
-                col.classList.toggle('d-none', !matches);
-                if (matches) visibleCount++;
-            });
-
-            var emptyState = document.getElementById('appendicesEmptyState');
-            if (emptyState) {
-                emptyState.classList.toggle('d-none', visibleCount !== 0);
-            }
-        });
-    }
-
     // Mark all notifications as read and persist the timestamp in the database.
     var markAllBtn = document.getElementById('markAllReadBtn');
     if (markAllBtn) {

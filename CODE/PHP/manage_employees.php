@@ -392,7 +392,6 @@ unset($_SESSION['flash']);
         <div class="owner-module-heading">
             <h1><i class="bi bi-people-fill"></i> Manage Employees</h1>
             <div>
-                <p>Review employee applications and manage the roster assigned to your business branches.</p>
             </div>
         </div>
 
