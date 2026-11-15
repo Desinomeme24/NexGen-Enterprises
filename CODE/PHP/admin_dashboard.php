@@ -707,11 +707,7 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
         }
 
         .dashboard-readiness-item {
-            display: flex;
-            align-items: center;
-            justify-content: center;
             min-width: 0;
-            min-height: 110px;
             padding: 12px;
             border: 1px solid var(--line, rgba(255, 255, 255, 0.1));
             border-radius: 13px;
@@ -721,12 +717,10 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
         .dashboard-readiness-status {
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 7px;
             color: var(--white, #fff);
             font-size: 0.72rem;
             font-weight: 800;
-            text-align: center;
         }
 
         .dashboard-status-dot {
@@ -1458,7 +1452,7 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
                     </div>
                 </div>
 
-                <div class="dashboard-readiness-list" aria-label="Security and system readiness">s
+                <div class="dashboard-readiness-list" aria-label="Security and system readiness">
                     <div class="dashboard-readiness-item">
                         <span class="dashboard-readiness-status">
                             <span class="dashboard-status-dot" aria-hidden="true"></span>
