@@ -855,7 +855,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
         <div class="topbar">
             <div class="page-title">
                 <h1>Registration Request</h1>
-                <p>Review the registration details and uploaded ID</p>
+               
             </div>
         </div>
 
@@ -971,7 +971,7 @@ $isEmbeddedView = ($_GET['embedded'] ?? '') === '1';
 
         <section class="panel admin-actions-panel">
             <div class="panel-header">
-                <h2><?php echo $isOwnerReview ? 'Business Owner Actions' : 'BPLO Administrator Actions'; ?></h2>
+                <h2><?php echo $isOwnerReview ? 'Business Owner Actions' : 'Administrator Control'; ?></h2>
             </div>
             <div class="panel-body">
                 <?php if ($isFinalized): ?>

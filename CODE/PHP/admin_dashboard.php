@@ -1480,9 +1480,6 @@ $reviewQueue = array_slice($reviewQueue, 0, 10);
             <div class="panel-header">
                 <div>
                     <h2>Review Queue</h2>
-                    <p style="margin:5px 0 0; color:var(--muted, #aab4cf); font-size:0.84rem;">
-                        The newest SE account and workspace requests awaiting BPLO review.
-                    </p>
                 </div>
                 <a class="btn btn-gold" href="pending_requests.php">
                     <i class="bi bi-person-workspace"></i> Full Request History
